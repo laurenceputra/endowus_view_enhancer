@@ -26,17 +26,33 @@ function showOverlayTable() {
 
     // Build table HTML for each goalBucket
     Object.keys(mapping).forEach(bucket => {
+        // Calculate total return for the bucket
+        let bucketTotalReturn = 0;
+        Object.keys(mapping[bucket]).forEach(goalType => {
+            if (goalType === "total") return;
+            bucketTotalReturn += mapping[bucket][goalType].totalCumulativeReturn || 0;
+        });
+
         const bucketHeader = document.createElement('h2');
-        bucketHeader.textContent = `${bucket} (Total: ${mapping[bucket].total?.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) || '-'})`;
+        bucketHeader.textContent =
+            `${bucket} (Total: ${mapping[bucket].total?.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) || '-'}, ` +
+            `Total Return: ${bucketTotalReturn.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})})`;
         container.appendChild(bucketHeader);
 
         Object.keys(mapping[bucket]).forEach(goalType => {
             if (goalType === "total") return;
             const group = mapping[bucket][goalType];
 
-            // GoalType header with total
+            // Calculate percentage of this goalType's return vs bucket
+            const typeReturn = group.totalCumulativeReturn || 0;
+            const percentOfBucketReturn = bucketTotalReturn !== 0
+                ? ((typeReturn / group.totalInvestmentAmount) * 100).toFixed(2)
+                : '0.00';
+
+            // GoalType header with total and percentage of bucket
             const typeHeader = document.createElement('h3');
-            typeHeader.textContent = `${goalType} (Total: ${group.totalInvestmentAmount?.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) || '-'})`;
+            typeHeader.textContent = `${goalType} (Total: ${group.totalInvestmentAmount?.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) || '-'}, ` +
+                `Total Return: ${typeReturn.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} (${percentOfBucketReturn}% growth) )`;
             container.appendChild(typeHeader);
 
             const table = document.createElement('table');
