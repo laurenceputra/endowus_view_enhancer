@@ -4,6 +4,17 @@ const btn = document.createElement('button');
 btn.id = "endowus-portfolio-btn";
 btn.textContent = "Portfolio Viewer";
 
+function getDisplayGoalType(goalType) {
+    switch (goalType) {
+        case 'GENERAL_WEALTH_ACCUMULATION':
+            return 'Investment';
+        case 'CASH_MANAGEMENT':
+            return 'Cash';
+        default:
+            return goalType;
+    }
+}
+
 function showOverlayTable() {
     // Remove existing overlay if present
     let old = document.getElementById('endowus-portfolio-overlay');
@@ -40,7 +51,6 @@ function showOverlayTable() {
         container.appendChild(bucketHeader);
 
         Object.keys(mapping[bucket]).forEach(goalType => {
-            if (goalType === "total") return;
             const group = mapping[bucket][goalType];
 
             // Calculate percentage of this goalType's return vs bucket
@@ -51,8 +61,8 @@ function showOverlayTable() {
 
             // GoalType header with total and percentage of bucket
             const typeHeader = document.createElement('h3');
-            typeHeader.textContent = `${goalType} (Total: ${group.totalInvestmentAmount?.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) || '-'}, ` +
-                `Total Return: ${typeReturn.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} (${percentOfBucketReturn}% growth) )`;
+            typeHeader.textContent = `${getDisplayGoalType(goalType)} (Total: ${group.totalInvestmentAmount?.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) || '-'}, ` +
+                `Total Return: ${typeReturn.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} (${percentOfBucketReturn}% of bucket) )`;
             container.appendChild(typeHeader);
 
             const table = document.createElement('table');
@@ -103,3 +113,4 @@ btn.onclick = function() {
 };
 
 document.body.appendChild(btn);
+
