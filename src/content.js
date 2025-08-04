@@ -51,6 +51,7 @@ function showOverlayTable() {
         container.appendChild(bucketHeader);
 
         Object.keys(mapping[bucket]).forEach(goalType => {
+            if (goalType === "total") return; 
             const group = mapping[bucket][goalType];
 
             // Calculate percentage of this goalType's return vs bucket
