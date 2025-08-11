@@ -2,6 +2,11 @@
   "manifest_version": 2,
   "name": "endowus_portfolio_viewer",
   "version": "1.0.2",
+  "browser_specific_settings": {
+    "gecko": {
+      "update_url": "https://raw.githubusercontent.com/laurenceputra/endowus_view_enhancer/main/updates.json"
+    }
+  },
   "description": "A Firefox extension to allow users to group their Endowus portfolio by specific buckets and view the total value of each bucket. For example, users could potentially group their portfolio into kid's education, with a core + satellite strategy, while at the same time having their own separate retirement bucket with a different core + satellite strategy. This extension will allow users to view their portfolio in a more organized manner.",
   "permissions": [
     "webRequest",
