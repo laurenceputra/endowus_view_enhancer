@@ -3,8 +3,8 @@
     "endowus_portfolio_viewer@laurenceputra": {
       "updates": [
         {
-          "version": "1.0.2.2",
-          "update_link": "https://github.com/laurenceputra/endowus_view_enhancer/releases/download/v1.0.2.1-alpha/endowus_view_enhancer-alpha-1.0.2.2.xpi",
+          "version": "1.0.2.3",
+          "update_link": "https://github.com/laurenceputra/endowus_view_enhancer/releases/download/v1.0.2.3-alpha/endowus_view_enhancer-1.0.2.3-alpha.xpi",
           "applications": {
             "gecko": {
               "strict_min_version": "57.0"
