@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "endowus_portfolio_viewer-alpha",
-  "version": "1.0.2.4",
+  "version": "1.0.2.5",
   "browser_specific_settings": {
     "gecko": {
       "update_url": "https://raw.githubusercontent.com/laurenceputra/endowus_view_enhancer/refs/heads/update-alpha/updates.json"
