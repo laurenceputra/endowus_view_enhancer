@@ -1,10 +1,10 @@
 {
   "addons": {
-    "endowus_portfolio_viewer@laurenceputra": {
+    "{ea7c2348-225b-4aaf-ac1b-d9e82cb9bc4b}": {
       "updates": [
         {
-          "version": "1.0.2",
-          "update_link": "https://github.com/laurenceputra/endowus_view_enhancer/releases/download/v1.0.2/0e0c31da925e4a399c92-1.0.2.xpi",
+          "version": "1.0.3",
+          "update_link": "https://github.com/laurenceputra/endowus_view_enhancer/releases/download/v1.0.3/endowus_view_enhancer-1.0.3.xpi",
           "applications": {
             "gecko": {
               "strict_min_version": "57.0"
