@@ -13,6 +13,10 @@
         {
           "version": "1.0.2.5",
           "update_link": "https://github.com/laurenceputra/endowus_view_enhancer/releases/download/v1.0.2.5/endowus_view_enhancer-alpha-1.0.2.5.xpi"
+        },
+        {
+          "version": "1.0.2.6",
+          "update_link": "https://github.com/laurenceputra/endowus_view_enhancer/releases/download/v1.0.2.6/endowus_view_enhancer-alpha-1.0.2.6.xpi"
         }
       ]
     }
