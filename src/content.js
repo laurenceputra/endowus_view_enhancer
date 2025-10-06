@@ -8,6 +8,8 @@ function getDisplayGoalType(goalType) {
     switch (goalType) {
         case 'GENERAL_WEALTH_ACCUMULATION':
             return 'Investment';
+        case 'PASSIVE_INCOME':
+            return 'Income';
         case 'CASH_MANAGEMENT':
             return 'Cash';
         default:
@@ -16,7 +18,7 @@ function getDisplayGoalType(goalType) {
 }
 
 function sortGoalTypes(goalTypeKeys) {
-    const preferred = ['GENERAL_WEALTH_ACCUMULATION', 'CASH_MANAGEMENT'];
+    const preferred = ['GENERAL_WEALTH_ACCUMULATION', 'PASSIVE_INCOME', 'CASH_MANAGEMENT'];
     const others = goalTypeKeys.filter(k => !preferred.includes(k)).sort();
     const sorted = [];
     preferred.forEach(p => { if (goalTypeKeys.includes(p)) sorted.push(p); });
@@ -130,7 +132,8 @@ function renderBucketView(contentDiv, bucket) {
         table.appendChild(thead);
 
         const tbody = document.createElement('tbody');
-        group.goals.forEach(item => {
+        const sortedGoals = [...group.goals].sort((a, b) => a.goalName.localeCompare(b.goalName));
+        sortedGoals.forEach(item => {
             const percentOfType = group.totalInvestmentAmount > 0
                 ? ((item.totalInvestmentAmount || 0) / group.totalInvestmentAmount * 100).toFixed(2)
                 : '0.00';
