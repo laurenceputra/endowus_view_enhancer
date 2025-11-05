@@ -129,6 +129,11 @@
     // Data Processing Logic
     // ============================================
     
+    /**
+     * Merges data from all three API endpoints into a structured bucket map
+     * @returns {Object|null} Bucket map with aggregated data, or null if API data incomplete
+     * Structure: { bucketName: { total: number, goalType: { totalInvestmentAmount, totalCumulativeReturn, goals: [] } } }
+     */
     function mergeAPIResponses() {
         if (!apiData.performance || !apiData.investible || !apiData.summary) {
             console.log('[Endowus Portfolio Viewer] Not all API data available yet');
@@ -149,7 +154,8 @@
             const goalName = invest.goalName || summary.goalName || "";
             // Extract bucket name from first word of goal name
             // Expected format: "BucketName - Goal Description" (e.g., "Retirement - Core Portfolio")
-            const goalBucket = goalName.split(" ")[0] || "Uncategorized";
+            const firstWord = goalName.trim().split(" ")[0];
+            const goalBucket = (firstWord && firstWord.length > 0) ? firstWord : "Uncategorized";
             
             const goalObj = {
                 goalId: perf.goalId,
@@ -188,7 +194,7 @@
         });
 
         mergedInvestmentData = bucketMap;
-        console.log('[Endowus Portfolio Viewer] Data merged successfully:', mergedInvestmentData);
+        console.log('[Endowus Portfolio Viewer] Data merged successfully');
         return bucketMap;
     }
 
