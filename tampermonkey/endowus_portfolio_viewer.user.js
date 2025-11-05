@@ -251,13 +251,15 @@
                 return 'Investment';
             case 'CASH_MANAGEMENT':
                 return 'Cash';
+            case 'PASSIVE_INCOME':
+                return 'Passive Income';
             default:
                 return goalType;
         }
     }
 
     function sortGoalTypes(goalTypeKeys) {
-        const preferred = ['GENERAL_WEALTH_ACCUMULATION', 'CASH_MANAGEMENT'];
+        const preferred = ['GENERAL_WEALTH_ACCUMULATION', 'CASH_MANAGEMENT', 'PASSIVE_INCOME'];
         const others = goalTypeKeys.filter(k => !preferred.includes(k)).sort();
         const sorted = [];
         preferred.forEach(p => { 
@@ -552,6 +554,14 @@
         };
 
         overlay.appendChild(container);
+        
+        // Close overlay when clicking outside the container
+        overlay.onclick = (e) => {
+            if (e.target === overlay) {
+                overlay.remove();
+            }
+        };
+        
         document.body.appendChild(overlay);
     }
 
@@ -642,7 +652,7 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                padding: 24px 32px;
+                padding: 16px 24px;
                 border-bottom: 1px solid #e5e7eb;
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 border-radius: 20px 20px 0 0;
@@ -650,7 +660,7 @@
             
             .epv-header h1 {
                 margin: 0;
-                font-size: 24px;
+                font-size: 20px;
                 font-weight: 700;
                 color: #ffffff;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -678,7 +688,7 @@
             }
             
             .epv-controls {
-                padding: 20px 32px;
+                padding: 12px 24px;
                 background: #f9fafb;
                 border-bottom: 1px solid #e5e7eb;
                 display: flex;
@@ -719,7 +729,7 @@
             
             .epv-content {
                 overflow-y: auto;
-                padding: 24px 32px;
+                padding: 16px 24px;
                 flex: 1;
             }
             
@@ -728,14 +738,14 @@
             .epv-summary-container {
                 display: flex;
                 flex-direction: column;
-                gap: 20px;
+                gap: 14px;
             }
             
             .epv-bucket-card {
                 background: #ffffff;
                 border: 2px solid #e5e7eb;
                 border-radius: 12px;
-                padding: 20px;
+                padding: 16px;
                 transition: all 0.3s ease;
             }
             
@@ -746,31 +756,31 @@
             }
             
             .epv-bucket-header {
-                margin-bottom: 16px;
+                margin-bottom: 12px;
             }
             
             .epv-bucket-title {
-                font-size: 24px;
+                font-size: 19px;
                 font-weight: 700;
                 color: #111827;
-                margin: 0 0 16px 0;
+                margin: 0 0 10px 0;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
             .epv-bucket-stats {
                 display: flex;
-                gap: 32px;
+                gap: 24px;
                 flex-wrap: wrap;
             }
             
             .epv-stat {
                 display: flex;
                 flex-direction: column;
-                gap: 6px;
+                gap: 4px;
             }
             
             .epv-stat-label {
-                font-size: 13px;
+                font-size: 12px;
                 font-weight: 600;
                 color: #4b5563;
                 text-transform: uppercase;
@@ -778,7 +788,7 @@
             }
             
             .epv-stat-value {
-                font-size: 22px;
+                font-size: 18px;
                 font-weight: 700;
                 color: #111827;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -794,23 +804,23 @@
             
             .epv-goal-type-row {
                 display: flex;
-                gap: 20px;
-                padding: 14px 16px;
+                gap: 16px;
+                padding: 10px 12px;
                 background: #f9fafb;
                 border-radius: 8px;
-                margin-bottom: 10px;
+                margin-bottom: 8px;
                 align-items: center;
             }
             
             .epv-goal-type-name {
                 font-weight: 700;
                 color: #1f2937;
-                min-width: 130px;
-                font-size: 15px;
+                min-width: 120px;
+                font-size: 14px;
             }
             
             .epv-goal-type-stat {
-                font-size: 14px;
+                font-size: 13px;
                 color: #4b5563;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
@@ -818,50 +828,50 @@
             /* Detail View Styles */
             
             .epv-detail-header {
-                margin-bottom: 24px;
-                padding-bottom: 20px;
+                margin-bottom: 16px;
+                padding-bottom: 12px;
                 border-bottom: 2px solid #e5e7eb;
             }
             
             .epv-detail-title {
-                font-size: 32px;
+                font-size: 22px;
                 font-weight: 700;
                 color: #111827;
-                margin: 0 0 20px 0;
+                margin: 0 0 12px 0;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
             .epv-detail-stats {
                 display: flex;
-                gap: 40px;
+                gap: 28px;
             }
             
             .epv-stat-item {
                 display: flex;
                 flex-direction: column;
-                gap: 8px;
+                gap: 4px;
             }
             
             .epv-type-section {
-                margin-bottom: 36px;
+                margin-bottom: 24px;
             }
             
             .epv-type-header {
-                margin-bottom: 18px;
+                margin-bottom: 12px;
             }
             
             .epv-type-header h3 {
-                font-size: 20px;
+                font-size: 17px;
                 font-weight: 700;
                 color: #1f2937;
-                margin: 0 0 10px 0;
+                margin: 0 0 8px 0;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
             .epv-type-summary {
                 display: flex;
-                gap: 24px;
-                font-size: 15px;
+                gap: 20px;
+                font-size: 14px;
                 color: #4b5563;
                 font-weight: 500;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -884,19 +894,19 @@
             }
             
             .epv-table th {
-                padding: 14px 18px;
+                padding: 10px 14px;
                 text-align: left;
                 font-weight: 700;
-                font-size: 14px;
+                font-size: 13px;
                 color: #ffffff;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
             }
             
             .epv-table td {
-                padding: 14px 18px;
+                padding: 10px 14px;
                 text-align: right;
-                font-size: 15px;
+                font-size: 14px;
                 color: #1f2937;
                 border-top: 1px solid #e5e7eb;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -914,7 +924,7 @@
                 text-align: left;
                 font-weight: 600;
                 color: #111827;
-                font-size: 15px;
+                font-size: 14px;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
