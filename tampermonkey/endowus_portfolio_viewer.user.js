@@ -252,14 +252,14 @@
             case 'CASH_MANAGEMENT':
                 return 'Cash';
             case 'PASSIVE_INCOME':
-                return 'Passive Income';
+                return 'Income';
             default:
                 return goalType;
         }
     }
 
     function sortGoalTypes(goalTypeKeys) {
-        const preferred = ['GENERAL_WEALTH_ACCUMULATION', 'CASH_MANAGEMENT', 'PASSIVE_INCOME'];
+        const preferred = ['GENERAL_WEALTH_ACCUMULATION', 'PASSIVE_INCOME', 'CASH_MANAGEMENT'];
         const others = goalTypeKeys.filter(k => !preferred.includes(k)).sort();
         const sorted = [];
         preferred.forEach(p => { 
