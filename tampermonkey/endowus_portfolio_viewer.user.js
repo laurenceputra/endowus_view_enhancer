@@ -965,25 +965,59 @@
     // Initialization
     // ============================================
     
+    let portfolioButton = null;
+    let urlCheckInterval = null;
+    
+    function shouldShowButton() {
+        return window.location.href === 'https://app.sg.endowus.com/dashboard';
+    }
+    
+    function createButton() {
+        if (!portfolioButton) {
+            portfolioButton = document.createElement('button');
+            portfolioButton.className = 'epv-trigger-btn';
+            portfolioButton.textContent = '📊 Portfolio Viewer';
+            portfolioButton.onclick = showOverlay;
+        }
+        return portfolioButton;
+    }
+    
+    function updateButtonVisibility() {
+        if (!document.body) return;
+        
+        const shouldShow = shouldShowButton();
+        const buttonExists = portfolioButton && portfolioButton.parentNode;
+        
+        if (shouldShow && !buttonExists) {
+            // Show button
+            const btn = createButton();
+            document.body.appendChild(btn);
+            console.log('[Endowus Portfolio Viewer] Button shown on dashboard');
+        } else if (!shouldShow && buttonExists) {
+            // Hide button
+            portfolioButton.remove();
+            console.log('[Endowus Portfolio Viewer] Button hidden (not on dashboard)');
+        }
+    }
+    
+    function startUrlMonitoring() {
+        // Check immediately
+        updateButtonVisibility();
+        
+        // Then check every 2 seconds for SPA navigation
+        if (!urlCheckInterval) {
+            urlCheckInterval = setInterval(updateButtonVisibility, 2000);
+            console.log('[Endowus Portfolio Viewer] URL monitoring started (checking every 2s)');
+        }
+    }
+    
     function init() {
         // Load stored API data
         loadStoredData();
         
         if (document.body) {
             injectStyles();
-            
-            // Only show button on dashboard page
-            if (window.location.href === 'https://app.sg.endowus.com/dashboard') {
-                const btn = document.createElement('button');
-                btn.className = 'epv-trigger-btn';
-                btn.textContent = '📊 Portfolio Viewer';
-                btn.onclick = showOverlay;
-                
-                document.body.appendChild(btn);
-                console.log('[Endowus Portfolio Viewer] UI initialized on dashboard');
-            } else {
-                console.log('[Endowus Portfolio Viewer] Not on dashboard page, button not displayed');
-            }
+            startUrlMonitoring();
         } else {
             setTimeout(init, 100);
         }
