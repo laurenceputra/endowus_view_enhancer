@@ -40,26 +40,32 @@
         const url = args[0];
         
         if (typeof url === 'string') {
-            if (url.includes('/v1/goals/performance') || 
-                url.includes('/v2/goals/investible') || 
-                url.includes('/v1/goals')) {
-                
-                // Clone response to read it
+            // Check more specific patterns first to avoid false matches
+            if (url.includes('/v1/goals/performance')) {
                 const clonedResponse = response.clone();
-                
                 try {
                     const data = await clonedResponse.json();
-                    
-                    if (url.includes('/v1/goals/performance')) {
-                        console.log('[Endowus Portfolio Viewer] Intercepted performance data');
-                        apiData.performance = data;
-                    } else if (url.includes('/v2/goals/investible')) {
-                        console.log('[Endowus Portfolio Viewer] Intercepted investible data');
-                        apiData.investible = data;
-                    } else if (url.includes('/v1/goals') && !url.includes('/performance') && !url.includes('/investible')) {
-                        console.log('[Endowus Portfolio Viewer] Intercepted summary data');
-                        apiData.summary = data;
-                    }
+                    console.log('[Endowus Portfolio Viewer] Intercepted performance data');
+                    apiData.performance = data;
+                } catch (e) {
+                    console.error('[Endowus Portfolio Viewer] Error parsing API response:', e);
+                }
+            } else if (url.includes('/v2/goals/investible')) {
+                const clonedResponse = response.clone();
+                try {
+                    const data = await clonedResponse.json();
+                    console.log('[Endowus Portfolio Viewer] Intercepted investible data');
+                    apiData.investible = data;
+                } catch (e) {
+                    console.error('[Endowus Portfolio Viewer] Error parsing API response:', e);
+                }
+            } else if (url.includes('/v1/goals')) {
+                // Check for base goals endpoint (summary data)
+                const clonedResponse = response.clone();
+                try {
+                    const data = await clonedResponse.json();
+                    console.log('[Endowus Portfolio Viewer] Intercepted summary data');
+                    apiData.summary = data;
                 } catch (e) {
                     console.error('[Endowus Portfolio Viewer] Error parsing API response:', e);
                 }
@@ -79,24 +85,34 @@
         const url = this._url;
         
         if (url && typeof url === 'string') {
-            if (url.includes('/v1/goals/performance') || 
-                url.includes('/v2/goals/investible') || 
-                url.includes('/v1/goals')) {
-                
+            // Check more specific patterns first to avoid false matches
+            if (url.includes('/v1/goals/performance')) {
                 this.addEventListener('load', function() {
                     try {
                         const data = JSON.parse(this.responseText);
-                        
-                        if (url.includes('/v1/goals/performance')) {
-                            console.log('[Endowus Portfolio Viewer] Intercepted performance data (XHR)');
-                            apiData.performance = data;
-                        } else if (url.includes('/v2/goals/investible')) {
-                            console.log('[Endowus Portfolio Viewer] Intercepted investible data (XHR)');
-                            apiData.investible = data;
-                        } else if (url.includes('/v1/goals') && !url.includes('/performance') && !url.includes('/investible')) {
-                            console.log('[Endowus Portfolio Viewer] Intercepted summary data (XHR)');
-                            apiData.summary = data;
-                        }
+                        console.log('[Endowus Portfolio Viewer] Intercepted performance data (XHR)');
+                        apiData.performance = data;
+                    } catch (e) {
+                        console.error('[Endowus Portfolio Viewer] Error parsing XHR response:', e);
+                    }
+                });
+            } else if (url.includes('/v2/goals/investible')) {
+                this.addEventListener('load', function() {
+                    try {
+                        const data = JSON.parse(this.responseText);
+                        console.log('[Endowus Portfolio Viewer] Intercepted investible data (XHR)');
+                        apiData.investible = data;
+                    } catch (e) {
+                        console.error('[Endowus Portfolio Viewer] Error parsing XHR response:', e);
+                    }
+                });
+            } else if (url.includes('/v1/goals')) {
+                // Check for base goals endpoint (summary data)
+                this.addEventListener('load', function() {
+                    try {
+                        const data = JSON.parse(this.responseText);
+                        console.log('[Endowus Portfolio Viewer] Intercepted summary data (XHR)');
+                        apiData.summary = data;
                     } catch (e) {
                         console.error('[Endowus Portfolio Viewer] Error parsing XHR response:', e);
                     }
@@ -131,6 +147,8 @@
             const invest = investibleMap[perf.goalId] || {};
             const summary = summaryMap[perf.goalId] || {};
             const goalName = invest.goalName || summary.goalName || "";
+            // Extract bucket name from first word of goal name
+            // Expected format: "BucketName - Goal Description" (e.g., "Retirement - Core Portfolio")
             const goalBucket = goalName.split(" ")[0] || "Uncategorized";
             
             const goalObj = {
@@ -207,9 +225,13 @@
     }
 
     function formatGrowthPercent(totalReturn, total) {
+        // Calculate growth percentage as: return / principal * 100
+        // where principal = total - return (original investment)
+        // Example: if you invested $100 and now have $110, return is $10
+        // Growth = 10 / 100 * 100 = 10%
         const a = Number(totalReturn);
         const t = Number(total);
-        const denom = t - a;
+        const denom = t - a; // principal (original investment)
         if (!isFinite(a) || !isFinite(t) || denom === 0) return '-';
         return ((a / denom) * 100).toFixed(2) + '%';
     }
