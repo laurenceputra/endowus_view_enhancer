@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.0.0
+// @version      2.1.0
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
-// @grant        none
+// @grant        GM_setValue
+// @grant        GM_getValue
 // @run-at       document-start
 // @updateURL    https://raw.githubusercontent.com/laurenceputra/endowus_view_enhancer/main/tampermonkey/endowus_portfolio_viewer.user.js
 // @downloadURL  https://raw.githubusercontent.com/laurenceputra/endowus_view_enhancer/main/tampermonkey/endowus_portfolio_viewer.user.js
@@ -47,6 +48,8 @@
                     const data = await clonedResponse.json();
                     console.log('[Endowus Portfolio Viewer] Intercepted performance data');
                     apiData.performance = data;
+                    // Store in Tampermonkey storage
+                    GM_setValue('api_performance', JSON.stringify(data));
                 } catch (e) {
                     console.error('[Endowus Portfolio Viewer] Error parsing API response:', e);
                 }
@@ -56,6 +59,8 @@
                     const data = await clonedResponse.json();
                     console.log('[Endowus Portfolio Viewer] Intercepted investible data');
                     apiData.investible = data;
+                    // Store in Tampermonkey storage
+                    GM_setValue('api_investible', JSON.stringify(data));
                 } catch (e) {
                     console.error('[Endowus Portfolio Viewer] Error parsing API response:', e);
                 }
@@ -66,6 +71,8 @@
                     const data = await clonedResponse.json();
                     console.log('[Endowus Portfolio Viewer] Intercepted summary data');
                     apiData.summary = data;
+                    // Store in Tampermonkey storage
+                    GM_setValue('api_summary', JSON.stringify(data));
                 } catch (e) {
                     console.error('[Endowus Portfolio Viewer] Error parsing API response:', e);
                 }
@@ -92,6 +99,8 @@
                         const data = JSON.parse(this.responseText);
                         console.log('[Endowus Portfolio Viewer] Intercepted performance data (XHR)');
                         apiData.performance = data;
+                        // Store in Tampermonkey storage
+                        GM_setValue('api_performance', JSON.stringify(data));
                     } catch (e) {
                         console.error('[Endowus Portfolio Viewer] Error parsing XHR response:', e);
                     }
@@ -102,6 +111,8 @@
                         const data = JSON.parse(this.responseText);
                         console.log('[Endowus Portfolio Viewer] Intercepted investible data (XHR)');
                         apiData.investible = data;
+                        // Store in Tampermonkey storage
+                        GM_setValue('api_investible', JSON.stringify(data));
                     } catch (e) {
                         console.error('[Endowus Portfolio Viewer] Error parsing XHR response:', e);
                     }
@@ -113,6 +124,8 @@
                         const data = JSON.parse(this.responseText);
                         console.log('[Endowus Portfolio Viewer] Intercepted summary data (XHR)');
                         apiData.summary = data;
+                        // Store in Tampermonkey storage
+                        GM_setValue('api_summary', JSON.stringify(data));
                     } catch (e) {
                         console.error('[Endowus Portfolio Viewer] Error parsing XHR response:', e);
                     }
@@ -124,6 +137,36 @@
     };
 
     console.log('[Endowus Portfolio Viewer] API interception initialized');
+
+    // ============================================
+    // Storage Management
+    // ============================================
+    
+    /**
+     * Load previously intercepted API data from Tampermonkey storage
+     */
+    function loadStoredData() {
+        try {
+            const storedPerformance = GM_getValue('api_performance', null);
+            const storedInvestible = GM_getValue('api_investible', null);
+            const storedSummary = GM_getValue('api_summary', null);
+            
+            if (storedPerformance) {
+                apiData.performance = JSON.parse(storedPerformance);
+                console.log('[Endowus Portfolio Viewer] Loaded performance data from storage');
+            }
+            if (storedInvestible) {
+                apiData.investible = JSON.parse(storedInvestible);
+                console.log('[Endowus Portfolio Viewer] Loaded investible data from storage');
+            }
+            if (storedSummary) {
+                apiData.summary = JSON.parse(storedSummary);
+                console.log('[Endowus Portfolio Viewer] Loaded summary data from storage');
+            }
+        } catch (e) {
+            console.error('[Endowus Portfolio Viewer] Error loading stored data:', e);
+        }
+    }
 
     // ============================================
     // Data Processing Logic
@@ -523,7 +566,7 @@
             
             .epv-trigger-btn {
                 position: fixed;
-                top: 20px;
+                bottom: 20px;
                 right: 20px;
                 z-index: 999999;
                 padding: 12px 24px;
@@ -645,23 +688,23 @@
             
             .epv-select-label {
                 font-weight: 600;
-                color: #374151;
-                font-size: 14px;
+                color: #1f2937;
+                font-size: 16px;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
             .epv-select {
-                padding: 8px 16px;
+                padding: 10px 18px;
                 border: 2px solid #e5e7eb;
                 border-radius: 8px;
-                font-size: 14px;
+                font-size: 16px;
                 font-weight: 500;
-                color: #374151;
+                color: #1f2937;
                 background: #ffffff;
                 cursor: pointer;
                 transition: all 0.2s ease;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-                min-width: 200px;
+                min-width: 220px;
             }
             
             .epv-select:hover {
@@ -707,38 +750,38 @@
             }
             
             .epv-bucket-title {
-                font-size: 20px;
+                font-size: 24px;
                 font-weight: 700;
                 color: #111827;
-                margin: 0 0 12px 0;
+                margin: 0 0 16px 0;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
             .epv-bucket-stats {
                 display: flex;
-                gap: 24px;
+                gap: 32px;
                 flex-wrap: wrap;
             }
             
             .epv-stat {
                 display: flex;
                 flex-direction: column;
-                gap: 4px;
+                gap: 6px;
             }
             
             .epv-stat-label {
-                font-size: 12px;
-                font-weight: 500;
-                color: #6b7280;
+                font-size: 13px;
+                font-weight: 600;
+                color: #4b5563;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
             }
             
             .epv-stat-value {
-                font-size: 18px;
+                font-size: 22px;
                 font-weight: 700;
                 color: #111827;
-                font-family: 'Monaco', 'Courier New', monospace;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
             .epv-stat-value.positive {
@@ -751,24 +794,25 @@
             
             .epv-goal-type-row {
                 display: flex;
-                gap: 16px;
-                padding: 12px;
+                gap: 20px;
+                padding: 14px 16px;
                 background: #f9fafb;
                 border-radius: 8px;
-                margin-bottom: 8px;
+                margin-bottom: 10px;
                 align-items: center;
             }
             
             .epv-goal-type-name {
-                font-weight: 600;
-                color: #374151;
-                min-width: 120px;
+                font-weight: 700;
+                color: #1f2937;
+                min-width: 130px;
+                font-size: 15px;
             }
             
             .epv-goal-type-stat {
-                font-size: 13px;
-                color: #6b7280;
-                font-family: 'Monaco', 'Courier New', monospace;
+                font-size: 14px;
+                color: #4b5563;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
             /* Detail View Styles */
@@ -780,46 +824,47 @@
             }
             
             .epv-detail-title {
-                font-size: 28px;
+                font-size: 32px;
                 font-weight: 700;
                 color: #111827;
-                margin: 0 0 16px 0;
+                margin: 0 0 20px 0;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
             .epv-detail-stats {
                 display: flex;
-                gap: 32px;
+                gap: 40px;
             }
             
             .epv-stat-item {
                 display: flex;
                 flex-direction: column;
-                gap: 6px;
+                gap: 8px;
             }
             
             .epv-type-section {
-                margin-bottom: 32px;
+                margin-bottom: 36px;
             }
             
             .epv-type-header {
-                margin-bottom: 16px;
+                margin-bottom: 18px;
             }
             
             .epv-type-header h3 {
-                font-size: 18px;
+                font-size: 20px;
                 font-weight: 700;
-                color: #374151;
-                margin: 0 0 8px 0;
+                color: #1f2937;
+                margin: 0 0 10px 0;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
             .epv-type-summary {
                 display: flex;
-                gap: 20px;
-                font-size: 14px;
-                color: #6b7280;
-                font-family: 'Monaco', 'Courier New', monospace;
+                gap: 24px;
+                font-size: 15px;
+                color: #4b5563;
+                font-weight: 500;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
             /* Table Styles */
@@ -839,22 +884,22 @@
             }
             
             .epv-table th {
-                padding: 12px 16px;
+                padding: 14px 18px;
                 text-align: left;
-                font-weight: 600;
-                font-size: 13px;
+                font-weight: 700;
+                font-size: 14px;
                 color: #ffffff;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
             }
             
             .epv-table td {
-                padding: 12px 16px;
+                padding: 14px 18px;
                 text-align: right;
-                font-size: 14px;
-                color: #374151;
+                font-size: 15px;
+                color: #1f2937;
                 border-top: 1px solid #e5e7eb;
-                font-family: 'Monaco', 'Courier New', monospace;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
             .epv-table tbody tr {
@@ -862,24 +907,25 @@
             }
             
             .epv-table tbody tr:hover {
-                background-color: #f9fafb;
+                background-color: #f3f4f6;
             }
             
             .epv-table .epv-goal-name {
                 text-align: left;
-                font-weight: 500;
+                font-weight: 600;
                 color: #111827;
+                font-size: 15px;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
             .epv-table .positive {
                 color: #059669;
-                font-weight: 600;
+                font-weight: 700;
             }
             
             .epv-table .negative {
                 color: #dc2626;
-                font-weight: 600;
+                font-weight: 700;
             }
             
             /* Scrollbar Styles */
@@ -910,16 +956,24 @@
     // ============================================
     
     function init() {
+        // Load stored API data
+        loadStoredData();
+        
         if (document.body) {
             injectStyles();
             
-            const btn = document.createElement('button');
-            btn.className = 'epv-trigger-btn';
-            btn.textContent = '📊 Portfolio Viewer';
-            btn.onclick = showOverlay;
-            
-            document.body.appendChild(btn);
-            console.log('[Endowus Portfolio Viewer] UI initialized');
+            // Only show button on dashboard page
+            if (window.location.href === 'https://app.sg.endowus.com/dashboard') {
+                const btn = document.createElement('button');
+                btn.className = 'epv-trigger-btn';
+                btn.textContent = '📊 Portfolio Viewer';
+                btn.onclick = showOverlay;
+                
+                document.body.appendChild(btn);
+                console.log('[Endowus Portfolio Viewer] UI initialized on dashboard');
+            } else {
+                console.log('[Endowus Portfolio Viewer] Not on dashboard page, button not displayed');
+            }
         } else {
             setTimeout(init, 100);
         }
