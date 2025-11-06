@@ -931,4 +931,4 @@ When contributing to the technical implementation:
 
 ---
 
-*Last updated: 2024*
+*Last updated: November 2024*

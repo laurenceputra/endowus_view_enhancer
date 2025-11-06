@@ -19,14 +19,6 @@ Click here to install: [Install Endowus Portfolio Viewer](https://raw.githubuser
 
 For detailed installation instructions, see the [main README](../README.md#installation).
 
-## Features
-
-- 🎯 Smart bucket organization for your portfolio goals
-- 📊 Real-time analytics with returns and growth percentages  
-- 🎨 Modern, beautiful gradient UI
-- 🌐 Works on all major browsers (Chrome, Firefox, Edge, Safari, Opera)
-- 🔒 Private and secure - all processing happens locally
-
 ## Documentation Structure
 
 This repository's documentation is organized as follows:
