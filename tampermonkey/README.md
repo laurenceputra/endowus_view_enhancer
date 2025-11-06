@@ -2,6 +2,20 @@
 
 A modern Tampermonkey userscript that provides an enhanced portfolio viewing experience for Endowus users. This script allows you to organize and visualize your Endowus portfolio by custom buckets with a beautiful, modern interface.
 
+## The Problem
+
+Managing multiple financial goals on Endowus can be overwhelming when you have different investment strategies across various life objectives. Whether you're saving for retirement, your children's education, or an emergency fund, tracking performance across these different "buckets" requires manually calculating totals and returns.
+
+## The Solution
+
+This Tampermonkey script automatically organizes your portfolio into custom buckets, providing instant insights into:
+- Total investment amounts per bucket
+- Cumulative returns and growth percentages
+- Detailed breakdowns by goal type (Investment, Cash, etc.)
+- Individual goal performance within each bucket
+
+Perfect for investors using strategies like Core + Satellite across multiple life goals.
+
 ## Features
 
 ### 🎯 Core Functionality
@@ -27,7 +41,7 @@ A modern Tampermonkey userscript that provides an enhanced portfolio viewing exp
 
 ### Prerequisites
 - A userscript manager extension installed in your browser:
-  - [Tampermonkey](https://www.tampermonkey.net/) (Chrome, Firefox, Safari, Edge, Opera)
+  - [Tampermonkey](https://www.tampermonkey.net/) (Chrome, Firefox, Safari, Edge, Edge Mobile, Opera)
   - [Violentmonkey](https://violentmonkey.github.io/) (Chrome, Firefox, Edge)
   - [Greasemonkey](https://www.greasespot.net/) (Firefox only)
 
@@ -47,7 +61,7 @@ A modern Tampermonkey userscript that provides an enhanced portfolio viewing exp
 
 3. **Verify Installation**
    - Navigate to [https://app.sg.endowus.com/](https://app.sg.endowus.com/)
-   - You should see a "📊 Portfolio Viewer" button in the top-right corner
+   - You should see a "📊 Portfolio Viewer" button in the bottom-right corner
 
 ## Usage
 
