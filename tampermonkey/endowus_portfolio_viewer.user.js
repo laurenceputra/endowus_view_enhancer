@@ -966,7 +966,7 @@
     // ============================================
     
     let portfolioButton = null;
-    let urlCheckInterval = null;
+    let lastUrl = window.location.href;
     
     function shouldShowButton() {
         return window.location.href === 'https://app.sg.endowus.com/dashboard';
@@ -1000,15 +1000,48 @@
         }
     }
     
+    function handleUrlChange() {
+        const currentUrl = window.location.href;
+        if (currentUrl !== lastUrl) {
+            lastUrl = currentUrl;
+            console.log('[Endowus Portfolio Viewer] URL changed to:', currentUrl);
+            updateButtonVisibility();
+        }
+    }
+    
     function startUrlMonitoring() {
         // Check immediately
         updateButtonVisibility();
         
-        // Then check every 2 seconds for SPA navigation
-        if (!urlCheckInterval) {
-            urlCheckInterval = setInterval(updateButtonVisibility, 2000);
-            console.log('[Endowus Portfolio Viewer] URL monitoring started (checking every 2s)');
-        }
+        // Use MutationObserver to detect URL changes in the SPA
+        const observer = new MutationObserver(() => {
+            handleUrlChange();
+        });
+        
+        // Observe changes to the entire document
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        // Listen to popstate event for browser back/forward navigation
+        window.addEventListener('popstate', handleUrlChange);
+        
+        // Override pushState to detect programmatic navigation
+        const originalPushState = history.pushState;
+        history.pushState = function(...args) {
+            originalPushState.apply(this, args);
+            handleUrlChange();
+        };
+        
+        // Override replaceState to detect programmatic navigation
+        const originalReplaceState = history.replaceState;
+        history.replaceState = function(...args) {
+            originalReplaceState.apply(this, args);
+            handleUrlChange();
+        };
+        
+        console.log('[Endowus Portfolio Viewer] URL monitoring started with MutationObserver');
     }
     
     function init() {
