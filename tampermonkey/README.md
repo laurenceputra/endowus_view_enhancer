@@ -41,7 +41,7 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 
 ### Prerequisites
 - A userscript manager extension installed in your browser:
-  - [Tampermonkey](https://www.tampermonkey.net/) (Chrome, Firefox, Safari, Edge, Opera)
+  - [Tampermonkey](https://www.tampermonkey.net/) (Chrome, Firefox, Safari, Edge, Edge Mobile, Opera)
   - [Violentmonkey](https://violentmonkey.github.io/) (Chrome, Firefox, Edge)
   - [Greasemonkey](https://www.greasespot.net/) (Firefox only)
 
@@ -61,7 +61,7 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 
 3. **Verify Installation**
    - Navigate to [https://app.sg.endowus.com/](https://app.sg.endowus.com/)
-   - You should see a "📊 Portfolio Viewer" button in the top-right corner
+   - You should see a "📊 Portfolio Viewer" button in the bottom-right corner
 
 ## Usage
 
