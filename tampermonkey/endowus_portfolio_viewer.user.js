@@ -1013,10 +1013,18 @@
         // Check immediately
         updateButtonVisibility();
         
+        // Debounce function to limit how often handleUrlChange can be called
+        let urlCheckTimeout = null;
+        const debouncedUrlCheck = () => {
+            if (urlCheckTimeout) {
+                clearTimeout(urlCheckTimeout);
+            }
+            urlCheckTimeout = setTimeout(handleUrlChange, 100);
+        };
+        
         // Use MutationObserver to detect URL changes in the SPA
-        const observer = new MutationObserver(() => {
-            handleUrlChange();
-        });
+        // This serves as a fallback for navigation patterns not caught by History API
+        const observer = new MutationObserver(debouncedUrlCheck);
         
         // Observe changes to the entire document
         observer.observe(document.body, {
