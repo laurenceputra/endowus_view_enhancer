@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.1.0
+// @version      2.1.1
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*

@@ -21,7 +21,7 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 - 🎯 **Smart Bucket Organization** - Automatically groups goals by naming convention
 - 📊 **Real-time Analytics** - View total investments, returns, and growth percentages at a glance
 - 🎨 **Modern Interface** - Beautiful, gradient-based UI with smooth animations
-- 🌐 **Cross-Browser Support** - Works on Chrome, Firefox, Edge, Safari, and Opera
+- 🌐 **Cross-Browser Support** - Works in any browser supported by Tampermonkey
 - 🔒 **Private & Secure** - All processing happens locally in your browser
 - ⚡ **Easy Installation** - One-click install via Tampermonkey
 
@@ -29,13 +29,9 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 
 ### Step 1: Install Tampermonkey
 
-First, install the Tampermonkey browser extension:
-- **Chrome**: [Chrome Web Store](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
-- **Firefox**: [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/)
-- **Edge**: [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd)
-- **Safari**: [Safari App Store](https://apps.apple.com/us/app/tampermonkey/id1482490089)
+First, install the Tampermonkey browser extension from [https://www.tampermonkey.net/](https://www.tampermonkey.net/)
 
-*Alternative: You can also use [Violentmonkey](https://violentmonkey.github.io/) or [Greasemonkey](https://www.greasespot.net/)*
+*Alternative: You can also use [Violentmonkey](https://violentmonkey.github.io/)*
 
 ### Step 2: Install the Script
 
@@ -118,10 +114,6 @@ For each bucket and goal, the viewer displays:
 
 For developers and contributors:
 - **[TECHNICAL_DESIGN.md](TECHNICAL_DESIGN.md)** - Architecture, API interception, data processing, and advanced development guide
-
-## Firefox Extension
-
-This repository also includes a Firefox-only extension in the `src/` directory. The Tampermonkey script is recommended for most users due to broader browser support and easier installation. See [TECHNICAL_DESIGN.md](TECHNICAL_DESIGN.md) for a comparison.
 
 ## Privacy & Security
 

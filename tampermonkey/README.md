@@ -140,35 +140,6 @@ The script uses monkey patching to intercept API responses from Endowus:
 - **Smooth Animations**: Fade-in effects and smooth transitions
 - **Responsive Controls**: Dropdown selector for easy navigation
 
-## Comparison with Firefox Addon
-
-### Advantages of Tampermonkey Version
-
-✅ **Cross-browser Support**: Works on Chrome, Firefox, Edge, Safari, Opera  
-✅ **Modern UI**: Completely redesigned interface with contemporary styling  
-✅ **Easy Installation**: No need to enable developer mode or load extensions  
-✅ **Auto-updates**: Automatically checks for script updates  
-✅ **Portable**: Easy to share and install via URL  
-
-### Key Differences
-
-| Feature | Firefox Addon | Tampermonkey Script |
-|---------|--------------|---------------------|
-| Browser Support | Firefox only | All major browsers |
-| Installation | Manual addon loading | One-click install |
-| UI Design | Basic styling | Modern gradient design |
-| Updates | Manual | Automatic |
-| Interception Method | WebRequest API | Monkey Patching |
-
-### Feature Parity
-
-Both versions provide identical core functionality:
-- ✅ API data interception
-- ✅ Portfolio bucket organization
-- ✅ Summary and detail views
-- ✅ Return calculations and percentages
-- ✅ Goal type categorization
-
 ## Troubleshooting
 
 ### Button Not Appearing
@@ -264,7 +235,6 @@ Contributions are welcome! To contribute:
 
 ### Version 2.0.0
 - Initial Tampermonkey release
-- Complete rewrite from Firefox addon
 - Modern UI with gradient design
 - Cross-browser compatibility via monkey patching
 - Enhanced animations and transitions
@@ -273,6 +243,5 @@ Contributions are welcome! To contribute:
 
 ## Acknowledgments
 
-- Based on the original Firefox addon for Endowus portfolio viewing
 - Inspired by modern web design principles
 - Built for the Endowus user community
