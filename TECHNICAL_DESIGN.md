@@ -32,21 +32,6 @@ tampermonkey/
 └── README.md                          # User documentation
 ```
 
-### Firefox Extension Architecture
-
-The Firefox extension uses a multi-component architecture:
-- Background script for WebRequest API interception
-- Content script for UI injection
-- Message passing between components
-
-**File Structure:**
-```
-src/
-├── background.js      # WebRequest API interception
-├── content.js         # UI injection and rendering
-└── manifest.json      # Extension configuration
-```
-
 ---
 
 ## API Interception
@@ -109,45 +94,6 @@ XMLHttpRequest.prototype.send = function(...args) {
 - Must run in page context
 - Can be affected by Content Security Policy
 - Requires careful handling to avoid infinite loops
-
-### Firefox Extension Implementation: WebRequest API
-
-The Firefox extension uses the `browser.webRequest.filterResponseData()` API:
-
-```javascript
-browser.webRequest.onBeforeRequest.addListener(
-    function(details) {
-        let filter = browser.webRequest.filterResponseData(details.requestId);
-        let decoder = new TextDecoder("utf-8");
-        let encoder = new TextEncoder();
-        let data = "";
-
-        filter.ondata = event => {
-            data += decoder.decode(event.data, {stream: true});
-        };
-
-        filter.onstop = event => {
-            const jsonData = JSON.parse(data);
-            // Process data
-            filter.write(encoder.encode(data));
-            filter.close();
-        };
-    },
-    {urls: ["*://app.sg.endowus.com/api/v1/goals/performance*"]},
-    ["blocking"]
-);
-```
-
-**Advantages:**
-- Official browser API
-- Clean separation of concerns
-- Can modify requests/responses
-- Better security model
-
-**Limitations:**
-- Firefox-specific
-- Requires special permissions
-- More complex architecture
 
 ---
 
@@ -409,67 +355,9 @@ function renderGoalTable(goalType, data) {
 
 ---
 
-## Implementation Comparison
-
-### Firefox Extension vs Tampermonkey Script
-
-#### Core Functionality Parity
-
-| Feature | Firefox Extension | Tampermonkey Script | Status |
-|---------|------------------|---------------------|--------|
-| API Interception | ✅ WebRequest API | ✅ Monkey Patching | ✅ Equivalent |
-| Data Merging | ✅ 3 endpoints | ✅ 3 endpoints | ✅ Identical |
-| Bucket Grouping | ✅ First word | ✅ First word | ✅ Identical |
-| Return Calculations | ✅ | ✅ | ✅ Identical |
-| Summary View | ✅ | ✅ | ✅ Identical |
-| Detail View | ✅ | ✅ | ✅ Identical |
-
-#### Technical Differences
-
-| Aspect | Firefox Extension | Tampermonkey Script |
-|--------|------------------|---------------------|
-| Architecture | Background + Content | Single userscript |
-| Messaging | `browser.runtime` | Direct calls |
-| API Method | WebRequest API | Monkey patching |
-| Permissions | Extensive | Minimal |
-| Installation | Manual load | One-click |
-| Updates | Manual | Automatic |
-
-#### Browser Compatibility
-
-| Browser | Firefox Extension | Tampermonkey Script |
-|---------|------------------|---------------------|
-| Firefox | ✅ Native | ✅ via Tampermonkey |
-| Chrome | ❌ | ✅ via Tampermonkey |
-| Edge | ❌ | ✅ via Tampermonkey |
-| Safari | ❌ | ✅ via Tampermonkey |
-| Opera | ❌ | ✅ via Tampermonkey |
-
-#### Advantages & Disadvantages
-
-**Tampermonkey Script:**
-- ✅ Cross-browser compatibility
-- ✅ Easy installation and updates
-- ✅ Modern UI design
-- ✅ Simplified architecture
-- ❌ Depends on third-party extension
-- ❌ Potential CSP issues
-
-**Firefox Extension:**
-- ✅ Native browser integration
-- ✅ Official API usage
-- ✅ Better security model
-- ❌ Firefox-only
-- ❌ Complex architecture
-- ❌ Manual installation required
-
----
-
 ## Development Guide
 
 ### Setting Up Development Environment
-
-#### For Tampermonkey Script
 
 1. **Install Tampermonkey** in your browser
 2. **Enable Developer Mode**:
@@ -480,15 +368,6 @@ function renderGoalTable(goalType, data) {
 3. **Create New Script**:
    - Click "Create a new script"
    - Start coding
-
-#### For Firefox Extension
-
-1. **Install Firefox Developer Edition** (recommended)
-2. **Navigate to** `about:debugging`
-3. **Load Extension Temporarily**:
-   - Click "This Firefox"
-   - Click "Load Temporary Add-on"
-   - Select `manifest.json`
 
 ### Modifying the Tampermonkey Script
 
@@ -905,7 +784,7 @@ When contributing to the technical implementation:
 ## Changelog
 
 ### Version 2.0.0 (Tampermonkey)
-- Complete rewrite from Firefox extension
+- Complete rewrite with modern architecture
 - Modern gradient UI design
 - Cross-browser compatibility
 - Monkey patching API interception
@@ -913,20 +792,12 @@ When contributing to the technical implementation:
 - Enhanced animations and transitions
 - Improved data visualization
 
-### Version 1.0.0 (Firefox Extension)
-- Initial release
-- WebRequest API interception
-- Basic UI
-- Summary and detail views
-- Bucket grouping by goal name
-
 ---
 
 ## Additional Resources
 
 - [Tampermonkey Documentation](https://www.tampermonkey.net/documentation.php)
 - [Userscript Best Practices](https://wiki.greasespot.net/Code_Patterns)
-- [Firefox Extension API](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions)
 - [Web API Reference](https://developer.mozilla.org/en-US/docs/Web/API)
 
 ---
