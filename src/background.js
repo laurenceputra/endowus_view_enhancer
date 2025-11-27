@@ -37,8 +37,11 @@ function portfolioDetailsIntercepter(details) {
                 performanceData = jsonObject;
             } else if (details.url.includes("/v2/goals/investible")) {
                 investibleData = jsonObject;
-            } else if (details.url.includes("/v1/goals")) {
-                summaryData = jsonObject;
+            } else if (details.url.match(/\/v1\/goals(?:[?#]|$)/)) {
+                // Only store if data is an array (the summary endpoint returns an array of goals)
+                if (Array.isArray(jsonObject)) {
+                    summaryData = jsonObject;
+                }
             }
         } catch (error) {
             console.error("Error parsing JSON:", error);
@@ -55,6 +58,12 @@ console.log("Background script loaded and intercepting Endowus API requests.");
 
 function mergeAPIResponses() {
     if (performanceData && investibleData && summaryData) {
+        // Validate that all data sources are arrays
+        if (!Array.isArray(performanceData) || !Array.isArray(investibleData) || !Array.isArray(summaryData)) {
+            console.log("API data is not in expected array format");
+            return;
+        }
+
         const investibleMap = {};
         investibleData.forEach(item => investibleMap[item.goalId] = item);
 

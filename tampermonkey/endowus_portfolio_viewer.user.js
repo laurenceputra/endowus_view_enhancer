@@ -64,15 +64,19 @@
                 } catch (e) {
                     console.error('[Endowus Portfolio Viewer] Error parsing API response:', e);
                 }
-            } else if (url.includes('/v1/goals')) {
+            } else if (url.match(/\/v1\/goals(?:[?#]|$)/)) {
                 // Check for base goals endpoint (summary data)
+                // Pattern ensures we match /v1/goals but not /v1/goals/{id} or other sub-paths
                 const clonedResponse = response.clone();
                 try {
                     const data = await clonedResponse.json();
-                    console.log('[Endowus Portfolio Viewer] Intercepted summary data');
-                    apiData.summary = data;
-                    // Store in Tampermonkey storage
-                    GM_setValue('api_summary', JSON.stringify(data));
+                    // Only store if data is an array (the summary endpoint returns an array of goals)
+                    if (Array.isArray(data)) {
+                        console.log('[Endowus Portfolio Viewer] Intercepted summary data');
+                        apiData.summary = data;
+                        // Store in Tampermonkey storage
+                        GM_setValue('api_summary', JSON.stringify(data));
+                    }
                 } catch (e) {
                     console.error('[Endowus Portfolio Viewer] Error parsing API response:', e);
                 }
@@ -117,15 +121,19 @@
                         console.error('[Endowus Portfolio Viewer] Error parsing XHR response:', e);
                     }
                 });
-            } else if (url.includes('/v1/goals')) {
+            } else if (url.match(/\/v1\/goals(?:[?#]|$)/)) {
                 // Check for base goals endpoint (summary data)
+                // Pattern ensures we match /v1/goals but not /v1/goals/{id} or other sub-paths
                 this.addEventListener('load', function() {
                     try {
                         const data = JSON.parse(this.responseText);
-                        console.log('[Endowus Portfolio Viewer] Intercepted summary data (XHR)');
-                        apiData.summary = data;
-                        // Store in Tampermonkey storage
-                        GM_setValue('api_summary', JSON.stringify(data));
+                        // Only store if data is an array (the summary endpoint returns an array of goals)
+                        if (Array.isArray(data)) {
+                            console.log('[Endowus Portfolio Viewer] Intercepted summary data (XHR)');
+                            apiData.summary = data;
+                            // Store in Tampermonkey storage
+                            GM_setValue('api_summary', JSON.stringify(data));
+                        }
                     } catch (e) {
                         console.error('[Endowus Portfolio Viewer] Error parsing XHR response:', e);
                     }
@@ -180,6 +188,12 @@
     function mergeAPIResponses() {
         if (!apiData.performance || !apiData.investible || !apiData.summary) {
             console.log('[Endowus Portfolio Viewer] Not all API data available yet');
+            return null;
+        }
+
+        // Validate that all data sources are arrays
+        if (!Array.isArray(apiData.performance) || !Array.isArray(apiData.investible) || !Array.isArray(apiData.summary)) {
+            console.log('[Endowus Portfolio Viewer] API data is not in expected array format');
             return null;
         }
 
