@@ -69,7 +69,7 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 
 1. **Log into Endowus**: Navigate to your Endowus portfolio at https://app.sg.endowus.com/
 2. **Wait for Data**: Allow the page to fully load (the script will automatically intercept API calls)
-3. **Open Portfolio Viewer**: Click the "📊 Portfolio Viewer" button in the top-right corner
+3. **Open Portfolio Viewer**: Click the "📊 Portfolio Viewer" button in the bottom-right corner
 4. **Explore Your Portfolio**: 
    - View the summary to see all buckets at a glance
    - Select individual buckets from the dropdown to see detailed breakdowns

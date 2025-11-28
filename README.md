@@ -53,7 +53,7 @@ Tampermonkey will open automatically and ask you to confirm the installation. Cl
 
 1. Navigate to [https://app.sg.endowus.com/](https://app.sg.endowus.com/)
 2. Log in to your account
-3. Look for the "📊 Portfolio Viewer" button in the top-right corner
+3. Look for the "📊 Portfolio Viewer" button in the bottom-right corner
 
 If you see the button, you're all set! 🎉
 
@@ -79,7 +79,7 @@ The script automatically groups all goals that start with the same bucket name.
 
 1. **Log into Endowus** at [https://app.sg.endowus.com/](https://app.sg.endowus.com/)
 2. **Wait for the page to load** - The script automatically captures data in the background
-3. **Click "📊 Portfolio Viewer"** - The button appears in the top-right corner
+3. **Click "📊 Portfolio Viewer"** - The button appears in the bottom-right corner
 4. **Explore your data**:
    - **Summary View**: See all buckets at a glance with totals and returns
    - **Detail View**: Select a specific bucket to see individual goal breakdowns
