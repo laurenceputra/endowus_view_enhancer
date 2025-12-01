@@ -1,1 +1,8 @@
 external_data/
+
+# MCP Memory Storage
+.mcp-memory/
+
+# Environment files with secrets
+.env.local
+.env.*.local
