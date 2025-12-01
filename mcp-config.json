@@ -1,0 +1,105 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "."
+      ],
+      "description": "Enhanced filesystem operations and code search",
+      "enabled": true
+    },
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "description": "Direct GitHub repository interaction for issues, PRs, and code search",
+      "enabled": true
+    },
+    "browser-automation": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-playwright"
+      ],
+      "description": "Browser automation for testing and screenshots",
+      "enabled": false,
+      "note": "Enable when needed for automated testing. Requires Playwright browsers: npx playwright install"
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "env": {
+        "MEMORY_STORAGE_PATH": ".mcp-memory"
+      },
+      "description": "Persistent memory across conversations for project-specific context",
+      "enabled": true
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "description": "Enhanced reasoning for complex debugging and planning",
+      "enabled": true
+    },
+    "web-search": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-brave-search"
+      ],
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      },
+      "description": "Web search for documentation and best practices",
+      "enabled": false,
+      "note": "Enable if you have a Brave Search API key. Useful for looking up documentation."
+    },
+    "npm": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-npm"
+      ],
+      "description": "NPM package search and information",
+      "enabled": false,
+      "note": "Enable when evaluating libraries for new features"
+    }
+  },
+  "notes": {
+    "setup": [
+      "1. Copy this file to your GitHub Copilot MCP configuration directory",
+      "2. Set GITHUB_TOKEN environment variable with a personal access token",
+      "3. For browser automation, run: npx playwright install",
+      "4. Add .mcp-memory/ to .gitignore to keep memory data local",
+      "5. Restart your IDE/editor after configuration changes"
+    ],
+    "environment_variables": {
+      "GITHUB_TOKEN": "Required for GitHub MCP. Create at: https://github.com/settings/tokens",
+      "BRAVE_API_KEY": "Optional. Get at: https://brave.com/search/api/",
+      "MEMORY_STORAGE_PATH": "Local directory for memory storage (default: .mcp-memory)"
+    },
+    "enabled_by_default": [
+      "filesystem - Essential for code navigation",
+      "github - Essential for repository operations",
+      "memory - Helpful for maintaining context",
+      "sequential-thinking - Helpful for complex reasoning"
+    ],
+    "optional": [
+      "browser-automation - Enable when testing",
+      "web-search - Enable if you have API key",
+      "npm - Enable when researching packages"
+    ]
+  }
+}
