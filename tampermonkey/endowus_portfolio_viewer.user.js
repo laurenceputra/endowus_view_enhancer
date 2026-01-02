@@ -163,8 +163,6 @@
         summary: null
     };
 
-    let mergedInvestmentData = null;
-    
     // Non-persistent storage for projected investments (resets on reload)
     // Key format: "bucketName|goalType" -> projected amount
     const projectedInvestments = {};
@@ -296,22 +294,22 @@
     /**
      * Load previously intercepted API data from Tampermonkey storage
      */
-    function loadStoredData() {
+    function loadStoredData(apiDataState) {
         try {
             const storedPerformance = GM_getValue('api_performance', null);
             const storedInvestible = GM_getValue('api_investible', null);
             const storedSummary = GM_getValue('api_summary', null);
             
             if (storedPerformance) {
-                apiData.performance = JSON.parse(storedPerformance);
+                apiDataState.performance = JSON.parse(storedPerformance);
                 console.log('[Endowus Portfolio Viewer] Loaded performance data from storage');
             }
             if (storedInvestible) {
-                apiData.investible = JSON.parse(storedInvestible);
+                apiDataState.investible = JSON.parse(storedInvestible);
                 console.log('[Endowus Portfolio Viewer] Loaded investible data from storage');
             }
             if (storedSummary) {
-                apiData.summary = JSON.parse(storedSummary);
+                apiDataState.summary = JSON.parse(storedSummary);
                 console.log('[Endowus Portfolio Viewer] Loaded summary data from storage');
             }
         } catch (e) {
@@ -374,9 +372,9 @@
      * @param {string} goalType - Goal type
      * @returns {number} Projected investment amount (0 if not set)
      */
-    function getProjectedInvestment(bucket, goalType) {
+    function getProjectedInvestment(projectedInvestmentsState, bucket, goalType) {
         const key = getProjectedInvestmentKey(bucket, goalType);
-        return projectedInvestments[key] || 0;
+        return projectedInvestmentsState[key] || 0;
     }
 
     /**
@@ -385,10 +383,10 @@
      * @param {string} goalType - Goal type
      * @param {number} amount - Projected investment amount
      */
-    function setProjectedInvestment(bucket, goalType, amount) {
+    function setProjectedInvestment(projectedInvestmentsState, bucket, goalType, amount) {
         const key = getProjectedInvestmentKey(bucket, goalType);
         const validAmount = parseFloat(amount) || 0;
-        projectedInvestments[key] = validAmount;
+        projectedInvestmentsState[key] = validAmount;
         console.log(`[Endowus Portfolio Viewer] Set projected investment for ${bucket}|${goalType}: ${validAmount}`);
     }
 
@@ -397,9 +395,9 @@
      * @param {string} bucket - Bucket name
      * @param {string} goalType - Goal type
      */
-    function clearProjectedInvestment(bucket, goalType) {
+    function clearProjectedInvestment(projectedInvestmentsState, bucket, goalType) {
         const key = getProjectedInvestmentKey(bucket, goalType);
-        delete projectedInvestments[key];
+        delete projectedInvestmentsState[key];
         console.log(`[Endowus Portfolio Viewer] Cleared projected investment for ${bucket}|${goalType}`);
     }
 
@@ -407,14 +405,14 @@
     // UI
     // ============================================
     
-    function renderSummaryView(contentDiv) {
+    function renderSummaryView(contentDiv, mergedInvestmentDataState) {
         contentDiv.innerHTML = '';
 
         const summaryContainer = document.createElement('div');
         summaryContainer.className = 'epv-summary-container';
 
-        Object.keys(mergedInvestmentData).sort().forEach(bucket => {
-            const bucketObj = mergedInvestmentData[bucket];
+        Object.keys(mergedInvestmentDataState).sort().forEach(bucket => {
+            const bucketObj = mergedInvestmentDataState[bucket];
             if (!bucketObj) return;
 
             let bucketTotalReturn = 0;
@@ -485,9 +483,9 @@
         contentDiv.appendChild(summaryContainer);
     }
 
-    function renderBucketView(contentDiv, bucket) {
+    function renderBucketView(contentDiv, bucket, mergedInvestmentDataState, projectedInvestmentsState) {
         contentDiv.innerHTML = '';
-        const bucketObj = mergedInvestmentData[bucket];
+        const bucketObj = mergedInvestmentDataState[bucket];
         if (!bucketObj) return;
 
         let bucketTotalReturn = 0;
@@ -546,7 +544,7 @@
             typeHeader.className = 'epv-type-header';
             
             // Get current projected investment for this goal type
-            const currentProjectedInvestment = getProjectedInvestment(bucket, goalType);
+            const currentProjectedInvestment = getProjectedInvestment(projectedInvestmentsState, bucket, goalType);
             
             typeHeader.innerHTML = `
                 <h3>${getDisplayGoalType(goalType)}</h3>
@@ -581,7 +579,14 @@
             // Add event listener for projected investment input
             const projectedInput = projectedInputContainer.querySelector('.epv-projected-input');
             projectedInput.addEventListener('input', function() {
-                handleProjectedInvestmentChange(this, bucket, goalType, typeSection);
+                handleProjectedInvestmentChange(
+                    this,
+                    bucket,
+                    goalType,
+                    typeSection,
+                    mergedInvestmentDataState,
+                    projectedInvestmentsState
+                );
             });
             
             typeSection.appendChild(typeHeader);
@@ -605,7 +610,7 @@
             const tbody = document.createElement('tbody');
             
             // Get projected investment for this goal type
-            const projectedAmount = getProjectedInvestment(bucket, goalType);
+            const projectedAmount = getProjectedInvestment(projectedInvestmentsState, bucket, goalType);
             // Calculate adjusted total (current + projected)
             const adjustedTypeTotal = group.totalInvestmentAmount + projectedAmount;
             
@@ -666,7 +671,15 @@
                 // Add event listener to the target input
                 const input = tr.querySelector('.epv-target-input');
                 input.addEventListener('input', function() {
-                    handleGoalTargetChange(this, item.goalId, item.totalInvestmentAmount, group.totalInvestmentAmount, bucket, goalType);
+                    handleGoalTargetChange(
+                        this,
+                        item.goalId,
+                        item.totalInvestmentAmount,
+                        group.totalInvestmentAmount,
+                        bucket,
+                        goalType,
+                        projectedInvestmentsState
+                    );
                 });
                 
                 tbody.appendChild(tr);
@@ -687,7 +700,15 @@
      * @param {string} bucket - Bucket name
      * @param {string} goalType - Goal type
      */
-    function handleGoalTargetChange(input, goalId, currentAmount, totalTypeAmount, bucket, goalType) {
+    function handleGoalTargetChange(
+        input,
+        goalId,
+        currentAmount,
+        totalTypeAmount,
+        bucket,
+        goalType,
+        projectedInvestmentsState
+    ) {
         const value = input.value;
         const row = input.closest('tr');
         const diffCell = row.querySelector('.epv-diff-cell');
@@ -727,7 +748,7 @@
         }
         
         // Get projected investment and calculate adjusted total
-        const projectedAmount = getProjectedInvestment(bucket, goalType);
+        const projectedAmount = getProjectedInvestment(projectedInvestmentsState, bucket, goalType);
         const adjustedTypeTotal = totalTypeAmount + projectedAmount;
         
         // Update difference display in dollar amount
@@ -757,12 +778,19 @@
      * @param {string} goalType - Goal type
      * @param {HTMLElement} typeSection - The type section element containing the table
      */
-    function handleProjectedInvestmentChange(input, bucket, goalType, typeSection) {
+    function handleProjectedInvestmentChange(
+        input,
+        bucket,
+        goalType,
+        typeSection,
+        mergedInvestmentDataState,
+        projectedInvestmentsState
+    ) {
         const value = input.value;
         
         if (value === '' || value === '0') {
             // Clear the projected investment if input is empty or zero
-            clearProjectedInvestment(bucket, goalType);
+            clearProjectedInvestment(projectedInvestmentsState, bucket, goalType);
         } else {
             const amount = parseFloat(value);
             
@@ -777,7 +805,7 @@
             }
             
             // Save the projected investment
-            setProjectedInvestment(bucket, goalType, amount);
+            setProjectedInvestment(projectedInvestmentsState, bucket, goalType, amount);
             
             // Show success feedback
             input.style.borderColor = '#10b981';
@@ -805,10 +833,10 @@
                         const currentAmount = parseFloat(investmentText.replace(/[$,]/g, '')) || 0;
                         
                         // Get total type amount from bucketObj
-                        const bucketObj = mergedInvestmentData[bucket];
+                        const bucketObj = mergedInvestmentDataState[bucket];
                         if (bucketObj && bucketObj[goalType]) {
                             const totalTypeAmount = bucketObj[goalType].totalInvestmentAmount;
-                            const projectedAmount = getProjectedInvestment(bucket, goalType);
+                            const projectedAmount = getProjectedInvestment(projectedInvestmentsState, bucket, goalType);
                             const adjustedTypeTotal = totalTypeAmount + projectedAmount;
                             
                             if (adjustedTypeTotal > 0) {
@@ -1377,7 +1405,6 @@
             alert('Please wait for portfolio data to load, then try again.');
             return;
         }
-        mergedInvestmentData = data;
         console.log('[Endowus Portfolio Viewer] Data merged successfully');
 
         const overlay = document.createElement('div');
@@ -1432,14 +1459,14 @@
         contentDiv.className = 'epv-content';
         container.appendChild(contentDiv);
 
-        renderSummaryView(contentDiv);
+        renderSummaryView(contentDiv, data);
 
         select.onchange = function() {
             const val = select.value;
             if (val === 'SUMMARY') {
-                renderSummaryView(contentDiv);
+                renderSummaryView(contentDiv, data);
             } else {
-                renderBucketView(contentDiv, val);
+                renderBucketView(contentDiv, val, data, projectedInvestments);
             }
         };
 
@@ -1548,7 +1575,7 @@
     
     function init() {
         // Load stored API data
-        loadStoredData();
+        loadStoredData(apiData);
         
         if (document.body) {
             injectStyles();
