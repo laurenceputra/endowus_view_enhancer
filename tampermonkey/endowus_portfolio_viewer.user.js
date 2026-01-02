@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.1.1
+// @version      2.2.0
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_deleteValue
 // @run-at       document-start
 // @updateURL    https://raw.githubusercontent.com/laurenceputra/endowus_view_enhancer/main/tampermonkey/endowus_portfolio_viewer.user.js
 // @downloadURL  https://raw.githubusercontent.com/laurenceputra/endowus_view_enhancer/main/tampermonkey/endowus_portfolio_viewer.user.js
@@ -173,6 +174,64 @@
             }
         } catch (e) {
             console.error('[Endowus Portfolio Viewer] Error loading stored data:', e);
+        }
+    }
+
+    /**
+     * Get storage key for a goal's target percentage
+     * @param {string} goalId - Unique goal identifier
+     * @returns {string} Storage key
+     */
+    function getGoalTargetKey(goalId) {
+        return `goal_target_pct_${goalId}`;
+    }
+
+    /**
+     * Get target percentage for a specific goal
+     * @param {string} goalId - Goal ID
+     * @returns {number|null} Target percentage or null if not set
+     */
+    function getGoalTargetPercentage(goalId) {
+        try {
+            const key = getGoalTargetKey(goalId);
+            const value = GM_getValue(key, null);
+            return value !== null ? parseFloat(value) : null;
+        } catch (e) {
+            console.error('[Endowus Portfolio Viewer] Error loading goal target percentage:', e);
+            return null;
+        }
+    }
+
+    /**
+     * Set target percentage for a specific goal
+     * @param {string} goalId - Goal ID
+     * @param {number} percentage - Target percentage (0-100)
+     * @returns {number} The actual value stored (after clamping)
+     */
+    function setGoalTargetPercentage(goalId, percentage) {
+        try {
+            const key = getGoalTargetKey(goalId);
+            const validPercentage = Math.max(0, Math.min(100, parseFloat(percentage)));
+            GM_setValue(key, validPercentage);
+            console.log(`[Endowus Portfolio Viewer] Saved goal target percentage for ${goalId}: ${validPercentage}%`);
+            return validPercentage;
+        } catch (e) {
+            console.error('[Endowus Portfolio Viewer] Error saving goal target percentage:', e);
+            return Math.max(0, Math.min(100, parseFloat(percentage)));
+        }
+    }
+
+    /**
+     * Delete target percentage for a specific goal
+     * @param {string} goalId - Goal ID
+     */
+    function deleteGoalTargetPercentage(goalId) {
+        try {
+            const key = getGoalTargetKey(goalId);
+            GM_deleteValue(key);
+            console.log(`[Endowus Portfolio Viewer] Deleted goal target percentage for ${goalId}`);
+        } catch (e) {
+            console.error('[Endowus Portfolio Viewer] Error deleting goal target percentage:', e);
         }
     }
 
@@ -458,6 +517,8 @@
                         <th>Goal Name</th>
                         <th>Investment Amount</th>
                         <th>% of Goal Type</th>
+                        <th>Target %</th>
+                        <th>Diff</th>
                         <th>Cumulative Return</th>
                         <th>Return %</th>
                     </tr>
@@ -469,6 +530,25 @@
                 const percentOfType = group.totalInvestmentAmount > 0
                     ? ((item.totalInvestmentAmount || 0) / group.totalInvestmentAmount * 100).toFixed(2)
                     : '0.00';
+                
+                // Get target percentage for this goal
+                const targetPercent = getGoalTargetPercentage(item.goalId);
+                const targetValue = targetPercent !== null ? targetPercent.toFixed(2) : '';
+                
+                // Calculate difference in dollar amount
+                let diffDisplay = '-';
+                let diffClass = '';
+                if (targetPercent !== null && group.totalInvestmentAmount > 0) {
+                    // Calculate target amount: (target% of goal type) * (total goal type amount)
+                    const targetAmount = (targetPercent / 100) * group.totalInvestmentAmount;
+                    // Diff = current amount - target amount
+                    const diffAmount = (item.totalInvestmentAmount || 0) - targetAmount;
+                    diffDisplay = formatMoney(diffAmount);
+                    
+                    // Color is red if absolute diff is more than 5% of the goal's investment amount
+                    const threshold = (item.totalInvestmentAmount || 0) * 0.05;
+                    diffClass = Math.abs(diffAmount) > threshold ? 'negative' : 'positive';
+                }
                     
                 const returnPercent = item.simpleRateOfReturnPercent !== null && item.simpleRateOfReturnPercent !== undefined 
                     ? (item.simpleRateOfReturnPercent * 100).toFixed(2) + '%' 
@@ -482,9 +562,29 @@
                     <td class="epv-goal-name">${item.goalName}</td>
                     <td>${formatMoney(item.totalInvestmentAmount)}</td>
                     <td>${percentOfType}%</td>
+                    <td class="epv-target-cell">
+                        <input 
+                            type="number" 
+                            class="epv-target-input" 
+                            min="0" 
+                            max="100" 
+                            step="0.01"
+                            value="${targetValue}"
+                            placeholder="Set target"
+                            data-goal-id="${item.goalId}"
+                        />
+                    </td>
+                    <td class="epv-diff-cell ${diffClass}">${diffDisplay}</td>
                     <td class="${returnClass}">${formatMoney(item.totalCumulativeReturn)}</td>
                     <td class="${returnClass}">${returnPercent}</td>
                 `;
+                
+                // Add event listener to the target input
+                const input = tr.querySelector('.epv-target-input');
+                input.addEventListener('input', function() {
+                    handleGoalTargetChange(this, item.goalId, item.totalInvestmentAmount, group.totalInvestmentAmount);
+                });
+                
                 tbody.appendChild(tr);
             });
             
@@ -492,6 +592,72 @@
             typeSection.appendChild(table);
             contentDiv.appendChild(typeSection);
         });
+    }
+
+    /**
+     * Handle changes to goal target percentage input
+     * @param {HTMLInputElement} input - Input element
+     * @param {string} goalId - Goal ID
+     * @param {number} currentAmount - Current investment amount for this goal
+     * @param {number} totalTypeAmount - Total investment amount for the goal type
+     */
+    function handleGoalTargetChange(input, goalId, currentAmount, totalTypeAmount) {
+        const value = input.value;
+        const row = input.closest('tr');
+        const diffCell = row.querySelector('.epv-diff-cell');
+        
+        if (value === '') {
+            // Clear the target if input is empty
+            deleteGoalTargetPercentage(goalId);
+            diffCell.textContent = '-';
+            diffCell.className = 'epv-diff-cell';
+            return;
+        }
+        
+        const targetPercent = parseFloat(value);
+        
+        // Validate input
+        if (isNaN(targetPercent)) {
+            // Invalid number - show error feedback
+            input.style.borderColor = '#dc2626';
+            setTimeout(() => {
+                input.style.borderColor = '';
+            }, 1000);
+            return;
+        }
+        
+        // Save to storage (this will clamp to 0-100 automatically)
+        const savedValue = setGoalTargetPercentage(goalId, targetPercent);
+        
+        // Check if value was clamped and provide feedback
+        if (savedValue !== targetPercent) {
+            // Value was clamped - update input to show actual stored value
+            input.value = savedValue.toFixed(2);
+            // Show warning briefly
+            input.style.borderColor = '#f59e0b';
+            setTimeout(() => {
+                input.style.borderColor = '';
+            }, 1000);
+        }
+        
+        // Update difference display in dollar amount
+        if (totalTypeAmount > 0) {
+            // Calculate target amount: (target% of goal type) * (total goal type amount)
+            const targetAmount = (savedValue / 100) * totalTypeAmount;
+            // Diff = current amount - target amount
+            const diffAmount = currentAmount - targetAmount;
+            const diffDisplay = formatMoney(diffAmount);
+            
+            // Color is red if absolute diff is more than 5% of the goal's investment amount
+            const threshold = currentAmount * 0.05;
+            const diffClass = Math.abs(diffAmount) > threshold ? 'negative' : 'positive';
+            
+            diffCell.textContent = diffDisplay;
+            diffCell.className = `epv-diff-cell ${diffClass}`;
+        } else {
+            diffCell.textContent = '-';
+            diffCell.className = 'epv-diff-cell';
+        }
     }
 
     function showOverlay() {
@@ -950,6 +1116,67 @@
             .epv-table .negative {
                 color: #dc2626;
                 font-weight: 700;
+            }
+            
+            /* Target Input Styles */
+            
+            .epv-target-cell {
+                padding: 6px 8px !important;
+            }
+            
+            .epv-target-input {
+                width: 70px;
+                padding: 4px 8px;
+                border: 2px solid #e5e7eb;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 600;
+                color: #1f2937;
+                background: #ffffff;
+                transition: all 0.2s ease;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            }
+            
+            .epv-target-input:focus {
+                outline: none;
+                border-color: #667eea;
+                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            }
+            
+            .epv-target-input:hover {
+                border-color: #667eea;
+            }
+            
+            .epv-target-input::placeholder {
+                color: #9ca3af;
+                font-weight: 400;
+                font-size: 12px;
+            }
+            
+            /* Remove spinner arrows in Chrome, Safari, Edge, Opera */
+            .epv-target-input::-webkit-outer-spin-button,
+            .epv-target-input::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            
+            /* Remove spinner arrows in Firefox */
+            .epv-target-input[type=number] {
+                -moz-appearance: textfield;
+            }
+            
+            .epv-diff-cell {
+                font-weight: 700;
+                font-size: 14px;
+                text-align: center;
+            }
+            
+            .epv-diff-cell.positive {
+                color: #059669;
+            }
+            
+            .epv-diff-cell.negative {
+                color: #dc2626;
             }
             
             /* Scrollbar Styles */
