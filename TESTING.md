@@ -2,30 +2,33 @@
 
 ## Overview
 
-This document explains the testing infrastructure for the Endowus Portfolio Viewer project. The project uses Jest for testing with a clear separation between production code and test code.
+This document explains the testing infrastructure for the Endowus Portfolio Viewer project. The project uses Jest for testing with **zero code duplication** - all logic lives in one place.
 
 ## Architecture
 
-### Production vs Testing Code
+### Single Source of Truth Pattern
 
-The project follows a unique architecture to balance testing with the requirements of a Tampermonkey userscript:
+The project uses a unique pattern to enable testing without code duplication:
 
-1. **Production Code** (`tampermonkey/endowus_portfolio_viewer.user.js`):
-   - Single self-contained file
-   - No external dependencies
-   - No imports/requires
-   - Runs directly in the browser via Tampermonkey
-   - Contains inline implementations of all functions
+1. **The Userscript** (`tampermonkey/endowus_portfolio_viewer.user.js`):
+   - Single self-contained file with ALL logic
+   - Pure functions defined at the top
+   - Browser-specific code wrapped in `if (typeof window !== 'undefined')`
+   - Conditional exports at the bottom: `if (typeof module !== 'undefined' && module.exports)`
+   - Works standalone in browser, exports functions in Node.js for testing
 
-2. **Test Code** (`src/utils.js`):
-   - Extracted pure functions for testing
-   - CommonJS exports for Node.js compatibility
-   - Used ONLY for testing, never loaded by the userscript
-   - Mirrors the logic in the production userscript
+2. **Tests** (`__tests__/utils.test.js`):
+   - Import pure functions directly from the userscript
+   - Test the REAL implementation, not a duplicate
+   - No synchronization needed between files
 
-**IMPORTANT**: Changes to logic must be made in BOTH places:
-- Update `tampermonkey/endowus_portfolio_viewer.user.js` (production)
-- Update `src/utils.js` (tests)
+**Key Insight**: The userscript detects its environment (browser vs Node.js) and behaves accordingly:
+- In browser: Functions are internal to the IIFE, browser code runs normally
+- In Node.js: Browser code is skipped, functions are exported for testing
+
+**IMPORTANT**: Changes to logic are made in ONE place:
+- Update function in `tampermonkey/endowus_portfolio_viewer.user.js`
+- Add function to exports section if it's new
 - Add/update tests in `__tests__/utils.test.js`
 
 ## Running Tests
@@ -234,19 +237,19 @@ expect(formatMoney(1000)).toMatch(/^\$1,000\.00$/);
 When updating the userscript:
 
 1. ✅ Update function in `tampermonkey/endowus_portfolio_viewer.user.js`
-2. ✅ Update matching function in `src/utils.js`
+2. ✅ If adding a new testable function, add it to the conditional exports section
 3. ✅ Update or add tests in `__tests__/utils.test.js`
 4. ✅ Run tests locally
 5. ✅ Commit all changes together
 
+**No duplication!** There's only ONE copy of each function - in the userscript itself.
+
 ### Test Coverage Goals
 
-- **Statements**: 100%
-- **Branches**: >90%
-- **Functions**: 100%
-- **Lines**: 100%
+- **Pure Logic Functions**: 100% coverage for exported functions
+- **Overall File**: Lower percentage is expected (includes browser-only code)
 
-Current coverage: 100% statements, 94.73% branches, 100% functions
+Current coverage for tested functions: 100% statements, 94.73% branches, 100% functions
 
 ## Resources
 

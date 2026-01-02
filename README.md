@@ -75,24 +75,22 @@ Goals with matching starting words are grouped, so your buckets reflect your str
 
 ### For Contributors
 
-This project separates testable logic from the userscript to enable automated testing while keeping the production userscript self-contained.
+This project keeps all logic in ONE place while enabling comprehensive testing. The userscript conditionally exports functions for testing without affecting browser execution.
 
 #### Project Structure
 
 ```
 endowus_view_enhancer/
 ├── tampermonkey/
-│   └── endowus_portfolio_viewer.user.js  # Production userscript (single file, no dependencies)
-├── src/
-│   └── utils.js                           # Testable pure functions (used only for testing)
+│   └── endowus_portfolio_viewer.user.js  # All logic + conditional exports
 ├── __tests__/
-│   └── utils.test.js                      # Unit tests
+│   └── utils.test.js                      # Unit tests (imports from userscript)
 └── .github/
     └── workflows/
-        └── ci.yml                         # GitHub Actions CI
+        └── ci.yml                          # GitHub Actions CI
 ```
 
-**Important**: The production userscript in `tampermonkey/` contains inline copies of all functions and does NOT import from `src/utils.js`. The separation exists only for testing purposes.
+**Key Pattern**: The userscript contains all logic functions inline. At the bottom, it conditionally exports them when running in Node.js (`if (typeof module !== 'undefined')`), allowing tests to import the REAL implementation. No code duplication anywhere.
 
 #### Running Tests Locally
 
@@ -118,10 +116,12 @@ Tests run automatically on every pull request and push to main via GitHub Action
 
 When adding new pure functions to the userscript:
 
-1. Add the function to `src/utils.js` with proper exports
-2. Keep the inline copy in `tampermonkey/endowus_portfolio_viewer.user.js` 
+1. Add the function in `tampermonkey/endowus_portfolio_viewer.user.js` (before the browser-only section)
+2. Add it to the conditional exports at the bottom of the userscript
 3. Write comprehensive tests in `__tests__/utils.test.js`
 4. Ensure tests cover edge cases and error conditions
+
+**No duplication needed!** Tests import directly from the userscript.
 
 ---
 

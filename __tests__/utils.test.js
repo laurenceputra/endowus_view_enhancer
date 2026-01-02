@@ -1,5 +1,9 @@
 /**
  * Unit tests for Endowus Portfolio Viewer utility functions
+ * 
+ * These tests import pure logic functions directly from the userscript.
+ * The userscript conditionally exports functions when running in Node.js,
+ * allowing tests to target the real implementation without code duplication.
  */
 
 const {
@@ -10,7 +14,7 @@ const {
     formatMoney,
     formatGrowthPercent,
     buildMergedInvestmentData
-} = require('../src/utils');
+} = require('../tampermonkey/endowus_portfolio_viewer.user.js');
 
 describe('getGoalTargetKey', () => {
     test('should generate correct storage key format', () => {
