@@ -518,7 +518,7 @@
                         <th>Investment Amount</th>
                         <th>% of Goal Type</th>
                         <th>Target %</th>
-                        <th>Diff (%)</th>
+                        <th>Diff</th>
                         <th>Cumulative Return</th>
                         <th>Return %</th>
                     </tr>
