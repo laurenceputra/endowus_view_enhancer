@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { formatMoney, formatGrowthPercent } = require('./formatting.js');
+const { formatMoney, formatGrowthPercent } = require('../endowus_portfolio_viewer.user.js');
 
 describe('formatMoney', () => {
     it('formats numbers as currency with commas', () => {

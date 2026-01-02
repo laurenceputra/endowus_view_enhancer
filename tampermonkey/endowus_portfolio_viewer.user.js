@@ -81,6 +81,10 @@
         return ((a / denom) * 100).toFixed(2) + '%';
     }
 
+    // NOTE: Logic functions in this userscript are exported for Node-based tests.
+    // Keep pure logic in this file so browser execution stays unchanged while tests
+    // import the real implementations.
+
     /**
      * Merges data from all three API endpoints into a structured bucket map
      * @param {Array} performanceData - Performance API data
@@ -154,6 +158,7 @@
         return bucketMap;
     }
 
+    if (typeof window !== 'undefined') {
     // ============================================
     // Adapters/State
     // ============================================
@@ -1590,6 +1595,19 @@
         document.addEventListener('DOMContentLoaded', init);
     } else {
         init();
+    }
+    }
+
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = {
+            getGoalTargetKey,
+            getProjectedInvestmentKey,
+            getDisplayGoalType,
+            sortGoalTypes,
+            formatMoney,
+            formatGrowthPercent,
+            buildMergedInvestmentData
+        };
     }
 
 })();
