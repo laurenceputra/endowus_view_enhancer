@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.1.1
+// @version      2.2.0
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -173,6 +173,41 @@
             }
         } catch (e) {
             console.error('[Endowus Portfolio Viewer] Error loading stored data:', e);
+        }
+    }
+
+    /**
+     * Get target percentage for a specific bucket and goal type
+     * @param {string} bucket - Bucket name
+     * @param {string} goalType - Goal type
+     * @returns {number|null} Target percentage or null if not set
+     */
+    function getTargetPercentage(bucket, goalType) {
+        try {
+            const key = `target_pct_${bucket}_${goalType}`;
+            const value = GM_getValue(key, null);
+            return value !== null ? parseFloat(value) : null;
+        } catch (e) {
+            console.error('[Endowus Portfolio Viewer] Error loading target percentage:', e);
+            return null;
+        }
+    }
+
+    /**
+     * Set target percentage for a specific bucket and goal type
+     * @param {string} bucket - Bucket name
+     * @param {string} goalType - Goal type
+     * @param {number} percentage - Target percentage (0-100)
+     */
+    function setTargetPercentage(bucket, goalType, percentage) {
+        try {
+            const key = `target_pct_${bucket}_${goalType}`;
+            // Validate percentage is within 0-100 range
+            const validPercentage = Math.max(0, Math.min(100, parseFloat(percentage)));
+            GM_setValue(key, validPercentage);
+            console.log(`[Endowus Portfolio Viewer] Saved target percentage for ${bucket} - ${goalType}: ${validPercentage}%`);
+        } catch (e) {
+            console.error('[Endowus Portfolio Viewer] Error saving target percentage:', e);
         }
     }
 
@@ -489,9 +524,125 @@
             });
             
             table.appendChild(tbody);
+            
+            // Add target percentage row after the goals table
+            const targetRow = createTargetPercentageRow(bucket, goalType, group.totalInvestmentAmount, bucketObj.total);
+            table.appendChild(targetRow);
+            
             typeSection.appendChild(table);
             contentDiv.appendChild(typeSection);
         });
+    }
+
+    /**
+     * Create a row for target percentage input and difference display
+     * @param {string} bucket - Bucket name
+     * @param {string} goalType - Goal type
+     * @param {number} typeInvestment - Total investment for this type
+     * @param {number} bucketTotal - Total investment for the bucket
+     * @returns {HTMLTableSectionElement} tbody element with target row
+     */
+    function createTargetPercentageRow(bucket, goalType, typeInvestment, bucketTotal) {
+        const tbody = document.createElement('tbody');
+        tbody.className = 'epv-target-row-section';
+        
+        const tr = document.createElement('tr');
+        tr.className = 'epv-target-row';
+        
+        // Calculate current % of bucket
+        const currentPercent = bucketTotal > 0 
+            ? ((typeInvestment / bucketTotal) * 100).toFixed(2) 
+            : '0.00';
+        
+        // Get stored target percentage
+        const targetPercent = getTargetPercentage(bucket, goalType);
+        const targetValue = targetPercent !== null ? targetPercent.toFixed(2) : '';
+        
+        // Calculate difference
+        let diffDisplay = '-';
+        let diffClass = '';
+        if (targetPercent !== null) {
+            const diff = parseFloat(currentPercent) - targetPercent;
+            diffDisplay = (diff >= 0 ? '+' : '') + diff.toFixed(2) + '%';
+            diffClass = diff >= 0 ? 'positive' : 'negative';
+        }
+        
+        const td = document.createElement('td');
+        td.colSpan = 5;
+        td.className = 'epv-target-cell';
+        td.innerHTML = `
+            <div class="epv-target-container">
+                <span class="epv-target-label">Target % of Bucket:</span>
+                <span class="epv-target-current">Current: ${currentPercent}%</span>
+                <div class="epv-target-input-group">
+                    <label>Target:</label>
+                    <input 
+                        type="number" 
+                        class="epv-target-input" 
+                        min="0" 
+                        max="100" 
+                        step="0.01"
+                        value="${targetValue}"
+                        placeholder="Set target %"
+                        data-bucket="${bucket}"
+                        data-goal-type="${goalType}"
+                    />
+                    <span class="epv-target-unit">%</span>
+                </div>
+                <span class="epv-target-diff ${diffClass}">Diff: ${diffDisplay}</span>
+            </div>
+        `;
+        
+        // Add event listener to the input
+        const input = td.querySelector('.epv-target-input');
+        input.addEventListener('input', function() {
+            handleTargetPercentageChange(this, bucket, goalType, parseFloat(currentPercent));
+        });
+        
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        
+        return tbody;
+    }
+
+    /**
+     * Handle changes to target percentage input
+     * @param {HTMLInputElement} input - Input element
+     * @param {string} bucket - Bucket name
+     * @param {string} goalType - Goal type
+     * @param {number} currentPercent - Current percentage value
+     */
+    function handleTargetPercentageChange(input, bucket, goalType, currentPercent) {
+        const value = input.value;
+        
+        if (value === '' || value === null) {
+            // Clear the target if input is empty
+            const container = input.closest('.epv-target-container');
+            const diffSpan = container.querySelector('.epv-target-diff');
+            diffSpan.textContent = 'Diff: -';
+            diffSpan.className = 'epv-target-diff';
+            return;
+        }
+        
+        const targetPercent = parseFloat(value);
+        
+        // Validate and clamp to 0-100
+        if (isNaN(targetPercent) || targetPercent < 0 || targetPercent > 100) {
+            return;
+        }
+        
+        // Save to storage
+        setTargetPercentage(bucket, goalType, targetPercent);
+        
+        // Update difference display
+        const diff = currentPercent - targetPercent;
+        const diffDisplay = (diff >= 0 ? '+' : '') + diff.toFixed(2) + '%';
+        const diffClass = diff >= 0 ? 'positive' : 'negative';
+        
+        const container = input.closest('.epv-target-container');
+        const diffSpan = container.querySelector('.epv-target-diff');
+        diffSpan.textContent = `Diff: ${diffDisplay}`;
+        diffSpan.className = `epv-target-diff ${diffClass}`;
     }
 
     function showOverlay() {
@@ -950,6 +1101,127 @@
             .epv-table .negative {
                 color: #dc2626;
                 font-weight: 700;
+            }
+            
+            /* Target Percentage Styles */
+            
+            .epv-target-row-section {
+                background: #f0f9ff;
+                border-top: 2px solid #bae6fd;
+            }
+            
+            .epv-target-row td {
+                padding: 14px 16px !important;
+                border-top: none !important;
+            }
+            
+            .epv-target-cell {
+                background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            }
+            
+            .epv-target-container {
+                display: flex;
+                align-items: center;
+                gap: 20px;
+                flex-wrap: wrap;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            }
+            
+            .epv-target-label {
+                font-weight: 700;
+                color: #0c4a6e;
+                font-size: 14px;
+            }
+            
+            .epv-target-current {
+                font-weight: 600;
+                color: #1f2937;
+                font-size: 14px;
+                padding: 4px 12px;
+                background: #ffffff;
+                border-radius: 6px;
+                border: 1px solid #cbd5e1;
+            }
+            
+            .epv-target-input-group {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            
+            .epv-target-input-group label {
+                font-weight: 600;
+                color: #1f2937;
+                font-size: 14px;
+            }
+            
+            .epv-target-input {
+                width: 90px;
+                padding: 6px 10px;
+                border: 2px solid #bae6fd;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: 600;
+                color: #0c4a6e;
+                background: #ffffff;
+                transition: all 0.2s ease;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            }
+            
+            .epv-target-input:focus {
+                outline: none;
+                border-color: #0ea5e9;
+                box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+            }
+            
+            .epv-target-input:hover {
+                border-color: #0ea5e9;
+            }
+            
+            .epv-target-input::placeholder {
+                color: #94a3b8;
+                font-weight: 400;
+            }
+            
+            /* Remove spinner arrows in Chrome, Safari, Edge, Opera */
+            .epv-target-input::-webkit-outer-spin-button,
+            .epv-target-input::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            
+            /* Remove spinner arrows in Firefox */
+            .epv-target-input[type=number] {
+                -moz-appearance: textfield;
+            }
+            
+            .epv-target-unit {
+                font-weight: 600;
+                color: #64748b;
+                font-size: 14px;
+            }
+            
+            .epv-target-diff {
+                font-weight: 700;
+                font-size: 14px;
+                padding: 4px 12px;
+                background: #ffffff;
+                border-radius: 6px;
+                border: 1px solid #cbd5e1;
+                min-width: 90px;
+                text-align: center;
+            }
+            
+            .epv-target-diff.positive {
+                color: #059669;
+                border-color: #a7f3d0;
+                background: #ecfdf5;
+            }
+            
+            .epv-target-diff.negative {
+                color: #dc2626;
+                border-color: #fecaca;
+                background: #fef2f2;
             }
             
             /* Scrollbar Styles */
