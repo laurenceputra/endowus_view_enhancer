@@ -17,7 +17,145 @@
     'use strict';
 
     // ============================================
-    // Data Storage
+    // Logic
+    // ============================================
+
+    /**
+     * Get storage key for a goal's target percentage
+     * @param {string} goalId - Unique goal identifier
+     * @returns {string} Storage key
+     */
+    function getGoalTargetKey(goalId) {
+        return `goal_target_pct_${goalId}`;
+    }
+
+    /**
+     * Get storage key for a goal type's projected investment
+     * @param {string} bucket - Bucket name
+     * @param {string} goalType - Goal type
+     * @returns {string} Storage key
+     */
+    function getProjectedInvestmentKey(bucket, goalType) {
+        return `${bucket}|${goalType}`;
+    }
+
+    function getDisplayGoalType(goalType) {
+        switch (goalType) {
+            case 'GENERAL_WEALTH_ACCUMULATION':
+                return 'Investment';
+            case 'CASH_MANAGEMENT':
+                return 'Cash';
+            case 'PASSIVE_INCOME':
+                return 'Income';
+            default:
+                return goalType;
+        }
+    }
+
+    function sortGoalTypes(goalTypeKeys) {
+        const preferred = ['GENERAL_WEALTH_ACCUMULATION', 'PASSIVE_INCOME', 'CASH_MANAGEMENT'];
+        const others = goalTypeKeys.filter(k => !preferred.includes(k)).sort();
+        const sorted = [];
+        preferred.forEach(p => { 
+            if (goalTypeKeys.includes(p)) sorted.push(p); 
+        });
+        return [...sorted, ...others];
+    }
+
+    function formatMoney(val) {
+        if (typeof val === 'number' && !isNaN(val)) {
+            return '$' + val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        return '-';
+    }
+
+    function formatGrowthPercent(totalReturn, total) {
+        // Calculate growth percentage as: return / principal * 100
+        // where principal = total - return (original investment)
+        // Example: if you invested $100 and now have $110, return is $10
+        // Growth = 10 / 100 * 100 = 10%
+        const a = Number(totalReturn);
+        const t = Number(total);
+        const denom = t - a; // principal (original investment)
+        if (!isFinite(a) || !isFinite(t) || denom === 0) return '-';
+        return ((a / denom) * 100).toFixed(2) + '%';
+    }
+
+    /**
+     * Merges data from all three API endpoints into a structured bucket map
+     * @param {Array} performanceData - Performance API data
+     * @param {Array} investibleData - Investible API data
+     * @param {Array} summaryData - Summary API data
+     * @returns {Object|null} Bucket map with aggregated data, or null if API data incomplete
+     * Structure: { bucketName: { total: number, goalType: { totalInvestmentAmount, totalCumulativeReturn, goals: [] } } }
+     */
+    function buildMergedInvestmentData(performanceData, investibleData, summaryData) {
+        if (!performanceData || !investibleData || !summaryData) {
+            return null;
+        }
+
+        if (!Array.isArray(performanceData) || !Array.isArray(investibleData) || !Array.isArray(summaryData)) {
+            return null;
+        }
+
+        const investibleMap = {};
+        investibleData.forEach(item => investibleMap[item.goalId] = item);
+
+        const summaryMap = {};
+        summaryData.forEach(item => summaryMap[item.goalId] = item);
+
+        const bucketMap = {};
+
+        performanceData.forEach(perf => {
+            const invest = investibleMap[perf.goalId] || {};
+            const summary = summaryMap[perf.goalId] || {};
+            const goalName = invest.goalName || summary.goalName || "";
+            // Extract bucket name from first word of goal name
+            // Expected format: "BucketName - Goal Description" (e.g., "Retirement - Core Portfolio")
+            const firstWord = goalName.trim().split(" ")[0];
+            const goalBucket = (firstWord && firstWord.length > 0) ? firstWord : "Uncategorized";
+            
+            const goalObj = {
+                goalId: perf.goalId,
+                goalName: goalName,
+                goalBucket: goalBucket,
+                goalType: invest.investmentGoalType || summary.investmentGoalType || "",
+                totalInvestmentAmount: invest.totalInvestmentAmount?.display?.amount || null,
+                totalCumulativeReturn: perf.totalCumulativeReturn?.amount || null,
+                simpleRateOfReturnPercent: perf.simpleRateOfReturnPercent || null
+            };
+
+            if (!bucketMap[goalBucket]) {
+                bucketMap[goalBucket] = {
+                    total: 0
+                };
+            }
+            
+            if (!bucketMap[goalBucket][goalObj.goalType]) {
+                bucketMap[goalBucket][goalObj.goalType] = {
+                    totalInvestmentAmount: 0,
+                    totalCumulativeReturn: 0,
+                    goals: []
+                };
+            }
+            
+            bucketMap[goalBucket][goalObj.goalType].goals.push(goalObj);
+            
+            if (typeof goalObj.totalInvestmentAmount === "number") {
+                bucketMap[goalBucket][goalObj.goalType].totalInvestmentAmount += goalObj.totalInvestmentAmount;
+                bucketMap[goalBucket].total += goalObj.totalInvestmentAmount;
+            }
+            
+            if (typeof goalObj.totalCumulativeReturn === "number") {
+                bucketMap[goalBucket][goalObj.goalType].totalCumulativeReturn += goalObj.totalCumulativeReturn;
+            }
+        });
+
+        return bucketMap;
+    }
+
+    // ============================================
+    // Adapters/State
     // ============================================
     const apiData = {
         performance: null,
@@ -182,15 +320,6 @@
     }
 
     /**
-     * Get storage key for a goal's target percentage
-     * @param {string} goalId - Unique goal identifier
-     * @returns {string} Storage key
-     */
-    function getGoalTargetKey(goalId) {
-        return `goal_target_pct_${goalId}`;
-    }
-
-    /**
      * Get target percentage for a specific goal
      * @param {string} goalId - Goal ID
      * @returns {number|null} Target percentage or null if not set
@@ -240,16 +369,6 @@
     }
 
     /**
-     * Get storage key for a goal type's projected investment
-     * @param {string} bucket - Bucket name
-     * @param {string} goalType - Goal type
-     * @returns {string} Storage key
-     */
-    function getProjectedInvestmentKey(bucket, goalType) {
-        return `${bucket}|${goalType}`;
-    }
-
-    /**
      * Get projected investment for a specific goal type
      * @param {string} bucket - Bucket name
      * @param {string} goalType - Goal type
@@ -285,132 +404,7 @@
     }
 
     // ============================================
-    // Data Processing Logic
-    // ============================================
-    
-    /**
-     * Merges data from all three API endpoints into a structured bucket map
-     * @returns {Object|null} Bucket map with aggregated data, or null if API data incomplete
-     * Structure: { bucketName: { total: number, goalType: { totalInvestmentAmount, totalCumulativeReturn, goals: [] } } }
-     */
-    function mergeAPIResponses() {
-        if (!apiData.performance || !apiData.investible || !apiData.summary) {
-            console.log('[Endowus Portfolio Viewer] Not all API data available yet');
-            return null;
-        }
-
-        // Validate that all data sources are arrays
-        if (!Array.isArray(apiData.performance) || !Array.isArray(apiData.investible) || !Array.isArray(apiData.summary)) {
-            console.log('[Endowus Portfolio Viewer] API data is not in expected array format');
-            return null;
-        }
-
-        const investibleMap = {};
-        apiData.investible.forEach(item => investibleMap[item.goalId] = item);
-
-        const summaryMap = {};
-        apiData.summary.forEach(item => summaryMap[item.goalId] = item);
-
-        const bucketMap = {};
-
-        apiData.performance.forEach(perf => {
-            const invest = investibleMap[perf.goalId] || {};
-            const summary = summaryMap[perf.goalId] || {};
-            const goalName = invest.goalName || summary.goalName || "";
-            // Extract bucket name from first word of goal name
-            // Expected format: "BucketName - Goal Description" (e.g., "Retirement - Core Portfolio")
-            const firstWord = goalName.trim().split(" ")[0];
-            const goalBucket = (firstWord && firstWord.length > 0) ? firstWord : "Uncategorized";
-            
-            const goalObj = {
-                goalId: perf.goalId,
-                goalName: goalName,
-                goalBucket: goalBucket,
-                goalType: invest.investmentGoalType || summary.investmentGoalType || "",
-                totalInvestmentAmount: invest.totalInvestmentAmount?.display?.amount || null,
-                totalCumulativeReturn: perf.totalCumulativeReturn?.amount || null,
-                simpleRateOfReturnPercent: perf.simpleRateOfReturnPercent || null
-            };
-
-            if (!bucketMap[goalBucket]) {
-                bucketMap[goalBucket] = {
-                    total: 0
-                };
-            }
-            
-            if (!bucketMap[goalBucket][goalObj.goalType]) {
-                bucketMap[goalBucket][goalObj.goalType] = {
-                    totalInvestmentAmount: 0,
-                    totalCumulativeReturn: 0,
-                    goals: []
-                };
-            }
-            
-            bucketMap[goalBucket][goalObj.goalType].goals.push(goalObj);
-            
-            if (typeof goalObj.totalInvestmentAmount === "number") {
-                bucketMap[goalBucket][goalObj.goalType].totalInvestmentAmount += goalObj.totalInvestmentAmount;
-                bucketMap[goalBucket].total += goalObj.totalInvestmentAmount;
-            }
-            
-            if (typeof goalObj.totalCumulativeReturn === "number") {
-                bucketMap[goalBucket][goalObj.goalType].totalCumulativeReturn += goalObj.totalCumulativeReturn;
-            }
-        });
-
-        mergedInvestmentData = bucketMap;
-        console.log('[Endowus Portfolio Viewer] Data merged successfully');
-        return bucketMap;
-    }
-
-    // ============================================
-    // UI Helper Functions
-    // ============================================
-    
-    function getDisplayGoalType(goalType) {
-        switch (goalType) {
-            case 'GENERAL_WEALTH_ACCUMULATION':
-                return 'Investment';
-            case 'CASH_MANAGEMENT':
-                return 'Cash';
-            case 'PASSIVE_INCOME':
-                return 'Income';
-            default:
-                return goalType;
-        }
-    }
-
-    function sortGoalTypes(goalTypeKeys) {
-        const preferred = ['GENERAL_WEALTH_ACCUMULATION', 'PASSIVE_INCOME', 'CASH_MANAGEMENT'];
-        const others = goalTypeKeys.filter(k => !preferred.includes(k)).sort();
-        const sorted = [];
-        preferred.forEach(p => { 
-            if (goalTypeKeys.includes(p)) sorted.push(p); 
-        });
-        return [...sorted, ...others];
-    }
-
-    function formatMoney(val) {
-        if (typeof val === 'number' && !isNaN(val)) {
-            return '$' + val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-        return '-';
-    }
-
-    function formatGrowthPercent(totalReturn, total) {
-        // Calculate growth percentage as: return / principal * 100
-        // where principal = total - return (original investment)
-        // Example: if you invested $100 and now have $110, return is $10
-        // Growth = 10 / 100 * 100 = 10%
-        const a = Number(totalReturn);
-        const t = Number(total);
-        const denom = t - a; // principal (original investment)
-        if (!isFinite(a) || !isFinite(t) || denom === 0) return '-';
-        return ((a / denom) * 100).toFixed(2) + '%';
-    }
-
-    // ============================================
-    // UI Rendering Functions
+    // UI
     // ============================================
     
     function renderSummaryView(contentDiv) {
@@ -840,93 +834,8 @@
         }
     }
 
-    function showOverlay() {
-        let old = document.getElementById('epv-overlay');
-        if (old) old.remove();
-
-        const data = mergeAPIResponses();
-        if (!data) {
-            alert('Please wait for portfolio data to load, then try again.');
-            return;
-        }
-
-        const overlay = document.createElement('div');
-        overlay.id = 'epv-overlay';
-        overlay.className = 'epv-overlay';
-
-        const container = document.createElement('div');
-        container.className = 'epv-container';
-
-        const header = document.createElement('div');
-        header.className = 'epv-header';
-        
-        const title = document.createElement('h1');
-        title.textContent = 'Portfolio Viewer';
-        
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'epv-close-btn';
-        closeBtn.innerHTML = '✕';
-        closeBtn.onclick = () => overlay.remove();
-        
-        header.appendChild(title);
-        header.appendChild(closeBtn);
-        container.appendChild(header);
-
-        const controls = document.createElement('div');
-        controls.className = 'epv-controls';
-        
-        const selectLabel = document.createElement('label');
-        selectLabel.textContent = 'View:';
-        selectLabel.className = 'epv-select-label';
-        
-        const select = document.createElement('select');
-        select.className = 'epv-select';
-        
-        const summaryOption = document.createElement('option');
-        summaryOption.value = 'SUMMARY';
-        summaryOption.textContent = '📊 Summary View';
-        select.appendChild(summaryOption);
-
-        Object.keys(data).sort().forEach(bucket => {
-            const opt = document.createElement('option');
-            opt.value = bucket;
-            opt.textContent = `📁 ${bucket}`;
-            select.appendChild(opt);
-        });
-
-        controls.appendChild(selectLabel);
-        controls.appendChild(select);
-        container.appendChild(controls);
-
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'epv-content';
-        container.appendChild(contentDiv);
-
-        renderSummaryView(contentDiv);
-
-        select.onchange = function() {
-            const val = select.value;
-            if (val === 'SUMMARY') {
-                renderSummaryView(contentDiv);
-            } else {
-                renderBucketView(contentDiv, val);
-            }
-        };
-
-        overlay.appendChild(container);
-        
-        // Close overlay when clicking outside the container
-        overlay.onclick = (e) => {
-            if (e.target === overlay) {
-                overlay.remove();
-            }
-        };
-        
-        document.body.appendChild(overlay);
-    }
-
     // ============================================
-    // Modern CSS Styles
+    // UI: Styles
     // ============================================
     
     function injectStyles() {
@@ -1451,7 +1360,103 @@
     }
 
     // ============================================
-    // Initialization
+    // Controller
+    // ============================================
+
+    function showOverlay() {
+        let old = document.getElementById('epv-overlay');
+        if (old) old.remove();
+
+        const data = buildMergedInvestmentData(
+            apiData.performance,
+            apiData.investible,
+            apiData.summary
+        );
+        if (!data) {
+            console.log('[Endowus Portfolio Viewer] Not all API data available yet');
+            alert('Please wait for portfolio data to load, then try again.');
+            return;
+        }
+        mergedInvestmentData = data;
+        console.log('[Endowus Portfolio Viewer] Data merged successfully');
+
+        const overlay = document.createElement('div');
+        overlay.id = 'epv-overlay';
+        overlay.className = 'epv-overlay';
+
+        const container = document.createElement('div');
+        container.className = 'epv-container';
+
+        const header = document.createElement('div');
+        header.className = 'epv-header';
+        
+        const title = document.createElement('h1');
+        title.textContent = 'Portfolio Viewer';
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'epv-close-btn';
+        closeBtn.innerHTML = '✕';
+        closeBtn.onclick = () => overlay.remove();
+        
+        header.appendChild(title);
+        header.appendChild(closeBtn);
+        container.appendChild(header);
+
+        const controls = document.createElement('div');
+        controls.className = 'epv-controls';
+        
+        const selectLabel = document.createElement('label');
+        selectLabel.textContent = 'View:';
+        selectLabel.className = 'epv-select-label';
+        
+        const select = document.createElement('select');
+        select.className = 'epv-select';
+        
+        const summaryOption = document.createElement('option');
+        summaryOption.value = 'SUMMARY';
+        summaryOption.textContent = '📊 Summary View';
+        select.appendChild(summaryOption);
+
+        Object.keys(data).sort().forEach(bucket => {
+            const opt = document.createElement('option');
+            opt.value = bucket;
+            opt.textContent = `📁 ${bucket}`;
+            select.appendChild(opt);
+        });
+
+        controls.appendChild(selectLabel);
+        controls.appendChild(select);
+        container.appendChild(controls);
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'epv-content';
+        container.appendChild(contentDiv);
+
+        renderSummaryView(contentDiv);
+
+        select.onchange = function() {
+            const val = select.value;
+            if (val === 'SUMMARY') {
+                renderSummaryView(contentDiv);
+            } else {
+                renderBucketView(contentDiv, val);
+            }
+        };
+
+        overlay.appendChild(container);
+        
+        // Close overlay when clicking outside the container
+        overlay.onclick = (e) => {
+            if (e.target === overlay) {
+                overlay.remove();
+            }
+        };
+        
+        document.body.appendChild(overlay);
+    }
+
+    // ============================================
+    // Controller: Initialization
     // ============================================
     
     let portfolioButton = null;
