@@ -222,7 +222,8 @@
             return validPercentage;
         } catch (e) {
             console.error('[Endowus Portfolio Viewer] Error saving target percentage:', e);
-            return percentage;
+            // Return clamped value even on error to maintain consistency
+            return Math.max(0, Math.min(100, parseFloat(percentage)));
         }
     }
 
@@ -331,6 +332,9 @@
     // ============================================
     // UI Helper Functions
     // ============================================
+    
+    // Constants for table structure
+    const BUCKET_TABLE_COLUMNS = 5;
     
     /**
      * Escape HTML to prevent XSS vulnerabilities
@@ -615,7 +619,7 @@
         const escapedGoalType = escapeHtml(goalType);
         
         const td = document.createElement('td');
-        td.colSpan = 5;
+        td.colSpan = BUCKET_TABLE_COLUMNS;
         td.className = 'epv-target-cell';
         td.innerHTML = `
             <div class="epv-target-container">
@@ -688,20 +692,19 @@
             return;
         }
         
-        // Clamp to 0-100 and update input if clamped
-        const clampedValue = Math.max(0, Math.min(100, targetPercent));
-        if (clampedValue !== targetPercent) {
+        // Save to storage (this will clamp to 0-100 automatically)
+        const savedValue = setTargetPercentage(bucket, goalType, targetPercent);
+        
+        // Check if value was clamped and provide feedback
+        if (savedValue !== targetPercent) {
             // Value was clamped - update input to show actual stored value
-            input.value = clampedValue.toFixed(2);
+            input.value = savedValue.toFixed(2);
             // Show warning briefly
             input.style.borderColor = '#f59e0b';
             setTimeout(() => {
                 input.style.borderColor = '';
             }, 1000);
         }
-        
-        // Save to storage (returns the clamped value)
-        const savedValue = setTargetPercentage(bucket, goalType, clampedValue);
         
         // Update difference display using helper
         const diff = calculateDifference(currentPercent, savedValue);
