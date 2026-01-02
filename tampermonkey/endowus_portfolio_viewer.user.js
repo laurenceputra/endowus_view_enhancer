@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.2.0
+// @version      2.3.0
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -26,6 +26,10 @@
     };
 
     let mergedInvestmentData = null;
+    
+    // Non-persistent storage for projected investments (resets on reload)
+    // Key format: "bucketName|goalType" -> projected amount
+    const projectedInvestments = {};
 
     // ============================================
     // API Interception via Monkey Patching
@@ -233,6 +237,51 @@
         } catch (e) {
             console.error('[Endowus Portfolio Viewer] Error deleting goal target percentage:', e);
         }
+    }
+
+    /**
+     * Get storage key for a goal type's projected investment
+     * @param {string} bucket - Bucket name
+     * @param {string} goalType - Goal type
+     * @returns {string} Storage key
+     */
+    function getProjectedInvestmentKey(bucket, goalType) {
+        return `${bucket}|${goalType}`;
+    }
+
+    /**
+     * Get projected investment for a specific goal type
+     * @param {string} bucket - Bucket name
+     * @param {string} goalType - Goal type
+     * @returns {number} Projected investment amount (0 if not set)
+     */
+    function getProjectedInvestment(bucket, goalType) {
+        const key = getProjectedInvestmentKey(bucket, goalType);
+        return projectedInvestments[key] || 0;
+    }
+
+    /**
+     * Set projected investment for a specific goal type
+     * @param {string} bucket - Bucket name
+     * @param {string} goalType - Goal type
+     * @param {number} amount - Projected investment amount
+     */
+    function setProjectedInvestment(bucket, goalType, amount) {
+        const key = getProjectedInvestmentKey(bucket, goalType);
+        const validAmount = Math.max(0, parseFloat(amount) || 0);
+        projectedInvestments[key] = validAmount;
+        console.log(`[Endowus Portfolio Viewer] Set projected investment for ${bucket}|${goalType}: ${validAmount}`);
+    }
+
+    /**
+     * Clear projected investment for a specific goal type
+     * @param {string} bucket - Bucket name
+     * @param {string} goalType - Goal type
+     */
+    function clearProjectedInvestment(bucket, goalType) {
+        const key = getProjectedInvestmentKey(bucket, goalType);
+        delete projectedInvestments[key];
+        console.log(`[Endowus Portfolio Viewer] Cleared projected investment for ${bucket}|${goalType}`);
     }
 
     // ============================================
@@ -496,9 +545,15 @@
             
             const typeSection = document.createElement('div');
             typeSection.className = 'epv-type-section';
+            typeSection.dataset.bucket = bucket;
+            typeSection.dataset.goalType = goalType;
             
             const typeHeader = document.createElement('div');
             typeHeader.className = 'epv-type-header';
+            
+            // Get current projected investment for this goal type
+            const currentProjectedInvestment = getProjectedInvestment(bucket, goalType);
+            
             typeHeader.innerHTML = `
                 <h3>${getDisplayGoalType(goalType)}</h3>
                 <div class="epv-type-summary">
@@ -507,6 +562,35 @@
                     <span>Growth: ${typeGrowth}</span>
                 </div>
             `;
+            
+            // Add projected investment input
+            const projectedInputContainer = document.createElement('div');
+            projectedInputContainer.className = 'epv-projected-input-container';
+            projectedInputContainer.innerHTML = `
+                <label class="epv-projected-label">
+                    <span class="epv-projected-icon">💡</span>
+                    <span>Add Projected Investment (simulation only):</span>
+                </label>
+                <input 
+                    type="number" 
+                    class="epv-projected-input" 
+                    min="0" 
+                    step="100"
+                    value="${currentProjectedInvestment > 0 ? currentProjectedInvestment : ''}"
+                    placeholder="Enter amount"
+                    data-bucket="${bucket}"
+                    data-goal-type="${goalType}"
+                />
+            `;
+            
+            typeHeader.appendChild(projectedInputContainer);
+            
+            // Add event listener for projected investment input
+            const projectedInput = projectedInputContainer.querySelector('.epv-projected-input');
+            projectedInput.addEventListener('input', function() {
+                handleProjectedInvestmentChange(this, bucket, goalType, typeSection);
+            });
+            
             typeSection.appendChild(typeHeader);
 
             const table = document.createElement('table');
@@ -526,6 +610,12 @@
             `;
 
             const tbody = document.createElement('tbody');
+            
+            // Get projected investment for this goal type
+            const projectedAmount = getProjectedInvestment(bucket, goalType);
+            // Calculate adjusted total (current + projected)
+            const adjustedTypeTotal = group.totalInvestmentAmount + projectedAmount;
+            
             group.goals.forEach(item => {
                 const percentOfType = group.totalInvestmentAmount > 0
                     ? ((item.totalInvestmentAmount || 0) / group.totalInvestmentAmount * 100).toFixed(2)
@@ -536,11 +626,12 @@
                 const targetValue = targetPercent !== null ? targetPercent.toFixed(2) : '';
                 
                 // Calculate difference in dollar amount
+                // Key change: Use adjusted total (including projected investment) for target calculation
                 let diffDisplay = '-';
                 let diffClass = '';
-                if (targetPercent !== null && group.totalInvestmentAmount > 0) {
-                    // Calculate target amount: (target% of goal type) * (total goal type amount)
-                    const targetAmount = (targetPercent / 100) * group.totalInvestmentAmount;
+                if (targetPercent !== null && adjustedTypeTotal > 0) {
+                    // Calculate target amount: (target% of goal type) * (adjusted total including projected)
+                    const targetAmount = (targetPercent / 100) * adjustedTypeTotal;
                     // Diff = current amount - target amount
                     const diffAmount = (item.totalInvestmentAmount || 0) - targetAmount;
                     diffDisplay = formatMoney(diffAmount);
@@ -582,7 +673,7 @@
                 // Add event listener to the target input
                 const input = tr.querySelector('.epv-target-input');
                 input.addEventListener('input', function() {
-                    handleGoalTargetChange(this, item.goalId, item.totalInvestmentAmount, group.totalInvestmentAmount);
+                    handleGoalTargetChange(this, item.goalId, item.totalInvestmentAmount, group.totalInvestmentAmount, bucket, goalType);
                 });
                 
                 tbody.appendChild(tr);
@@ -600,8 +691,10 @@
      * @param {string} goalId - Goal ID
      * @param {number} currentAmount - Current investment amount for this goal
      * @param {number} totalTypeAmount - Total investment amount for the goal type
+     * @param {string} bucket - Bucket name
+     * @param {string} goalType - Goal type
      */
-    function handleGoalTargetChange(input, goalId, currentAmount, totalTypeAmount) {
+    function handleGoalTargetChange(input, goalId, currentAmount, totalTypeAmount, bucket, goalType) {
         const value = input.value;
         const row = input.closest('tr');
         const diffCell = row.querySelector('.epv-diff-cell');
@@ -640,10 +733,14 @@
             }, 1000);
         }
         
+        // Get projected investment and calculate adjusted total
+        const projectedAmount = getProjectedInvestment(bucket, goalType);
+        const adjustedTypeTotal = totalTypeAmount + projectedAmount;
+        
         // Update difference display in dollar amount
-        if (totalTypeAmount > 0) {
-            // Calculate target amount: (target% of goal type) * (total goal type amount)
-            const targetAmount = (savedValue / 100) * totalTypeAmount;
+        if (adjustedTypeTotal > 0) {
+            // Calculate target amount: (target% of goal type) * (adjusted total including projected)
+            const targetAmount = (savedValue / 100) * adjustedTypeTotal;
             // Diff = current amount - target amount
             const diffAmount = currentAmount - targetAmount;
             const diffDisplay = formatMoney(diffAmount);
@@ -657,6 +754,90 @@
         } else {
             diffCell.textContent = '-';
             diffCell.className = 'epv-diff-cell';
+        }
+    }
+
+    /**
+     * Handle changes to projected investment input
+     * @param {HTMLInputElement} input - Input element
+     * @param {string} bucket - Bucket name
+     * @param {string} goalType - Goal type
+     * @param {HTMLElement} typeSection - The type section element containing the table
+     */
+    function handleProjectedInvestmentChange(input, bucket, goalType, typeSection) {
+        const value = input.value;
+        
+        if (value === '' || value === '0') {
+            // Clear the projected investment if input is empty or zero
+            clearProjectedInvestment(bucket, goalType);
+        } else {
+            const amount = parseFloat(value);
+            
+            // Validate input
+            if (isNaN(amount) || amount < 0) {
+                // Invalid number - show error feedback
+                input.style.borderColor = '#dc2626';
+                setTimeout(() => {
+                    input.style.borderColor = '';
+                }, 1000);
+                return;
+            }
+            
+            // Save the projected investment
+            setProjectedInvestment(bucket, goalType, amount);
+            
+            // Show success feedback
+            input.style.borderColor = '#10b981';
+            setTimeout(() => {
+                input.style.borderColor = '';
+            }, 500);
+        }
+        
+        // Recalculate all diffs in this goal type section
+        const tbody = typeSection.querySelector('tbody');
+        if (tbody) {
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach(row => {
+                const targetInput = row.querySelector('.epv-target-input');
+                const diffCell = row.querySelector('.epv-diff-cell');
+                
+                if (targetInput && diffCell) {
+                    const goalId = targetInput.dataset.goalId;
+                    const targetPercent = getGoalTargetPercentage(goalId);
+                    
+                    if (targetPercent !== null) {
+                        // Get the goal's investment amount from the row
+                        const cells = row.querySelectorAll('td');
+                        const investmentText = cells[1]?.textContent || '$0';
+                        const currentAmount = parseFloat(investmentText.replace(/[$,]/g, '')) || 0;
+                        
+                        // Get total type amount from bucketObj
+                        const bucketObj = mergedInvestmentData[bucket];
+                        if (bucketObj && bucketObj[goalType]) {
+                            const totalTypeAmount = bucketObj[goalType].totalInvestmentAmount;
+                            const projectedAmount = getProjectedInvestment(bucket, goalType);
+                            const adjustedTypeTotal = totalTypeAmount + projectedAmount;
+                            
+                            if (adjustedTypeTotal > 0) {
+                                // Calculate target amount with adjusted total
+                                const targetAmount = (targetPercent / 100) * adjustedTypeTotal;
+                                const diffAmount = currentAmount - targetAmount;
+                                const diffDisplay = formatMoney(diffAmount);
+                                
+                                // Color is red if absolute diff is more than 5% of the goal's investment amount
+                                const threshold = currentAmount * 0.05;
+                                const diffClass = Math.abs(diffAmount) > threshold ? 'negative' : 'positive';
+                                
+                                diffCell.textContent = diffDisplay;
+                                diffCell.className = `epv-diff-cell ${diffClass}`;
+                            } else {
+                                diffCell.textContent = '-';
+                                diffCell.className = 'epv-diff-cell';
+                            }
+                        }
+                    }
+                }
+            });
         }
     }
 
@@ -1177,6 +1358,74 @@
             
             .epv-diff-cell.negative {
                 color: #dc2626;
+            }
+            
+            /* Projected Investment Input Styles */
+            
+            .epv-projected-input-container {
+                margin-top: 12px;
+                padding: 12px;
+                background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+                border: 2px dashed #f59e0b;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            
+            .epv-projected-label {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 13px;
+                font-weight: 600;
+                color: #78350f;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                white-space: nowrap;
+            }
+            
+            .epv-projected-icon {
+                font-size: 16px;
+            }
+            
+            .epv-projected-input {
+                width: 140px;
+                padding: 6px 12px;
+                border: 2px solid #f59e0b;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: 600;
+                color: #78350f;
+                background: #ffffff;
+                transition: all 0.2s ease;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            }
+            
+            .epv-projected-input:focus {
+                outline: none;
+                border-color: #d97706;
+                box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+            }
+            
+            .epv-projected-input:hover {
+                border-color: #d97706;
+            }
+            
+            .epv-projected-input::placeholder {
+                color: #a16207;
+                font-weight: 400;
+                font-size: 13px;
+            }
+            
+            /* Remove spinner arrows for projected input */
+            .epv-projected-input::-webkit-outer-spin-button,
+            .epv-projected-input::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            
+            .epv-projected-input[type=number] {
+                -moz-appearance: textfield;
             }
             
             /* Scrollbar Styles */
