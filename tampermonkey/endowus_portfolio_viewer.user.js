@@ -185,7 +185,8 @@
      */
     function getTargetPercentage(bucket, goalType) {
         try {
-            const key = `target_pct_${bucket}_${goalType}`;
+            // Use JSON encoding to avoid key collision issues with special characters
+            const key = `target_pct_${JSON.stringify({bucket, goalType})}`;
             const value = GM_getValue(key, null);
             return value !== null ? parseFloat(value) : null;
         } catch (e) {
@@ -199,16 +200,20 @@
      * @param {string} bucket - Bucket name
      * @param {string} goalType - Goal type
      * @param {number} percentage - Target percentage (0-100)
+     * @returns {number} The actual value stored (after clamping)
      */
     function setTargetPercentage(bucket, goalType, percentage) {
         try {
-            const key = `target_pct_${bucket}_${goalType}`;
+            // Use JSON encoding to avoid key collision issues with special characters
+            const key = `target_pct_${JSON.stringify({bucket, goalType})}`;
             // Validate percentage is within 0-100 range
             const validPercentage = Math.max(0, Math.min(100, parseFloat(percentage)));
             GM_setValue(key, validPercentage);
             console.log(`[Endowus Portfolio Viewer] Saved target percentage for ${bucket} - ${goalType}: ${validPercentage}%`);
+            return validPercentage;
         } catch (e) {
             console.error('[Endowus Portfolio Viewer] Error saving target percentage:', e);
+            return percentage;
         }
     }
 
@@ -610,6 +615,8 @@
         `;
         
         // Add event listener to the input
+        // Note: This is safe from memory leaks because when the tbody is replaced,
+        // the old elements and their listeners are garbage collected automatically
         const input = td.querySelector('.epv-target-input');
         input.addEventListener('input', function() {
             handleTargetPercentageChange(this, bucket, goalType, parseFloat(currentPercent));
@@ -633,7 +640,7 @@
         
         if (value === '') {
             // Clear the target if input is empty - remove from storage
-            const key = `target_pct_${bucket}_${goalType}`;
+            const key = `target_pct_${JSON.stringify({bucket, goalType})}`;
             GM_deleteValue(key);
             
             const container = input.closest('.epv-target-container');
@@ -645,16 +652,33 @@
         
         const targetPercent = parseFloat(value);
         
-        // Validate and clamp to 0-100
-        if (isNaN(targetPercent) || targetPercent < 0 || targetPercent > 100) {
+        // Validate input
+        if (isNaN(targetPercent)) {
+            // Invalid number - show error feedback
+            input.style.borderColor = '#dc2626';
+            setTimeout(() => {
+                input.style.borderColor = '';
+            }, 1000);
             return;
         }
         
-        // Save to storage
-        setTargetPercentage(bucket, goalType, targetPercent);
+        // Clamp to 0-100 and update input if clamped
+        const clampedValue = Math.max(0, Math.min(100, targetPercent));
+        if (clampedValue !== targetPercent) {
+            // Value was clamped - update input to show actual stored value
+            input.value = clampedValue.toFixed(2);
+            // Show warning briefly
+            input.style.borderColor = '#f59e0b';
+            setTimeout(() => {
+                input.style.borderColor = '';
+            }, 1000);
+        }
+        
+        // Save to storage (returns the clamped value)
+        const savedValue = setTargetPercentage(bucket, goalType, clampedValue);
         
         // Update difference display
-        const diff = currentPercent - targetPercent;
+        const diff = currentPercent - savedValue;
         const diffDisplay = (diff >= 0 ? '+' : '') + diff.toFixed(2) + '%';
         const diffClass = diff >= 0 ? 'positive' : 'negative';
         
