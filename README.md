@@ -71,6 +71,60 @@ Goals with matching starting words are grouped, so your buckets reflect your str
 
 ---
 
+## Development and Testing
+
+### For Contributors
+
+This project separates testable logic from the userscript to enable automated testing while keeping the production userscript self-contained.
+
+#### Project Structure
+
+```
+endowus_view_enhancer/
+├── tampermonkey/
+│   └── endowus_portfolio_viewer.user.js  # Production userscript (single file, no dependencies)
+├── src/
+│   └── utils.js                           # Testable pure functions (used only for testing)
+├── __tests__/
+│   └── utils.test.js                      # Unit tests
+└── .github/
+    └── workflows/
+        └── ci.yml                         # GitHub Actions CI
+```
+
+**Important**: The production userscript in `tampermonkey/` contains inline copies of all functions and does NOT import from `src/utils.js`. The separation exists only for testing purposes.
+
+#### Running Tests Locally
+
+```bash
+# Install dependencies
+npm install
+
+# Run tests
+npm test
+
+# Run tests with coverage
+npm run test:coverage
+
+# Watch mode for development
+npm run test:watch
+```
+
+#### Continuous Integration
+
+Tests run automatically on every pull request and push to main via GitHub Actions. The CI workflow tests on both Node.js 18.x and 20.x.
+
+#### Adding New Tests
+
+When adding new pure functions to the userscript:
+
+1. Add the function to `src/utils.js` with proper exports
+2. Keep the inline copy in `tampermonkey/endowus_portfolio_viewer.user.js` 
+3. Write comprehensive tests in `__tests__/utils.test.js`
+4. Ensure tests cover edge cases and error conditions
+
+---
+
 **Give it a try and keep your Endowus goals simple, visible, and private.**
 
 For feedback or help, <a href="https://github.com/laurenceputra/endowus_view_enhancer/issues">open an issue</a>.
