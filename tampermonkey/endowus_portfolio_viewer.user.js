@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.3.0
+// @version      2.2.0
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -268,7 +268,7 @@
      */
     function setProjectedInvestment(bucket, goalType, amount) {
         const key = getProjectedInvestmentKey(bucket, goalType);
-        const validAmount = Math.max(0, parseFloat(amount) || 0);
+        const validAmount = parseFloat(amount) || 0;
         projectedInvestments[key] = validAmount;
         console.log(`[Endowus Portfolio Viewer] Set projected investment for ${bucket}|${goalType}: ${validAmount}`);
     }
@@ -574,7 +574,6 @@
                 <input 
                     type="number" 
                     class="epv-projected-input" 
-                    min="0" 
                     step="100"
                     value="${currentProjectedInvestment > 0 ? currentProjectedInvestment : ''}"
                     placeholder="Enter amount"
@@ -774,7 +773,7 @@
             const amount = parseFloat(value);
             
             // Validate input
-            if (isNaN(amount) || amount < 0) {
+            if (isNaN(amount)) {
                 // Invalid number - show error feedback
                 input.style.borderColor = '#dc2626';
                 setTimeout(() => {
@@ -1365,8 +1364,8 @@
             .epv-projected-input-container {
                 margin-top: 12px;
                 padding: 12px;
-                background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-                border: 2px dashed #f59e0b;
+                background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+                border: 2px dashed #0284c7;
                 border-radius: 8px;
                 display: flex;
                 align-items: center;
@@ -1379,7 +1378,7 @@
                 gap: 6px;
                 font-size: 13px;
                 font-weight: 600;
-                color: #78350f;
+                color: #0c4a6e;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
                 white-space: nowrap;
             }
@@ -1391,11 +1390,11 @@
             .epv-projected-input {
                 width: 140px;
                 padding: 6px 12px;
-                border: 2px solid #f59e0b;
+                border: 2px solid #0284c7;
                 border-radius: 6px;
                 font-size: 14px;
                 font-weight: 600;
-                color: #78350f;
+                color: #0c4a6e;
                 background: #ffffff;
                 transition: all 0.2s ease;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -1403,16 +1402,16 @@
             
             .epv-projected-input:focus {
                 outline: none;
-                border-color: #d97706;
-                box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+                border-color: #0369a1;
+                box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
             }
             
             .epv-projected-input:hover {
-                border-color: #d97706;
+                border-color: #0369a1;
             }
             
             .epv-projected-input::placeholder {
-                color: #a16207;
+                color: #075985;
                 font-weight: 400;
                 font-size: 13px;
             }
