@@ -2,7 +2,7 @@
 
 **Smarter goal management for Singapore investors who want clarity and control. No data ever leaves your browser.**
 
-<img src="assets/endowus_view_enhancer_screenshot.png" alt="Endowus Portfolio Viewer Screenshot" />
+![Endowus Portfolio Viewer Screenshot](assets/endowus_view_enhancer_screenshot.png)
 
 ---
 
