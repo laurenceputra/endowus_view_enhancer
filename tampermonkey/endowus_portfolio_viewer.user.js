@@ -178,6 +178,17 @@
     }
 
     /**
+     * Generate storage key for target percentage
+     * @param {string} bucket - Bucket name
+     * @param {string} goalType - Goal type
+     * @returns {string} Storage key
+     */
+    function getStorageKey(bucket, goalType) {
+        // Use JSON encoding to avoid key collision issues with special characters
+        return `target_pct_${JSON.stringify({bucket, goalType})}`;
+    }
+
+    /**
      * Get target percentage for a specific bucket and goal type
      * @param {string} bucket - Bucket name
      * @param {string} goalType - Goal type
@@ -185,8 +196,7 @@
      */
     function getTargetPercentage(bucket, goalType) {
         try {
-            // Use JSON encoding to avoid key collision issues with special characters
-            const key = `target_pct_${JSON.stringify({bucket, goalType})}`;
+            const key = getStorageKey(bucket, goalType);
             const value = GM_getValue(key, null);
             return value !== null ? parseFloat(value) : null;
         } catch (e) {
@@ -204,8 +214,7 @@
      */
     function setTargetPercentage(bucket, goalType, percentage) {
         try {
-            // Use JSON encoding to avoid key collision issues with special characters
-            const key = `target_pct_${JSON.stringify({bucket, goalType})}`;
+            const key = getStorageKey(bucket, goalType);
             // Validate percentage is within 0-100 range
             const validPercentage = Math.max(0, Math.min(100, parseFloat(percentage)));
             GM_setValue(key, validPercentage);
@@ -215,6 +224,29 @@
             console.error('[Endowus Portfolio Viewer] Error saving target percentage:', e);
             return percentage;
         }
+    }
+
+    /**
+     * Calculate difference information for target percentage display
+     * @param {number} currentPercent - Current percentage
+     * @param {number|null} targetPercent - Target percentage (null if not set)
+     * @returns {Object} Object with display, class, and value properties
+     */
+    function calculateDifference(currentPercent, targetPercent) {
+        if (targetPercent === null) {
+            return {
+                display: '-',
+                class: '',
+                value: null
+            };
+        }
+        
+        const diff = currentPercent - targetPercent;
+        return {
+            display: (diff >= 0 ? '+' : '') + diff.toFixed(2) + '%',
+            class: diff >= 0 ? 'positive' : 'negative',
+            value: diff
+        };
     }
 
     // ============================================
@@ -576,13 +608,7 @@
         const targetValue = targetPercent !== null ? targetPercent.toFixed(2) : '';
         
         // Calculate difference
-        let diffDisplay = '-';
-        let diffClass = '';
-        if (targetPercent !== null) {
-            const diff = parseFloat(currentPercent) - targetPercent;
-            diffDisplay = (diff >= 0 ? '+' : '') + diff.toFixed(2) + '%';
-            diffClass = diff >= 0 ? 'positive' : 'negative';
-        }
+        const diff = calculateDifference(parseFloat(currentPercent), targetPercent);
         
         // Escape values to prevent XSS
         const escapedBucket = escapeHtml(bucket);
@@ -610,7 +636,7 @@
                     />
                     <span class="epv-target-unit">%</span>
                 </div>
-                <span class="epv-target-diff ${diffClass}">Diff: ${diffDisplay}</span>
+                <span class="epv-target-diff ${diff.class}">Diff: ${diff.display}</span>
             </div>
         `;
         
@@ -640,7 +666,7 @@
         
         if (value === '') {
             // Clear the target if input is empty - remove from storage
-            const key = `target_pct_${JSON.stringify({bucket, goalType})}`;
+            const key = getStorageKey(bucket, goalType);
             GM_deleteValue(key);
             
             const container = input.closest('.epv-target-container');
@@ -677,15 +703,13 @@
         // Save to storage (returns the clamped value)
         const savedValue = setTargetPercentage(bucket, goalType, clampedValue);
         
-        // Update difference display
-        const diff = currentPercent - savedValue;
-        const diffDisplay = (diff >= 0 ? '+' : '') + diff.toFixed(2) + '%';
-        const diffClass = diff >= 0 ? 'positive' : 'negative';
+        // Update difference display using helper
+        const diff = calculateDifference(currentPercent, savedValue);
         
         const container = input.closest('.epv-target-container');
         const diffSpan = container.querySelector('.epv-target-diff');
-        diffSpan.textContent = `Diff: ${diffDisplay}`;
-        diffSpan.className = `epv-target-diff ${diffClass}`;
+        diffSpan.textContent = `Diff: ${diff.display}`;
+        diffSpan.className = `epv-target-diff ${diff.class}`;
     }
 
     function showOverlay() {
