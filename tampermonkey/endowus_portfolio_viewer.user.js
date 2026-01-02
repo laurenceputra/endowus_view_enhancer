@@ -178,76 +178,61 @@
     }
 
     /**
-     * Generate storage key for target percentage
-     * @param {string} bucket - Bucket name
-     * @param {string} goalType - Goal type
+     * Get storage key for a goal's target percentage
+     * @param {string} goalId - Unique goal identifier
      * @returns {string} Storage key
      */
-    function getStorageKey(bucket, goalType) {
-        // Use JSON encoding to avoid key collision issues with special characters
-        return `target_pct_${JSON.stringify({bucket, goalType})}`;
+    function getGoalTargetKey(goalId) {
+        return `goal_target_pct_${goalId}`;
     }
 
     /**
-     * Get target percentage for a specific bucket and goal type
-     * @param {string} bucket - Bucket name
-     * @param {string} goalType - Goal type
+     * Get target percentage for a specific goal
+     * @param {string} goalId - Goal ID
      * @returns {number|null} Target percentage or null if not set
      */
-    function getTargetPercentage(bucket, goalType) {
+    function getGoalTargetPercentage(goalId) {
         try {
-            const key = getStorageKey(bucket, goalType);
+            const key = getGoalTargetKey(goalId);
             const value = GM_getValue(key, null);
             return value !== null ? parseFloat(value) : null;
         } catch (e) {
-            console.error('[Endowus Portfolio Viewer] Error loading target percentage:', e);
+            console.error('[Endowus Portfolio Viewer] Error loading goal target percentage:', e);
             return null;
         }
     }
 
     /**
-     * Set target percentage for a specific bucket and goal type
-     * @param {string} bucket - Bucket name
-     * @param {string} goalType - Goal type
+     * Set target percentage for a specific goal
+     * @param {string} goalId - Goal ID
      * @param {number} percentage - Target percentage (0-100)
      * @returns {number} The actual value stored (after clamping)
      */
-    function setTargetPercentage(bucket, goalType, percentage) {
+    function setGoalTargetPercentage(goalId, percentage) {
         try {
-            const key = getStorageKey(bucket, goalType);
-            // Validate percentage is within 0-100 range
+            const key = getGoalTargetKey(goalId);
             const validPercentage = Math.max(0, Math.min(100, parseFloat(percentage)));
             GM_setValue(key, validPercentage);
-            console.log(`[Endowus Portfolio Viewer] Saved target percentage for ${bucket} - ${goalType}: ${validPercentage}%`);
+            console.log(`[Endowus Portfolio Viewer] Saved goal target percentage for ${goalId}: ${validPercentage}%`);
             return validPercentage;
         } catch (e) {
-            console.error('[Endowus Portfolio Viewer] Error saving target percentage:', e);
-            // Return clamped value even on error to maintain consistency
+            console.error('[Endowus Portfolio Viewer] Error saving goal target percentage:', e);
             return Math.max(0, Math.min(100, parseFloat(percentage)));
         }
     }
 
     /**
-     * Calculate difference information for target percentage display
-     * @param {number} currentPercent - Current percentage
-     * @param {number|null} targetPercent - Target percentage (null if not set)
-     * @returns {Object} Object with display, class, and value properties
+     * Delete target percentage for a specific goal
+     * @param {string} goalId - Goal ID
      */
-    function calculateDifference(currentPercent, targetPercent) {
-        if (targetPercent === null) {
-            return {
-                display: '-',
-                class: '',
-                value: null
-            };
+    function deleteGoalTargetPercentage(goalId) {
+        try {
+            const key = getGoalTargetKey(goalId);
+            GM_deleteValue(key);
+            console.log(`[Endowus Portfolio Viewer] Deleted goal target percentage for ${goalId}`);
+        } catch (e) {
+            console.error('[Endowus Portfolio Viewer] Error deleting goal target percentage:', e);
         }
-        
-        const diff = currentPercent - targetPercent;
-        return {
-            display: (diff >= 0 ? '+' : '') + diff.toFixed(2) + '%',
-            class: diff >= 0 ? 'positive' : 'negative',
-            value: diff
-        };
     }
 
     // ============================================
@@ -332,20 +317,6 @@
     // ============================================
     // UI Helper Functions
     // ============================================
-    
-    // Constants for table structure
-    const BUCKET_TABLE_COLUMNS = 5;
-    
-    /**
-     * Escape HTML to prevent XSS vulnerabilities
-     * @param {string} text - Text to escape
-     * @returns {string} Escaped text
-     */
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
     
     function getDisplayGoalType(goalType) {
         switch (goalType) {
@@ -546,6 +517,8 @@
                         <th>Goal Name</th>
                         <th>Investment Amount</th>
                         <th>% of Goal Type</th>
+                        <th>Target %</th>
+                        <th>Diff (%)</th>
                         <th>Cumulative Return</th>
                         <th>Return %</th>
                     </tr>
@@ -557,6 +530,19 @@
                 const percentOfType = group.totalInvestmentAmount > 0
                     ? ((item.totalInvestmentAmount || 0) / group.totalInvestmentAmount * 100).toFixed(2)
                     : '0.00';
+                
+                // Get target percentage for this goal
+                const targetPercent = getGoalTargetPercentage(item.goalId);
+                const targetValue = targetPercent !== null ? targetPercent.toFixed(2) : '';
+                
+                // Calculate difference
+                let diffDisplay = '-';
+                let diffClass = '';
+                if (targetPercent !== null) {
+                    const diff = parseFloat(percentOfType) - targetPercent;
+                    diffDisplay = (diff >= 0 ? '+' : '') + diff.toFixed(2);
+                    diffClass = diff >= 0 ? 'positive' : 'negative';
+                }
                     
                 const returnPercent = item.simpleRateOfReturnPercent !== null && item.simpleRateOfReturnPercent !== undefined 
                     ? (item.simpleRateOfReturnPercent * 100).toFixed(2) + '%' 
@@ -570,113 +556,54 @@
                     <td class="epv-goal-name">${item.goalName}</td>
                     <td>${formatMoney(item.totalInvestmentAmount)}</td>
                     <td>${percentOfType}%</td>
+                    <td class="epv-target-cell">
+                        <input 
+                            type="number" 
+                            class="epv-target-input" 
+                            min="0" 
+                            max="100" 
+                            step="0.01"
+                            value="${targetValue}"
+                            placeholder="Set target"
+                            data-goal-id="${item.goalId}"
+                        />
+                    </td>
+                    <td class="epv-diff-cell ${diffClass}">${diffDisplay}</td>
                     <td class="${returnClass}">${formatMoney(item.totalCumulativeReturn)}</td>
                     <td class="${returnClass}">${returnPercent}</td>
                 `;
+                
+                // Add event listener to the target input
+                const input = tr.querySelector('.epv-target-input');
+                input.addEventListener('input', function() {
+                    handleGoalTargetChange(this, item.goalId, parseFloat(percentOfType));
+                });
+                
                 tbody.appendChild(tr);
             });
             
             table.appendChild(tbody);
-            
-            // Add target percentage row after the goals table
-            const targetRow = createTargetPercentageRow(bucket, goalType, group.totalInvestmentAmount, bucketObj.total);
-            table.appendChild(targetRow);
-            
             typeSection.appendChild(table);
             contentDiv.appendChild(typeSection);
         });
     }
 
     /**
-     * Create a row for target percentage input and difference display
-     * @param {string} bucket - Bucket name
-     * @param {string} goalType - Goal type
-     * @param {number} typeInvestment - Total investment for this type
-     * @param {number} bucketTotal - Total investment for the bucket
-     * @returns {HTMLTableSectionElement} tbody element with target row
-     */
-    function createTargetPercentageRow(bucket, goalType, typeInvestment, bucketTotal) {
-        const tbody = document.createElement('tbody');
-        tbody.className = 'epv-target-row-section';
-        
-        const tr = document.createElement('tr');
-        tr.className = 'epv-target-row';
-        
-        // Calculate current % of bucket
-        const currentPercent = bucketTotal > 0 
-            ? ((typeInvestment / bucketTotal) * 100).toFixed(2) 
-            : '0.00';
-        
-        // Get stored target percentage
-        const targetPercent = getTargetPercentage(bucket, goalType);
-        const targetValue = targetPercent !== null ? targetPercent.toFixed(2) : '';
-        
-        // Calculate difference
-        const diff = calculateDifference(parseFloat(currentPercent), targetPercent);
-        
-        // Escape values to prevent XSS
-        const escapedBucket = escapeHtml(bucket);
-        const escapedGoalType = escapeHtml(goalType);
-        
-        const td = document.createElement('td');
-        td.colSpan = BUCKET_TABLE_COLUMNS;
-        td.className = 'epv-target-cell';
-        td.innerHTML = `
-            <div class="epv-target-container">
-                <span class="epv-target-label">Target % of Bucket:</span>
-                <span class="epv-target-current">Current: ${currentPercent}%</span>
-                <div class="epv-target-input-group">
-                    <label>Target:</label>
-                    <input 
-                        type="number" 
-                        class="epv-target-input" 
-                        min="0" 
-                        max="100" 
-                        step="0.01"
-                        value="${targetValue}"
-                        placeholder="Set target %"
-                        data-bucket="${escapedBucket}"
-                        data-goal-type="${escapedGoalType}"
-                    />
-                    <span class="epv-target-unit">%</span>
-                </div>
-                <span class="epv-target-diff ${diff.class}">Diff: ${diff.display}</span>
-            </div>
-        `;
-        
-        // Add event listener to the input
-        // Note: This is safe from memory leaks because when the tbody is replaced,
-        // the old elements and their listeners are garbage collected automatically
-        const input = td.querySelector('.epv-target-input');
-        input.addEventListener('input', function() {
-            handleTargetPercentageChange(this, bucket, goalType, parseFloat(currentPercent));
-        });
-        
-        tr.appendChild(td);
-        tbody.appendChild(tr);
-        
-        return tbody;
-    }
-
-    /**
-     * Handle changes to target percentage input
+     * Handle changes to goal target percentage input
      * @param {HTMLInputElement} input - Input element
-     * @param {string} bucket - Bucket name
-     * @param {string} goalType - Goal type
+     * @param {string} goalId - Goal ID
      * @param {number} currentPercent - Current percentage value
      */
-    function handleTargetPercentageChange(input, bucket, goalType, currentPercent) {
+    function handleGoalTargetChange(input, goalId, currentPercent) {
         const value = input.value;
+        const row = input.closest('tr');
+        const diffCell = row.querySelector('.epv-diff-cell');
         
         if (value === '') {
-            // Clear the target if input is empty - remove from storage
-            const key = getStorageKey(bucket, goalType);
-            GM_deleteValue(key);
-            
-            const container = input.closest('.epv-target-container');
-            const diffSpan = container.querySelector('.epv-target-diff');
-            diffSpan.textContent = 'Diff: -';
-            diffSpan.className = 'epv-target-diff';
+            // Clear the target if input is empty
+            deleteGoalTargetPercentage(goalId);
+            diffCell.textContent = '-';
+            diffCell.className = 'epv-diff-cell';
             return;
         }
         
@@ -693,7 +620,7 @@
         }
         
         // Save to storage (this will clamp to 0-100 automatically)
-        const savedValue = setTargetPercentage(bucket, goalType, targetPercent);
+        const savedValue = setGoalTargetPercentage(goalId, targetPercent);
         
         // Check if value was clamped and provide feedback
         if (savedValue !== targetPercent) {
@@ -706,13 +633,13 @@
             }, 1000);
         }
         
-        // Update difference display using helper
-        const diff = calculateDifference(currentPercent, savedValue);
+        // Update difference display
+        const diff = currentPercent - savedValue;
+        const diffDisplay = (diff >= 0 ? '+' : '') + diff.toFixed(2);
+        const diffClass = diff >= 0 ? 'positive' : 'negative';
         
-        const container = input.closest('.epv-target-container');
-        const diffSpan = container.querySelector('.epv-target-diff');
-        diffSpan.textContent = `Diff: ${diff.display}`;
-        diffSpan.className = `epv-target-diff ${diff.class}`;
+        diffCell.textContent = diffDisplay;
+        diffCell.className = `epv-diff-cell ${diffClass}`;
     }
 
     function showOverlay() {
@@ -1173,66 +1100,20 @@
                 font-weight: 700;
             }
             
-            /* Target Percentage Styles */
-            
-            .epv-target-row-section {
-                background: #f0f9ff;
-                border-top: 2px solid #bae6fd;
-            }
-            
-            .epv-target-row td {
-                padding: 14px 16px !important;
-                border-top: none !important;
-            }
+            /* Target Input Styles */
             
             .epv-target-cell {
-                background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-            }
-            
-            .epv-target-container {
-                display: flex;
-                align-items: center;
-                gap: 20px;
-                flex-wrap: wrap;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            }
-            
-            .epv-target-label {
-                font-weight: 700;
-                color: #0c4a6e;
-                font-size: 14px;
-            }
-            
-            .epv-target-current {
-                font-weight: 600;
-                color: #1f2937;
-                font-size: 14px;
-                padding: 4px 12px;
-                background: #ffffff;
-                border-radius: 6px;
-                border: 1px solid #cbd5e1;
-            }
-            
-            .epv-target-input-group {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-            
-            .epv-target-input-group label {
-                font-weight: 600;
-                color: #1f2937;
-                font-size: 14px;
+                padding: 6px 8px !important;
             }
             
             .epv-target-input {
-                width: 90px;
-                padding: 6px 10px;
-                border: 2px solid #bae6fd;
+                width: 70px;
+                padding: 4px 8px;
+                border: 2px solid #e5e7eb;
                 border-radius: 6px;
-                font-size: 14px;
+                font-size: 13px;
                 font-weight: 600;
-                color: #0c4a6e;
+                color: #1f2937;
                 background: #ffffff;
                 transition: all 0.2s ease;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -1240,17 +1121,18 @@
             
             .epv-target-input:focus {
                 outline: none;
-                border-color: #0ea5e9;
-                box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+                border-color: #667eea;
+                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
             }
             
             .epv-target-input:hover {
-                border-color: #0ea5e9;
+                border-color: #667eea;
             }
             
             .epv-target-input::placeholder {
-                color: #94a3b8;
+                color: #9ca3af;
                 font-weight: 400;
+                font-size: 12px;
             }
             
             /* Remove spinner arrows in Chrome, Safari, Edge, Opera */
@@ -1265,33 +1147,18 @@
                 -moz-appearance: textfield;
             }
             
-            .epv-target-unit {
-                font-weight: 600;
-                color: #64748b;
-                font-size: 14px;
-            }
-            
-            .epv-target-diff {
+            .epv-diff-cell {
                 font-weight: 700;
                 font-size: 14px;
-                padding: 4px 12px;
-                background: #ffffff;
-                border-radius: 6px;
-                border: 1px solid #cbd5e1;
-                min-width: 90px;
                 text-align: center;
             }
             
-            .epv-target-diff.positive {
+            .epv-diff-cell.positive {
                 color: #059669;
-                border-color: #a7f3d0;
-                background: #ecfdf5;
             }
             
-            .epv-target-diff.negative {
+            .epv-diff-cell.negative {
                 color: #dc2626;
-                border-color: #fecaca;
-                background: #fef2f2;
             }
             
             /* Scrollbar Styles */
