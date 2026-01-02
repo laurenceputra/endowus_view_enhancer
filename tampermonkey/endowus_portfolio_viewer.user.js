@@ -295,6 +295,17 @@
     // UI Helper Functions
     // ============================================
     
+    /**
+     * Escape HTML to prevent XSS vulnerabilities
+     * @param {string} text - Text to escape
+     * @returns {string} Escaped text
+     */
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
     function getDisplayGoalType(goalType) {
         switch (goalType) {
             case 'GENERAL_WEALTH_ACCUMULATION':
@@ -568,6 +579,10 @@
             diffClass = diff >= 0 ? 'positive' : 'negative';
         }
         
+        // Escape values to prevent XSS
+        const escapedBucket = escapeHtml(bucket);
+        const escapedGoalType = escapeHtml(goalType);
+        
         const td = document.createElement('td');
         td.colSpan = 5;
         td.className = 'epv-target-cell';
@@ -585,8 +600,8 @@
                         step="0.01"
                         value="${targetValue}"
                         placeholder="Set target %"
-                        data-bucket="${bucket}"
-                        data-goal-type="${goalType}"
+                        data-bucket="${escapedBucket}"
+                        data-goal-type="${escapedGoalType}"
                     />
                     <span class="epv-target-unit">%</span>
                 </div>
