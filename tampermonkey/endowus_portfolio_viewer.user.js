@@ -7,6 +7,7 @@
 // @match        https://app.sg.endowus.com/*
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_deleteValue
 // @run-at       document-start
 // @updateURL    https://raw.githubusercontent.com/laurenceputra/endowus_view_enhancer/main/tampermonkey/endowus_portfolio_viewer.user.js
 // @downloadURL  https://raw.githubusercontent.com/laurenceputra/endowus_view_enhancer/main/tampermonkey/endowus_portfolio_viewer.user.js
@@ -615,8 +616,11 @@
     function handleTargetPercentageChange(input, bucket, goalType, currentPercent) {
         const value = input.value;
         
-        if (value === '' || value === null) {
-            // Clear the target if input is empty
+        if (value === '') {
+            // Clear the target if input is empty - remove from storage
+            const key = `target_pct_${bucket}_${goalType}`;
+            GM_deleteValue(key);
+            
             const container = input.closest('.epv-target-container');
             const diffSpan = container.querySelector('.epv-target-diff');
             diffSpan.textContent = 'Diff: -';
