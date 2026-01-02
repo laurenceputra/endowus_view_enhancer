@@ -1,78 +1,48 @@
 # Endowus Portfolio Viewer
 
-**The Endowus overlay for Singapore investors who want clear, private, goal-based reporting without spreadsheets or generic trackers.**
-
 ![Endowus Portfolio Viewer Screenshot](assets/endowus_view_enhancer_screenshot.png)
 
----
-
-## Achieve More with Core-Satellite Strategy
-
-If you use Endowus for retirement, education, or emergency savings, this overlay keeps your core-satellite goals organized.  
-Group each goal, track total returns, and see exactly how each part of the plan performs—right on the Endowus page.
+**See your Endowus investments the way you wish the platform worked—at a glance, by true purpose, with zero data ever leaving your browser.**
 
 ---
 
-## See Your Asset Allocation at a Glance
+## Finally, Your Portfolio Organized By What Actually Matters
 
-See how your goals map across portfolio buckets and investment types.  
-Use the view to spot imbalances, then calculate where new investment capital should go.
+Stop guessing. Endowus Portfolio Viewer is the upgrade Singapore investors have been waiting for—a browser overlay that gives you control and perspective you won't get from spreadsheets or default dashboards.
 
----
-
-## In-Browser Calculations for Better Planning
-
-All calculations and portfolio breakdowns happen locally in your browser.  
-The overlay adds instant summaries and details so you can plan next steps without exports or spreadsheets.
+**Own your story.** Group every goal—Retirement, Education, Emergency, and more—into clear, custom buckets, so you always know exactly where you stand and what's on track.
 
 ---
 
-## Your Privacy Stays Intact
+## Private, Beautiful, and Built for Real-Life Strategies
 
-- Local-only processing: your data never leaves your browser.
-- No downloads, uploads, or external servers—fully private.
-- Open source and transparent.
-
----
-
-## Ready to Get Started?
-
-**You'll need Tampermonkey, a free browser extension that runs user scripts on sites like Endowus.**  
-Tampermonkey works with Chrome, Firefox, Edge, and most desktop browsers.
-
-1. Install <a href="https://www.tampermonkey.net/">Tampermonkey</a> from your browser's extension/add-on store.
-2. Make sure Tampermonkey is enabled and "Allow user scripts" is turned on in its dashboard.
-3. Add the script using this link:  
-   <a href="https://raw.githubusercontent.com/laurenceputra/endowus_view_enhancer/main/tampermonkey/endowus_portfolio_viewer.user.js">Endowus Portfolio Viewer Script</a>  
-   Tampermonkey prompts you—click "Install".
-4. Log into <a href="https://app.sg.endowus.com/">Endowus</a>.  
-   If the 📊 Portfolio Viewer button doesn't show, refresh and check that Tampermonkey and the script are enabled.
+- **Buckets, Not Just Lists:** Go beyond account totals. Instantly see your investments grouped by the goals and priorities that matter to you.
+- **No More Blind Spots:** Track CPF, SRS, and cash in one glance, with growth and returns color-coded for confidence.
+- **Modern Interface:** Enjoy a responsive, distraction-free overlay with gorgeous gradients and instant access. Portfolio summary or drilldown, always just a click away.
+- **Your Data Stays Private:** Runs 100% in your browser—your financial info never leaves your device. No hidden uploads. No third-party analytics. No surprises.
+- **Zero Setup, Immediate Clarity:** Just add the script to Tampermonkey, log in to Endowus, and your customized dashboard appears. Grouping takes care of itself if your goal names follow the simple “Bucket - Description” pattern.
 
 ---
 
-## Naming Tips for Maximum Clarity
+## Why Switch? Because Your Portfolio Is Unique
 
-To make bucket grouping work, name your goals like this:
-```
-Retirement - CPF Core
-Retirement - Satellite Growth
-Education - Child Fund
-Emergency - SRS Reserve
-```
-Goals with matching starting words are grouped, so your buckets reflect your strategy.
+Most platforms treat everyone's investments the same. Endowus Portfolio Viewer puts your planning first:
+- **Own Your Category:** The only Singapore tool that overlays your Endowus dashboard and turns generic goal lists into a strategic, bucketed portfolio "map".
+- **Radically Simple, Ruthlessly Focused:** No bloated features, no sign-up, no privacy nightmares. Your goals, your strategy, your device.
+- **For Core-Satellite Thinkers:** Built from the ground up for investors who manage by intent, not just by instrument—see if you're under- or over-exposed in any life goal, at any moment.
 
 ---
 
-## Made for Singapore Endowus Users
+## Try It—See The Results Others Miss
 
-- Built for Singapore Endowus users managing CPF, SRS, cash, and multi-goal accounts
-- Positioned for core-satellite investing, not generic portfolio tracking
-- Your investment data always stays with you
+1. [Install Tampermonkey](https://www.tampermonkey.net/) for your browser.
+2. [Add the Endowus Portfolio Viewer Script](https://raw.githubusercontent.com/laurenceputra/endowus_view_enhancer/main/tampermonkey/endowus_portfolio_viewer.user.js).
+3. Log in to Endowus. If you see the 📊 button, you're done.
+
+**Your future—finally, in buckets.**
 
 ---
 
-**Give it a try and keep your Endowus goals simple, visible, and private.**
-
-For feedback or help, <a href="https://github.com/laurenceputra/endowus_view_enhancer/issues">open an issue</a>.
+_For feedback or support, open an [issue on GitHub](https://github.com/laurenceputra/endowus_view_enhancer/issues)._
 
 MIT License
