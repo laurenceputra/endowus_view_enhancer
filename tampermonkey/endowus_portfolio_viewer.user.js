@@ -535,13 +535,19 @@
                 const targetPercent = getGoalTargetPercentage(item.goalId);
                 const targetValue = targetPercent !== null ? targetPercent.toFixed(2) : '';
                 
-                // Calculate difference
+                // Calculate difference in dollar amount
                 let diffDisplay = '-';
                 let diffClass = '';
-                if (targetPercent !== null) {
-                    const diff = parseFloat(percentOfType) - targetPercent;
-                    diffDisplay = (diff >= 0 ? '+' : '') + diff.toFixed(2);
-                    diffClass = diff >= 0 ? 'positive' : 'negative';
+                if (targetPercent !== null && group.totalInvestmentAmount > 0) {
+                    // Calculate target amount: (target% of goal type) * (total goal type amount)
+                    const targetAmount = (targetPercent / 100) * group.totalInvestmentAmount;
+                    // Diff = current amount - target amount
+                    const diffAmount = (item.totalInvestmentAmount || 0) - targetAmount;
+                    diffDisplay = formatMoney(diffAmount);
+                    
+                    // Color is red if absolute diff is more than 5% of the goal's investment amount
+                    const threshold = (item.totalInvestmentAmount || 0) * 0.05;
+                    diffClass = Math.abs(diffAmount) > threshold ? 'negative' : 'positive';
                 }
                     
                 const returnPercent = item.simpleRateOfReturnPercent !== null && item.simpleRateOfReturnPercent !== undefined 
@@ -576,7 +582,7 @@
                 // Add event listener to the target input
                 const input = tr.querySelector('.epv-target-input');
                 input.addEventListener('input', function() {
-                    handleGoalTargetChange(this, item.goalId, parseFloat(percentOfType));
+                    handleGoalTargetChange(this, item.goalId, item.totalInvestmentAmount, group.totalInvestmentAmount);
                 });
                 
                 tbody.appendChild(tr);
@@ -592,9 +598,10 @@
      * Handle changes to goal target percentage input
      * @param {HTMLInputElement} input - Input element
      * @param {string} goalId - Goal ID
-     * @param {number} currentPercent - Current percentage value
+     * @param {number} currentAmount - Current investment amount for this goal
+     * @param {number} totalTypeAmount - Total investment amount for the goal type
      */
-    function handleGoalTargetChange(input, goalId, currentPercent) {
+    function handleGoalTargetChange(input, goalId, currentAmount, totalTypeAmount) {
         const value = input.value;
         const row = input.closest('tr');
         const diffCell = row.querySelector('.epv-diff-cell');
@@ -633,13 +640,24 @@
             }, 1000);
         }
         
-        // Update difference display
-        const diff = currentPercent - savedValue;
-        const diffDisplay = (diff >= 0 ? '+' : '') + diff.toFixed(2);
-        const diffClass = diff >= 0 ? 'positive' : 'negative';
-        
-        diffCell.textContent = diffDisplay;
-        diffCell.className = `epv-diff-cell ${diffClass}`;
+        // Update difference display in dollar amount
+        if (totalTypeAmount > 0) {
+            // Calculate target amount: (target% of goal type) * (total goal type amount)
+            const targetAmount = (savedValue / 100) * totalTypeAmount;
+            // Diff = current amount - target amount
+            const diffAmount = currentAmount - targetAmount;
+            const diffDisplay = formatMoney(diffAmount);
+            
+            // Color is red if absolute diff is more than 5% of the goal's investment amount
+            const threshold = currentAmount * 0.05;
+            const diffClass = Math.abs(diffAmount) > threshold ? 'negative' : 'positive';
+            
+            diffCell.textContent = diffDisplay;
+            diffCell.className = `epv-diff-cell ${diffClass}`;
+        } else {
+            diffCell.textContent = '-';
+            diffCell.className = 'epv-diff-cell';
+        }
     }
 
     function showOverlay() {
