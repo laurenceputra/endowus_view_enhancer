@@ -1,0 +1,42 @@
+{
+  "name": "endowus-portfolio-viewer",
+  "version": "2.2.0",
+  "description": "View and organize your Endowus portfolio by buckets with a modern interface",
+  "main": "tampermonkey/endowus_portfolio_viewer.user.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/laurenceputra/endowus_view_enhancer.git"
+  },
+  "keywords": [
+    "endowus",
+    "portfolio",
+    "investment",
+    "tampermonkey",
+    "userscript"
+  ],
+  "author": "laurenceputra",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/laurenceputra/endowus_view_enhancer/issues"
+  },
+  "homepage": "https://github.com/laurenceputra/endowus_view_enhancer#readme",
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["json-summary", "text"],
+    "collectCoverageFrom": [
+      "tampermonkey/**/*.user.js"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ]
+  }
+}

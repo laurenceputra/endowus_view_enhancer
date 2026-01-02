@@ -155,6 +155,13 @@
     }
 
     // ============================================
+    // Browser-Only Code (Skip in Node.js/Testing Environment)
+    // ============================================
+    // Everything below this point requires browser APIs (window, document, etc.)
+    // and should not execute when running tests in Node.js.
+    if (typeof window !== 'undefined') {
+
+    // ============================================
     // Adapters/State
     // ============================================
     const apiData = {
@@ -1590,6 +1597,27 @@
         document.addEventListener('DOMContentLoaded', init);
     } else {
         init();
+    }
+
+    } // End of browser-only code
+
+    // ============================================
+    // Conditional Export for Testing (Node.js only)
+    // ============================================
+    // This allows tests to import pure logic functions without duplication.
+    // The userscript remains standalone in the browser (no imports/exports).
+    // In Node.js (test/CI), these functions are programmatically accessible.
+    // Pattern: Keep all logic in ONE place (this file), test the real implementation.
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = {
+            getGoalTargetKey,
+            getProjectedInvestmentKey,
+            getDisplayGoalType,
+            sortGoalTypes,
+            formatMoney,
+            formatGrowthPercent,
+            buildMergedInvestmentData
+        };
     }
 
 })();
