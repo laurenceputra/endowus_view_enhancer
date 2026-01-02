@@ -1,6 +1,6 @@
 # Endowus Portfolio Viewer
 
-**Smarter goal management for Singapore investors who want clarity and control. No data ever leaves your browser.**
+**The Endowus overlay for Singapore investors who want clear, private, goal-based reporting without spreadsheets or generic trackers.**
 
 ![Endowus Portfolio Viewer Screenshot](assets/endowus_view_enhancer_screenshot.png)
 
@@ -8,22 +8,22 @@
 
 ## Achieve More with Core-Satellite Strategy
 
-If you use Endowus to work toward goals like retirement, education, or emergency savings, this tool helps you keep your core-satellite investment plans organized.  
-Group each goal, track total returns, and see exactly how every part of your plan is performing.
+If you use Endowus for retirement, education, or emergency savings, this overlay keeps your core-satellite goals organized.  
+Group each goal, track total returns, and see exactly how each part of the plan performs—right on the Endowus page.
 
 ---
 
 ## See Your Asset Allocation at a Glance
 
-Understand how your CPF, SRS, and cash assets are distributed across all buckets and types of investment.  
-Quickly spot imbalances and keep your portfolio balanced for the long term.
+See how your goals map across portfolio buckets and investment types.  
+Use the view to spot imbalances, then calculate where new investment capital should go.
 
 ---
 
 ## In-Browser Calculations for Better Planning
 
 All calculations and portfolio breakdowns happen locally in your browser.  
-The overlay shows instant summaries and details, letting you see your next steps and plan new investments—no spreadsheets required.
+The overlay adds instant summaries and details so you can plan next steps without exports or spreadsheets.
 
 ---
 
@@ -37,7 +37,7 @@ The overlay shows instant summaries and details, letting you see your next steps
 
 ## Ready to Get Started?
 
-**You'll need Tampermonkey, a free browser extension that lets you run user scripts on websites like Endowus.**  
+**You'll need Tampermonkey, a free browser extension that runs user scripts on sites like Endowus.**  
 Tampermonkey works with Chrome, Firefox, Edge, and most desktop browsers.
 
 1. Install <a href="https://www.tampermonkey.net/">Tampermonkey</a> from your browser's extension/add-on store.
@@ -59,19 +59,19 @@ Retirement - Satellite Growth
 Education - Child Fund
 Emergency - SRS Reserve
 ```
-Goals with matching starting words are grouped, so your buckets reflect your unique strategy.
+Goals with matching starting words are grouped, so your buckets reflect your strategy.
 
 ---
 
 ## Made for Singapore Endowus Users
 
-- Works seamlessly with CPF, SRS, cash, and multi-goal accounts
-- Designed for Singapore-style core-satellite investing
+- Built for Singapore Endowus users managing CPF, SRS, cash, and multi-goal accounts
+- Positioned for core-satellite investing, not generic portfolio tracking
 - Your investment data always stays with you
 
 ---
 
-**Give it a try and see how easy portfolio planning can be.**
+**Give it a try and keep your Endowus goals simple, visible, and private.**
 
 For feedback or help, <a href="https://github.com/laurenceputra/endowus_view_enhancer/issues">open an issue</a>.
 
