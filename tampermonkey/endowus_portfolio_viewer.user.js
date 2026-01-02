@@ -76,7 +76,7 @@
         // Growth = 10 / 100 * 100 = 10%
         const a = Number(totalReturn);
         const t = Number(total);
-        const denom = t - a; // principal (original investment)
+        const denom = t - a;
         if (!isFinite(a) || !isFinite(t) || denom === 0) return '-';
         return ((a / denom) * 100).toFixed(2) + '%';
     }
