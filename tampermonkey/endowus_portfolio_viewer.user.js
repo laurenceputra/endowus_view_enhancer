@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.4.4
+// @version      2.4.5
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -499,7 +499,11 @@
                 netInvestments.push(netWeight);
                 totalReturns.push(response?.totalCumulativeReturnPercent);
                 simpleReturns.push(response?.simpleRateOfReturnPercent ?? response?.simpleReturnPercent);
-                twrReturns.push(response?.timeWeightedReturnPercent ?? response?.twrPercent);
+                twrReturns.push(
+                    response?.returnsTable?.twr?.allTimeValue
+                    ?? response?.timeWeightedReturnPercent
+                    ?? response?.twrPercent
+                );
             }
         });
 
