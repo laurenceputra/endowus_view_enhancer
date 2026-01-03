@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.4.2
+// @version      2.4.3
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -463,14 +463,18 @@
         const simpleReturns = [];
         const twrReturns = [];
         let totalReturnAmount = 0;
-        let marketChangesAmount = 0;
+        let netFeesAmount = 0;
+        let netFeesSeen = false;
         let netInvestmentAmount = 0;
         let endingBalanceAmount = 0;
 
         responses.forEach(response => {
             const totalReturnValue = extractAmount(response?.totalCumulativeReturnAmount);
-            const marketChangeValue = extractAmount(response?.marketChangesAmount ?? response?.marketChangeAmount);
-            const netInvestmentValue = extractAmount(response?.netInvestmentAmount ?? response?.netInvestment);
+            const netInvestmentValue = extractAmount(
+                response?.gainOrLossTable?.netInvestment?.allTimeValue
+            ) ?? extractAmount(response?.netInvestmentAmount ?? response?.netInvestment);
+            const accessFeeValue = extractAmount(response?.gainOrLossTable?.accessFeeCharged?.allTimeValue);
+            const trailerFeeValue = extractAmount(response?.gainOrLossTable?.trailerFeeRebates?.allTimeValue);
             const endingBalanceValue = extractAmount(
                 response?.endingBalanceAmount ?? response?.totalBalanceAmount ?? response?.marketValueAmount
             );
@@ -478,8 +482,10 @@
             if (isFinite(totalReturnValue)) {
                 totalReturnAmount += totalReturnValue;
             }
-            if (isFinite(marketChangeValue)) {
-                marketChangesAmount += marketChangeValue;
+            if (isFinite(accessFeeValue) || isFinite(trailerFeeValue)) {
+                netFeesSeen = true;
+                netFeesAmount += (isFinite(accessFeeValue) ? accessFeeValue : 0)
+                    - (isFinite(trailerFeeValue) ? trailerFeeValue : 0);
             }
             if (isFinite(netInvestmentValue)) {
                 netInvestmentAmount += netInvestmentValue;
@@ -520,7 +526,7 @@
             simpleReturnPercent,
             twrPercent,
             totalReturnAmount: totalReturnAmount || null,
-            marketChangesAmount: marketChangesAmount || null,
+            netFeesAmount: netFeesSeen ? netFeesAmount : null,
             netInvestmentAmount: netInvestmentAmount || null,
             endingBalanceAmount: endingBalanceAmount || null
         };
@@ -1347,7 +1353,7 @@
             { label: 'Simple Return %', value: formatPercentage(metrics?.simpleReturnPercent) },
             { label: 'TWR %', value: formatPercentage(metrics?.twrPercent) },
             { label: 'Gain / Loss', value: formatMoney(metrics?.totalReturnAmount) },
-            { label: 'Market Changes', value: formatMoney(metrics?.marketChangesAmount) },
+            { label: 'Net Fees', value: formatMoney(metrics?.netFeesAmount) },
             { label: 'Net Investment', value: formatMoney(metrics?.netInvestmentAmount) },
             { label: 'Ending Balance', value: formatMoney(metrics?.endingBalanceAmount) }
         ];

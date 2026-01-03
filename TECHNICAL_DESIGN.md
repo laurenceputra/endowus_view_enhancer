@@ -126,11 +126,11 @@ combined, percentage metrics are weighted by each goal’s net investment amount
 | Table Label | Primary Response Field(s) | Notes |
 | --- | --- | --- |
 | Total Return % | `totalCumulativeReturnPercent` | Weighted by `netInvestmentAmount` across goals. |
-| Simple Return % | `simpleRateOfReturnPercent` → `simpleReturnPercent` | Weighted by `netInvestmentAmount` across goals. |
-| TWR % | `timeWeightedReturnPercent` → `twrPercent` | Weighted by `netInvestmentAmount` across goals. |
+| Simple Return % | `simpleRateOfReturnPercent` → `simpleReturnPercent` | Weighted by `gainOrLossTable.netInvestment.allTimeValue.amount` across goals. |
+| TWR % | `timeWeightedReturnPercent` → `twrPercent` | Weighted by `gainOrLossTable.netInvestment.allTimeValue.amount` across goals. |
 | Gain / Loss | `totalCumulativeReturnAmount` | Summed across goals. |
-| Market Changes | `marketChangesAmount` → `marketChangeAmount` | Summed across goals. |
-| Net Investment | `netInvestmentAmount` → `netInvestment` | Summed; falls back to earliest time-series amount when missing. |
+| Net Fees | `gainOrLossTable.accessFeeCharged.allTimeValue.amount` − `gainOrLossTable.trailerFeeRebates.allTimeValue.amount` | Summed across goals. |
+| Net Investment | `gainOrLossTable.netInvestment.allTimeValue.amount` → `netInvestmentAmount` → `netInvestment` | Summed; falls back to earliest time-series amount when missing. |
 | Ending Balance | `endingBalanceAmount` → `totalBalanceAmount` → `marketValueAmount` | Summed; falls back to latest time-series amount when missing. |
 
 ---
