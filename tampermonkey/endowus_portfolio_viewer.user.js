@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.3.6
+// @version      2.3.7
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -579,6 +579,7 @@
     const goalPerformanceData = {};
     let performanceRequestHeaders = null;
     let gmCookieAuthToken = null;
+    let gmCookieDumped = false;
     const performanceRequestQueue = createSequentialRequestQueue({
         delayMs: REQUEST_DELAY_MS
     });
@@ -872,6 +873,25 @@
         });
     }
 
+    function dumpAvailableCookies() {
+        if (gmCookieDumped) {
+            return;
+        }
+        gmCookieDumped = true;
+        listCookieByQuery({}).then(cookies => {
+            if (!DEBUG_AUTH) {
+                return;
+            }
+            const summaries = cookies.map(cookie => ({
+                name: cookie?.name,
+                domain: cookie?.domain,
+                path: cookie?.path,
+                httpOnly: cookie?.httpOnly
+            }));
+            console.log('[Endowus Portfolio Viewer] GM_cookie visible cookies:', summaries);
+        });
+    }
+
     function getAuthTokenFromGMCookie() {
         if (gmCookieAuthToken) {
             return Promise.resolve(gmCookieAuthToken);
@@ -880,6 +900,7 @@
             return Promise.resolve(null);
         }
         return new Promise(resolve => {
+            dumpAvailableCookies();
             listCookieByQuery({
                 domain: '.endowus.com',
                 path: '/',
