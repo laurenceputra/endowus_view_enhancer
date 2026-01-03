@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.3.4
+// @version      2.3.5
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_deleteValue
+// @grant        GM_cookie
 // @run-at       document-start
 // @updateURL    https://raw.githubusercontent.com/laurenceputra/endowus_view_enhancer/main/tampermonkey/endowus_portfolio_viewer.user.js
 // @downloadURL  https://raw.githubusercontent.com/laurenceputra/endowus_view_enhancer/main/tampermonkey/endowus_portfolio_viewer.user.js
@@ -577,6 +578,7 @@
 
     const goalPerformanceData = {};
     let performanceRequestHeaders = null;
+    let gmCookieAuthToken = null;
     const performanceRequestQueue = createSequentialRequestQueue({
         delayMs: REQUEST_DELAY_MS
     });
@@ -856,6 +858,33 @@
         return value ? decodeURIComponent(value) : null;
     }
 
+    function getAuthTokenFromGMCookie() {
+        if (gmCookieAuthToken) {
+            return Promise.resolve(gmCookieAuthToken);
+        }
+        if (typeof GM_cookie === 'undefined' || typeof GM_cookie.list !== 'function') {
+            return Promise.resolve(null);
+        }
+        return new Promise(resolve => {
+            GM_cookie.list(
+                {
+                    domain: 'app.sg.endowus.com',
+                    name: 'webapp-sg-access-token'
+                },
+                cookies => {
+                    const token = cookies?.[0]?.value || null;
+                    if (token) {
+                        gmCookieAuthToken = token;
+                    }
+                    if (DEBUG_AUTH) {
+                        console.log('[Endowus Portfolio Viewer] GM_cookie token:', formatAuthLogValue(token));
+                    }
+                    resolve(token);
+                }
+            );
+        });
+    }
+
     function formatAuthLogValue(value) {
         if (!value) {
             return 'missing';
@@ -876,8 +905,9 @@
         return `Bearer ${token}`;
     }
 
-    function getFallbackAuthHeaders() {
-        const token = getCookieValue('webapp-sg-access-token');
+    async function getFallbackAuthHeaders() {
+        const gmCookieToken = await getAuthTokenFromGMCookie();
+        const token = gmCookieToken || getCookieValue('webapp-sg-access-token');
         const deviceId = getCookieValue('webapp-deviceId');
         const clientId = localStorage.getItem('client-id') || localStorage.getItem('clientId') || null;
 
@@ -910,12 +940,15 @@
                 'client-id': clientId,
                 'device-id': deviceId
             };
+            if (DEBUG_AUTH && authorization) {
+                console.log('[Endowus Portfolio Viewer] Captured authorization header:', formatAuthLogValue(authorization));
+            }
         }
     }
 
-    function buildPerformanceRequestHeaders() {
+    async function buildPerformanceRequestHeaders() {
         const headers = new Headers();
-        const fallbackHeaders = getFallbackAuthHeaders();
+        const fallbackHeaders = await getFallbackAuthHeaders();
         const mergedHeaders = {
             ...fallbackHeaders,
             ...(performanceRequestHeaders || {})
@@ -983,7 +1016,7 @@
 
     async function fetchPerformanceForGoal(goalId) {
         const url = `${PERFORMANCE_ENDPOINT}?displayCcy=SGD&goalId=${encodeURIComponent(goalId)}`;
-        const headers = buildPerformanceRequestHeaders();
+        const headers = await buildPerformanceRequestHeaders();
         if (DEBUG_AUTH) {
             console.log('[Endowus Portfolio Viewer] Fetching performance', {
                 goalId,
@@ -2547,6 +2580,10 @@
                 hasAccessTokenCookie: cookieString.includes('webapp-sg-access-token'),
                 hasDeviceIdCookie: cookieString.includes('webapp-deviceId')
             });
+        }
+
+        if (DEBUG_AUTH) {
+            getAuthTokenFromGMCookie();
         }
         
         if (document.body) {
