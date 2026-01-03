@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.4.5
+// @version      2.4.6
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -1158,7 +1158,7 @@
 
     function createLineChartSvg(series) {
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('viewBox', '0 0 280 110');
+        svg.setAttribute('viewBox', '0 0 400 110');
         svg.setAttribute('class', 'epv-performance-chart');
 
         if (!Array.isArray(series) || series.length < 2) {
@@ -1181,7 +1181,7 @@
         const maxValue = Math.max(...amounts);
         const range = maxValue - minValue || 1;
         const padding = 18;
-        const width = 280 - padding * 2;
+        const width = 400 - padding * 2;
         const height = 110 - padding * 2;
 
         const axisGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -1411,13 +1411,19 @@
             }
 
             const chart = createLineChartSvg(summary.windowSeries);
+
             const metricsContainer = document.createElement('div');
             metricsContainer.className = 'epv-performance-metrics';
-            metricsContainer.appendChild(buildPerformanceWindowGrid(summary.windowReturns));
-            metricsContainer.appendChild(buildPerformanceMetricsTable(summary.metrics));
 
-            performanceContainer.appendChild(chart);
+            const metricsGrid = document.createElement('div');
+            metricsGrid.className = 'epv-performance-metrics-grid';
+            metricsGrid.appendChild(buildPerformanceMetricsTable(summary.metrics));
+            metricsGrid.appendChild(buildPerformanceWindowGrid(summary.windowReturns));
+
+            metricsContainer.appendChild(metricsGrid);
+
             performanceContainer.appendChild(metricsContainer);
+            performanceContainer.appendChild(chart);
         });
     }
     
@@ -2398,6 +2404,11 @@
                 margin-bottom: 14px;
             }
 
+            .epv-performance-container > .epv-performance-chart {
+                flex: 1;
+                min-width: 220px;
+            }
+
             .epv-performance-loading {
                 font-size: 14px;
                 font-weight: 600;
@@ -2409,7 +2420,7 @@
             }
 
             .epv-performance-chart {
-                width: 280px;
+                width: 100%;
                 height: 110px;
             }
 
@@ -2458,18 +2469,25 @@
             }
 
             .epv-performance-metrics {
-                flex: 1;
                 display: flex;
                 flex-direction: column;
                 gap: 10px;
-                align-items: flex-end;
+                max-width: 520px;
+                width: 100%;
+            }
+
+            .epv-performance-metrics-grid {
+                display: grid;
+                grid-template-columns: minmax(240px, 1fr) minmax(160px, 200px);
+                gap: 16px;
+                align-items: start;
             }
 
             .epv-performance-window-grid {
                 display: grid;
                 grid-template-columns: repeat(2, minmax(0, 1fr));
                 gap: 8px;
-                max-width: 220px;
+                width: 100%;
             }
 
             .epv-performance-window-tile {
@@ -2507,7 +2525,6 @@
                 max-width: 320px;
                 border-collapse: collapse;
                 font-size: 13px;
-                align-self: flex-end;
             }
 
             .epv-performance-metrics-table tr {
