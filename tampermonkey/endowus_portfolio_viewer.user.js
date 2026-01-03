@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.4.3
+// @version      2.4.4
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -1154,7 +1154,7 @@
 
     function createLineChartSvg(series) {
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('viewBox', '0 0 240 110');
+        svg.setAttribute('viewBox', '0 0 280 110');
         svg.setAttribute('class', 'epv-performance-chart');
 
         if (!Array.isArray(series) || series.length < 2) {
@@ -1177,7 +1177,7 @@
         const maxValue = Math.max(...amounts);
         const range = maxValue - minValue || 1;
         const padding = 18;
-        const width = 240 - padding * 2;
+        const width = 280 - padding * 2;
         const height = 110 - padding * 2;
 
         const axisGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -2385,7 +2385,7 @@
 
             .epv-performance-container {
                 display: flex;
-                gap: 16px;
+                gap: 20px;
                 align-items: stretch;
                 padding: 12px;
                 border-radius: 10px;
@@ -2405,7 +2405,7 @@
             }
 
             .epv-performance-chart {
-                width: 240px;
+                width: 280px;
                 height: 110px;
             }
 
@@ -2458,12 +2458,14 @@
                 display: flex;
                 flex-direction: column;
                 gap: 10px;
+                align-items: flex-end;
             }
 
             .epv-performance-window-grid {
                 display: grid;
-                grid-template-columns: repeat(6, minmax(0, 1fr));
+                grid-template-columns: repeat(2, minmax(0, 1fr));
                 gap: 8px;
+                max-width: 220px;
             }
 
             .epv-performance-window-tile {
@@ -2498,8 +2500,10 @@
 
             .epv-performance-metrics-table {
                 width: 100%;
+                max-width: 320px;
                 border-collapse: collapse;
                 font-size: 13px;
+                align-self: flex-end;
             }
 
             .epv-performance-metrics-table tr {
