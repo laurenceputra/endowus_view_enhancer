@@ -4,6 +4,7 @@
 This repo contains a Tampermonkey userscript for Endowus view enhancements and a Jest test suite for validating its logic.
 
 ## Coding conventions
+- Align with the existing codebase style in `tampermonkey/endowus_portfolio_viewer.user.js`.
 - Use 4-space indentation.
 - Always include semicolons.
 - Use camelCase for variables and functions.
@@ -82,3 +83,4 @@ This repo contains a Tampermonkey userscript for Endowus view enhancements and a
 ## GitHub instructions and patterns
 - Review `.github/copilot-instructions.md` before starting work and follow its guidance.
 - Align with any relevant patterns or agent guidance under `.github/agents/`.
+- If guidance conflicts with the existing userscript style, prefer the current codebase conventions.
