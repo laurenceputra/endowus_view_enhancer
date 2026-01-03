@@ -118,6 +118,21 @@ These headers are captured from in-app fetch requests and reused for the sequent
 If captured headers are missing, the script falls back to the `webapp-sg-access-token` and `webapp-deviceId` cookies
 and any locally stored `client-id` to build the performance request headers.
 
+### Performance Metrics Mapping
+
+The performance metrics table is built from the per-goal performance response fields below. When multiple goals are
+combined, percentage metrics are weighted by each goal’s net investment amount.
+
+| Table Label | Primary Response Field(s) | Notes |
+| --- | --- | --- |
+| Total Return % | `totalCumulativeReturnPercent` | Weighted by `netInvestmentAmount` across goals. |
+| Simple Return % | `simpleRateOfReturnPercent` → `simpleReturnPercent` | Weighted by `netInvestmentAmount` across goals. |
+| TWR % | `timeWeightedReturnPercent` → `twrPercent` | Weighted by `netInvestmentAmount` across goals. |
+| Gain / Loss | `totalCumulativeReturnAmount` | Summed across goals. |
+| Market Changes | `marketChangesAmount` → `marketChangeAmount` | Summed across goals. |
+| Net Investment | `netInvestmentAmount` → `netInvestment` | Summed; falls back to earliest time-series amount when missing. |
+| Ending Balance | `endingBalanceAmount` → `totalBalanceAmount` → `marketValueAmount` | Summed; falls back to latest time-series amount when missing. |
+
 ---
 
 ## Data Processing
