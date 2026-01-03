@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.3.1
+// @version      2.3.2
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -855,13 +855,23 @@
         return value ? decodeURIComponent(value) : null;
     }
 
+    function buildAuthorizationValue(token) {
+        if (!token || typeof token !== 'string') {
+            return null;
+        }
+        if (token.toLowerCase().startsWith('bearer ')) {
+            return token;
+        }
+        return `Bearer ${token}`;
+    }
+
     function getFallbackAuthHeaders() {
         const token = getCookieValue('webapp-sg-access-token');
         const deviceId = getCookieValue('webapp-deviceId');
         const clientId = localStorage.getItem('client-id') || localStorage.getItem('clientId') || null;
 
         return {
-            authorization: token ? `Bearer ${token}` : null,
+            authorization: buildAuthorizationValue(token),
             'client-id': clientId,
             'device-id': deviceId
         };
