@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.3.3
+// @version      2.3.4
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -565,6 +565,7 @@
         summary: null
     };
 
+    const DEBUG_AUTH = true;
     const PERFORMANCE_ENDPOINT = 'https://bff.prod.silver.endowus.com/v1/performance';
     const REQUEST_DELAY_MS = 500;
     const PERFORMANCE_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -855,6 +856,16 @@
         return value ? decodeURIComponent(value) : null;
     }
 
+    function formatAuthLogValue(value) {
+        if (!value) {
+            return 'missing';
+        }
+        const trimmed = String(value);
+        const hasBearer = trimmed.toLowerCase().startsWith('bearer ');
+        const tokenValue = hasBearer ? trimmed.slice(7) : trimmed;
+        return `present (bearer=${hasBearer}, length=${tokenValue.length})`;
+    }
+
     function buildAuthorizationValue(token) {
         if (!token || typeof token !== 'string') {
             return null;
@@ -869,6 +880,12 @@
         const token = getCookieValue('webapp-sg-access-token');
         const deviceId = getCookieValue('webapp-deviceId');
         const clientId = localStorage.getItem('client-id') || localStorage.getItem('clientId') || null;
+
+        if (DEBUG_AUTH) {
+            console.log('[Endowus Portfolio Viewer] Auth fallback cookie token:', formatAuthLogValue(token));
+            console.log('[Endowus Portfolio Viewer] Auth fallback device id:', deviceId ? 'present' : 'missing');
+            console.log('[Endowus Portfolio Viewer] Auth fallback client id:', clientId ? 'present' : 'missing');
+        }
 
         return {
             authorization: buildAuthorizationValue(token),
@@ -912,6 +929,17 @@
                 headers.set(key, value);
             }
         });
+        if (DEBUG_AUTH) {
+            const mergedKeys = Object.keys(mergedHeaders).filter(key => mergedHeaders[key]);
+            console.log('[Endowus Portfolio Viewer] Performance header merge keys:', mergedKeys);
+            console.log('[Endowus Portfolio Viewer] Performance Authorization:', formatAuthLogValue(authorizationValue));
+            console.log('[Endowus Portfolio Viewer] Header entries:', Array.from(headers.entries()).map(([key, value]) => {
+                if (key.toLowerCase() === 'authorization') {
+                    return [key, formatAuthLogValue(value)];
+                }
+                return [key, value];
+            }));
+        }
         return headers;
     }
 
@@ -956,6 +984,14 @@
     async function fetchPerformanceForGoal(goalId) {
         const url = `${PERFORMANCE_ENDPOINT}?displayCcy=SGD&goalId=${encodeURIComponent(goalId)}`;
         const headers = buildPerformanceRequestHeaders();
+        if (DEBUG_AUTH) {
+            console.log('[Endowus Portfolio Viewer] Fetching performance', {
+                goalId,
+                url,
+                authorization: formatAuthLogValue(headers.get('Authorization')),
+                headerKeys: Array.from(headers.keys())
+            });
+        }
         const response = await fetch(url, {
             method: 'GET',
             credentials: 'include',
@@ -2502,6 +2538,16 @@
     function init() {
         // Load stored API data
         loadStoredData(apiData);
+
+        if (DEBUG_AUTH) {
+            const cookieString = document?.cookie || '';
+            console.log('[Endowus Portfolio Viewer] Auth context:', {
+                origin: window.location.origin,
+                cookieLength: cookieString.length,
+                hasAccessTokenCookie: cookieString.includes('webapp-sg-access-token'),
+                hasDeviceIdCookie: cookieString.includes('webapp-deviceId')
+            });
+        }
         
         if (document.body) {
             injectStyles();

@@ -1,6 +1,6 @@
 {
   "name": "endowus-portfolio-viewer",
-  "version": "2.3.3",
+  "version": "2.3.4",
   "description": "View and organize your Endowus portfolio by buckets with a modern interface",
   "main": "tampermonkey/endowus_portfolio_viewer.user.js",
   "scripts": {
