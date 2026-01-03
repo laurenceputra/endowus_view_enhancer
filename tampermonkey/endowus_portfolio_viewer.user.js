@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.4.6
+// @version      2.4.7
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -580,7 +580,7 @@
     const PERFORMANCE_ENDPOINT = 'https://bff.prod.silver.endowus.com/v1/performance';
     const REQUEST_DELAY_MS = 500;
     const PERFORMANCE_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-    const PERFORMANCE_CHART_WINDOW = PERFORMANCE_WINDOWS.sixMonth.key;
+    const PERFORMANCE_CHART_WINDOW = PERFORMANCE_WINDOWS.oneYear.key;
 
     // Non-persistent storage for projected investments (resets on reload)
     // Key format: "bucketName|goalType" -> projected amount
@@ -1410,20 +1410,17 @@
                 return;
             }
 
+            const windowGrid = buildPerformanceWindowGrid(summary.windowReturns);
             const chart = createLineChartSvg(summary.windowSeries);
+            const metricsTable = buildPerformanceMetricsTable(summary.metrics);
 
-            const metricsContainer = document.createElement('div');
-            metricsContainer.className = 'epv-performance-metrics';
+            const detailRow = document.createElement('div');
+            detailRow.className = 'epv-performance-detail-row';
+            detailRow.appendChild(chart);
+            detailRow.appendChild(metricsTable);
 
-            const metricsGrid = document.createElement('div');
-            metricsGrid.className = 'epv-performance-metrics-grid';
-            metricsGrid.appendChild(buildPerformanceMetricsTable(summary.metrics));
-            metricsGrid.appendChild(buildPerformanceWindowGrid(summary.windowReturns));
-
-            metricsContainer.appendChild(metricsGrid);
-
-            performanceContainer.appendChild(metricsContainer);
-            performanceContainer.appendChild(chart);
+            performanceContainer.appendChild(windowGrid);
+            performanceContainer.appendChild(detailRow);
         });
     }
     
@@ -2395,6 +2392,7 @@
 
             .epv-performance-container {
                 display: flex;
+                flex-direction: column;
                 gap: 20px;
                 align-items: stretch;
                 padding: 12px;
@@ -2404,9 +2402,10 @@
                 margin-bottom: 14px;
             }
 
-            .epv-performance-container > .epv-performance-chart {
-                flex: 1;
-                min-width: 220px;
+            .epv-performance-detail-row {
+                display: flex;
+                gap: 20px;
+                align-items: stretch;
             }
 
             .epv-performance-loading {
@@ -2468,24 +2467,9 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
 
-            .epv-performance-metrics {
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-                max-width: 520px;
-                width: 100%;
-            }
-
-            .epv-performance-metrics-grid {
-                display: grid;
-                grid-template-columns: minmax(240px, 1fr) minmax(160px, 200px);
-                gap: 16px;
-                align-items: start;
-            }
-
             .epv-performance-window-grid {
                 display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+                grid-template-columns: repeat(6, minmax(0, 1fr));
                 gap: 8px;
                 width: 100%;
             }
@@ -2525,6 +2509,11 @@
                 max-width: 320px;
                 border-collapse: collapse;
                 font-size: 13px;
+            }
+
+            .epv-performance-detail-row .epv-performance-chart {
+                flex: 1;
+                min-width: 240px;
             }
 
             .epv-performance-metrics-table tr {
