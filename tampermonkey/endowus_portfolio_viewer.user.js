@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.3.5
+// @version      2.3.6
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -858,6 +858,20 @@
         return value ? decodeURIComponent(value) : null;
     }
 
+    function selectAuthCookieToken(cookies) {
+        if (!Array.isArray(cookies) || !cookies.length) {
+            return null;
+        }
+        const httpOnlyCookie = cookies.find(cookie => cookie?.httpOnly);
+        return (httpOnlyCookie || cookies[0])?.value || null;
+    }
+
+    function listCookieByQuery(query) {
+        return new Promise(resolve => {
+            GM_cookie.list(query, cookies => resolve(cookies || []));
+        });
+    }
+
     function getAuthTokenFromGMCookie() {
         if (gmCookieAuthToken) {
             return Promise.resolve(gmCookieAuthToken);
@@ -866,22 +880,35 @@
             return Promise.resolve(null);
         }
         return new Promise(resolve => {
-            GM_cookie.list(
-                {
-                    domain: 'app.sg.endowus.com',
-                    name: 'webapp-sg-access-token'
-                },
-                cookies => {
-                    const token = cookies?.[0]?.value || null;
-                    if (token) {
-                        gmCookieAuthToken = token;
-                    }
+            listCookieByQuery({
+                domain: '.endowus.com',
+                path: '/',
+                name: 'webapp-sg-access-token'
+            }).then(cookies => {
+                const token = selectAuthCookieToken(cookies);
+                if (token) {
+                    gmCookieAuthToken = token;
                     if (DEBUG_AUTH) {
                         console.log('[Endowus Portfolio Viewer] GM_cookie token:', formatAuthLogValue(token));
                     }
                     resolve(token);
+                    return;
                 }
-            );
+                listCookieByQuery({
+                    domain: 'app.sg.endowus.com',
+                    path: '/',
+                    name: 'webapp-sg-access-token'
+                }).then(fallbackCookies => {
+                    const fallbackToken = selectAuthCookieToken(fallbackCookies);
+                    if (fallbackToken) {
+                        gmCookieAuthToken = fallbackToken;
+                    }
+                    if (DEBUG_AUTH) {
+                        console.log('[Endowus Portfolio Viewer] GM_cookie token:', formatAuthLogValue(fallbackToken));
+                    }
+                    resolve(fallbackToken);
+                });
+            });
         });
     }
 
