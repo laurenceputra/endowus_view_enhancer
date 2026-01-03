@@ -13,7 +13,14 @@ const {
     sortGoalTypes,
     formatMoney,
     formatGrowthPercent,
-    buildMergedInvestmentData
+    buildMergedInvestmentData,
+    getPerformanceCacheKey,
+    isCacheFresh,
+    formatPercentage,
+    getWindowStartDate,
+    calculateReturnFromTimeSeries,
+    mapReturnsTableToWindowReturns,
+    derivePerformanceWindows
 } = require('../tampermonkey/endowus_portfolio_viewer.user.js');
 
 describe('getGoalTargetKey', () => {
@@ -180,6 +187,123 @@ describe('formatGrowthPercent', () => {
         // Investment: 100, Return: 0.5, Total: 100.5
         // Growth = 0.5 / 100 * 100 = 0.5%
         expect(formatGrowthPercent(0.5, 100.5)).toBe('0.50%');
+    });
+});
+
+describe('getPerformanceCacheKey', () => {
+    test('should generate performance cache key', () => {
+        expect(getPerformanceCacheKey('goal-123')).toBe('epv_performance_goal-123');
+    });
+});
+
+describe('isCacheFresh', () => {
+    test('should return true when within max age', () => {
+        const now = 1_000_000;
+        const fetchedAt = now - 1000;
+        expect(isCacheFresh(fetchedAt, 7 * 24 * 60 * 60 * 1000, now)).toBe(true);
+    });
+
+    test('should return false when stale', () => {
+        const now = 1_000_000;
+        const fetchedAt = now - (8 * 24 * 60 * 60 * 1000);
+        expect(isCacheFresh(fetchedAt, 7 * 24 * 60 * 60 * 1000, now)).toBe(false);
+    });
+
+    test('should return false for invalid inputs', () => {
+        expect(isCacheFresh('invalid', 1000, 2000)).toBe(false);
+        expect(isCacheFresh(1000, 'invalid', 2000)).toBe(false);
+    });
+});
+
+describe('formatPercentage', () => {
+    test('should format positive percentage with sign', () => {
+        expect(formatPercentage(0.1234)).toBe('+12.34%');
+    });
+
+    test('should format negative percentage', () => {
+        expect(formatPercentage(-0.05)).toBe('-5.00%');
+    });
+
+    test('should return dash for invalid input', () => {
+        expect(formatPercentage('invalid')).toBe('-');
+    });
+});
+
+describe('getWindowStartDate', () => {
+    const timeSeries = [
+        { date: '2024-05-30', amount: 100 },
+        { date: '2024-05-31', amount: 110 },
+        { date: '2024-06-03', amount: 120 }
+    ];
+
+    test('should return 1D start date based on latest data point', () => {
+        const startDate = getWindowStartDate('oneDay', timeSeries, null);
+        expect(startDate.toISOString().slice(0, 10)).toBe('2024-06-02');
+    });
+
+    test('should return 7D start date based on latest data point', () => {
+        const startDate = getWindowStartDate('sevenDay', timeSeries, null);
+        expect(startDate.toISOString().slice(0, 10)).toBe('2024-05-27');
+    });
+
+    test('should return QTD start date when provided', () => {
+        const startDate = getWindowStartDate('qtd', timeSeries, { qtdStartDate: '2024-04-01' });
+        expect(startDate.toISOString().slice(0, 10)).toBe('2024-04-01');
+    });
+});
+
+describe('calculateReturnFromTimeSeries', () => {
+    test('should calculate return using nearest available start date', () => {
+        const timeSeries = [
+            { date: '2024-05-30', amount: 100 },
+            { date: '2024-05-31', amount: 110 },
+            { date: '2024-06-03', amount: 120 }
+        ];
+        const startDate = new Date('2024-06-01');
+        const result = calculateReturnFromTimeSeries(timeSeries, startDate);
+        expect(result).toBeCloseTo(120 / 110 - 1, 6);
+    });
+
+    test('should return null when start amount is zero', () => {
+        const timeSeries = [
+            { date: '2024-06-01', amount: 0 },
+            { date: '2024-06-02', amount: 100 }
+        ];
+        const result = calculateReturnFromTimeSeries(timeSeries, new Date('2024-06-01'));
+        expect(result).toBeNull();
+    });
+});
+
+describe('mapReturnsTableToWindowReturns', () => {
+    test('should map returns table values', () => {
+        const returnsTable = {
+            sixMonth: 0.08,
+            oneYear: 0.12,
+            ytd: 0.05
+        };
+        expect(mapReturnsTableToWindowReturns(returnsTable)).toEqual({
+            sixMonth: 0.08,
+            oneYear: 0.12,
+            ytd: 0.05
+        });
+    });
+});
+
+describe('derivePerformanceWindows', () => {
+    test('should use returns table values when available', () => {
+        const returnsTable = {
+            sixMonth: 0.08,
+            oneYear: 0.12,
+            ytd: 0.05
+        };
+        const timeSeries = [
+            { date: '2024-01-01', amount: 100 },
+            { date: '2024-06-01', amount: 120 }
+        ];
+        const result = derivePerformanceWindows(returnsTable, null, timeSeries);
+        expect(result.sixMonth).toBe(0.08);
+        expect(result.oneYear).toBe(0.12);
+        expect(result.ytd).toBe(0.05);
     });
 });
 

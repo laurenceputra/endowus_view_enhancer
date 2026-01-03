@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.2.0
+// @version      2.3.0
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -155,6 +155,401 @@
     }
 
     // ============================================
+    // Performance Logic
+    // ============================================
+
+    const PERFORMANCE_WINDOWS = {
+        oneDay: { key: 'oneDay', label: '1D' },
+        sevenDay: { key: 'sevenDay', label: '7D' },
+        sixMonth: { key: 'sixMonth', label: '6M' },
+        qtd: { key: 'qtd', label: 'QTD' },
+        ytd: { key: 'ytd', label: 'YTD' },
+        oneYear: { key: 'oneYear', label: '1Y' }
+    };
+
+    function getPerformanceCacheKey(goalId) {
+        return `epv_performance_${goalId}`;
+    }
+
+    function isCacheFresh(fetchedAt, maxAgeMs, nowMs = Date.now()) {
+        const fetchedTime = Number(fetchedAt);
+        const maxAge = Number(maxAgeMs);
+        if (!isFinite(fetchedTime) || !isFinite(maxAge) || maxAge <= 0) {
+            return false;
+        }
+        return nowMs - fetchedTime < maxAge;
+    }
+
+    function formatPercentage(value) {
+        const numericValue = Number(value);
+        if (!isFinite(numericValue)) {
+            return '-';
+        }
+        const sign = numericValue > 0 ? '+' : '';
+        return `${sign}${(numericValue * 100).toFixed(2)}%`;
+    }
+
+    function normalizeTimeSeriesData(timeSeriesData) {
+        if (!Array.isArray(timeSeriesData)) {
+            return [];
+        }
+        return timeSeriesData
+            .map(entry => {
+                const date = new Date(entry?.date);
+                const amount = Number(entry?.amount);
+                if (!isFinite(date?.getTime()) || !isFinite(amount)) {
+                    return null;
+                }
+                return {
+                    date,
+                    dateString: entry.date,
+                    amount
+                };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.date.getTime() - b.date.getTime());
+    }
+
+    function getLatestTimeSeriesPoint(timeSeriesData) {
+        const normalized = normalizeTimeSeriesData(timeSeriesData);
+        return normalized.length ? normalized[normalized.length - 1] : null;
+    }
+
+    function findNearestPointOnOrBefore(timeSeriesData, targetDate) {
+        const normalized = normalizeTimeSeriesData(timeSeriesData);
+        if (!normalized.length) {
+            return null;
+        }
+        const target = targetDate instanceof Date ? targetDate : new Date(targetDate);
+        if (!isFinite(target?.getTime())) {
+            return null;
+        }
+        for (let i = normalized.length - 1; i >= 0; i -= 1) {
+            if (normalized[i].date.getTime() <= target.getTime()) {
+                return normalized[i];
+            }
+        }
+        return null;
+    }
+
+    function getPerformanceDate(performanceDates, keys) {
+        if (!performanceDates || typeof performanceDates !== 'object') {
+            return null;
+        }
+        for (const key of keys) {
+            if (performanceDates[key]) {
+                const date = new Date(performanceDates[key]);
+                if (isFinite(date.getTime())) {
+                    return date;
+                }
+            }
+        }
+        return null;
+    }
+
+    function getWindowStartDate(windowKey, timeSeriesData, performanceDates) {
+        const latestPoint = getLatestTimeSeriesPoint(timeSeriesData);
+        if (!latestPoint) {
+            return null;
+        }
+        const latestDate = latestPoint.date;
+        const startDate = new Date(latestDate.getTime());
+
+        switch (windowKey) {
+            case PERFORMANCE_WINDOWS.oneDay.key:
+                startDate.setDate(startDate.getDate() - 1);
+                return startDate;
+            case PERFORMANCE_WINDOWS.sevenDay.key:
+                startDate.setDate(startDate.getDate() - 7);
+                return startDate;
+            case PERFORMANCE_WINDOWS.sixMonth.key:
+                startDate.setMonth(startDate.getMonth() - 6);
+                return startDate;
+            case PERFORMANCE_WINDOWS.oneYear.key:
+                startDate.setFullYear(startDate.getFullYear() - 1);
+                return startDate;
+            case PERFORMANCE_WINDOWS.ytd.key: {
+                const ytdDate = getPerformanceDate(performanceDates, ['ytd', 'ytdStartDate', 'yearStartDate']);
+                if (ytdDate) {
+                    return ytdDate;
+                }
+                return new Date(latestDate.getFullYear(), 0, 1);
+            }
+            case PERFORMANCE_WINDOWS.qtd.key: {
+                const qtdDate = getPerformanceDate(performanceDates, [
+                    'qtd',
+                    'qtdStartDate',
+                    'quarterStartDate',
+                    'quarterToDateStartDate'
+                ]);
+                if (qtdDate) {
+                    return qtdDate;
+                }
+                const quarter = Math.floor(latestDate.getMonth() / 3);
+                return new Date(latestDate.getFullYear(), quarter * 3, 1);
+            }
+            default:
+                return null;
+        }
+    }
+
+    function calculateReturnFromTimeSeries(timeSeriesData, startDate) {
+        if (!startDate) {
+            return null;
+        }
+        const startPoint = findNearestPointOnOrBefore(timeSeriesData, startDate);
+        const endPoint = getLatestTimeSeriesPoint(timeSeriesData);
+        if (!startPoint || !endPoint) {
+            return null;
+        }
+        if (startPoint.amount === 0) {
+            return null;
+        }
+        return (endPoint.amount / startPoint.amount) - 1;
+    }
+
+    function extractReturnPercent(value) {
+        if (typeof value === 'number' && isFinite(value)) {
+            return value;
+        }
+        if (value && typeof value === 'object') {
+            const possibleKeys = ['returnPercent', 'rateOfReturn', 'return', 'percent'];
+            for (const key of possibleKeys) {
+                const candidate = value[key];
+                if (typeof candidate === 'number' && isFinite(candidate)) {
+                    return candidate;
+                }
+            }
+        }
+        return null;
+    }
+
+    function mapReturnsTableToWindowReturns(returnsTable) {
+        if (!returnsTable || typeof returnsTable !== 'object') {
+            return {};
+        }
+        return {
+            sixMonth: extractReturnPercent(returnsTable.sixMonth),
+            oneYear: extractReturnPercent(returnsTable.oneYear),
+            ytd: extractReturnPercent(returnsTable.ytd)
+        };
+    }
+
+    function derivePerformanceWindows(returnsTable, performanceDates, timeSeriesData) {
+        const mappedReturns = mapReturnsTableToWindowReturns(returnsTable);
+        const windowReturns = {
+            oneDay: calculateReturnFromTimeSeries(
+                timeSeriesData,
+                getWindowStartDate(PERFORMANCE_WINDOWS.oneDay.key, timeSeriesData, performanceDates)
+            ),
+            sevenDay: calculateReturnFromTimeSeries(
+                timeSeriesData,
+                getWindowStartDate(PERFORMANCE_WINDOWS.sevenDay.key, timeSeriesData, performanceDates)
+            ),
+            sixMonth: mappedReturns.sixMonth,
+            qtd: calculateReturnFromTimeSeries(
+                timeSeriesData,
+                getWindowStartDate(PERFORMANCE_WINDOWS.qtd.key, timeSeriesData, performanceDates)
+            ),
+            ytd: mappedReturns.ytd,
+            oneYear: mappedReturns.oneYear
+        };
+
+        if (windowReturns.sixMonth === null || windowReturns.sixMonth === undefined) {
+            windowReturns.sixMonth = calculateReturnFromTimeSeries(
+                timeSeriesData,
+                getWindowStartDate(PERFORMANCE_WINDOWS.sixMonth.key, timeSeriesData, performanceDates)
+            );
+        }
+        if (windowReturns.oneYear === null || windowReturns.oneYear === undefined) {
+            windowReturns.oneYear = calculateReturnFromTimeSeries(
+                timeSeriesData,
+                getWindowStartDate(PERFORMANCE_WINDOWS.oneYear.key, timeSeriesData, performanceDates)
+            );
+        }
+        if (windowReturns.ytd === null || windowReturns.ytd === undefined) {
+            windowReturns.ytd = calculateReturnFromTimeSeries(
+                timeSeriesData,
+                getWindowStartDate(PERFORMANCE_WINDOWS.ytd.key, timeSeriesData, performanceDates)
+            );
+        }
+
+        return windowReturns;
+    }
+
+    function mergeTimeSeriesByDate(timeSeriesCollection) {
+        const totals = new Map();
+        if (!Array.isArray(timeSeriesCollection)) {
+            return [];
+        }
+        timeSeriesCollection.forEach(series => {
+            const normalized = normalizeTimeSeriesData(series);
+            normalized.forEach(point => {
+                const existing = totals.get(point.dateString);
+                if (existing) {
+                    existing.amount += point.amount;
+                } else {
+                    totals.set(point.dateString, {
+                        date: point.date,
+                        dateString: point.dateString,
+                        amount: point.amount
+                    });
+                }
+            });
+        });
+        return Array.from(totals.values())
+            .sort((a, b) => a.date.getTime() - b.date.getTime())
+            .map(entry => ({ date: entry.dateString, amount: entry.amount }));
+    }
+
+    function getTimeSeriesWindow(timeSeriesData, startDate) {
+        if (!startDate) {
+            return normalizeTimeSeriesData(timeSeriesData).map(point => ({
+                date: point.dateString,
+                amount: point.amount
+            }));
+        }
+        const targetDate = startDate instanceof Date ? startDate : new Date(startDate);
+        if (!isFinite(targetDate?.getTime())) {
+            return [];
+        }
+        return normalizeTimeSeriesData(timeSeriesData)
+            .filter(point => point.date.getTime() >= targetDate.getTime())
+            .map(point => ({ date: point.dateString, amount: point.amount }));
+    }
+
+    function extractAmount(value) {
+        if (typeof value === 'number' && isFinite(value)) {
+            return value;
+        }
+        if (value && typeof value === 'object') {
+            const nestedAmount = value.amount;
+            if (typeof nestedAmount === 'number' && isFinite(nestedAmount)) {
+                return nestedAmount;
+            }
+            const displayAmount = value.display?.amount;
+            if (typeof displayAmount === 'number' && isFinite(displayAmount)) {
+                return displayAmount;
+            }
+        }
+        return null;
+    }
+
+    function calculateWeightedAverage(values, weights) {
+        if (!Array.isArray(values) || !Array.isArray(weights) || values.length !== weights.length) {
+            return null;
+        }
+        let total = 0;
+        let totalWeight = 0;
+        values.forEach((value, index) => {
+            const numericValue = Number(value);
+            const weight = Number(weights[index]);
+            if (isFinite(numericValue) && isFinite(weight) && weight > 0) {
+                total += numericValue * weight;
+                totalWeight += weight;
+            }
+        });
+        if (totalWeight === 0) {
+            return null;
+        }
+        return total / totalWeight;
+    }
+
+    function summarizePerformanceMetrics(performanceResponses, mergedTimeSeries) {
+        const responses = Array.isArray(performanceResponses) ? performanceResponses : [];
+        const netInvestments = [];
+        const totalReturns = [];
+        const simpleReturns = [];
+        const twrReturns = [];
+        let totalReturnAmount = 0;
+        let marketChangesAmount = 0;
+        let netInvestmentAmount = 0;
+        let endingBalanceAmount = 0;
+
+        responses.forEach(response => {
+            const totalReturnValue = extractAmount(response?.totalCumulativeReturnAmount);
+            const marketChangeValue = extractAmount(response?.marketChangesAmount ?? response?.marketChangeAmount);
+            const netInvestmentValue = extractAmount(response?.netInvestmentAmount ?? response?.netInvestment);
+            const endingBalanceValue = extractAmount(
+                response?.endingBalanceAmount ?? response?.totalBalanceAmount ?? response?.marketValueAmount
+            );
+
+            if (isFinite(totalReturnValue)) {
+                totalReturnAmount += totalReturnValue;
+            }
+            if (isFinite(marketChangeValue)) {
+                marketChangesAmount += marketChangeValue;
+            }
+            if (isFinite(netInvestmentValue)) {
+                netInvestmentAmount += netInvestmentValue;
+            }
+            if (isFinite(endingBalanceValue)) {
+                endingBalanceAmount += endingBalanceValue;
+            }
+
+            const netWeight = isFinite(netInvestmentValue) ? netInvestmentValue : 0;
+            if (isFinite(netWeight) && netWeight > 0) {
+                netInvestments.push(netWeight);
+                totalReturns.push(response?.totalCumulativeReturnPercent);
+                simpleReturns.push(response?.simpleRateOfReturnPercent ?? response?.simpleReturnPercent);
+                twrReturns.push(response?.timeWeightedReturnPercent ?? response?.twrPercent);
+            }
+        });
+
+        if (endingBalanceAmount === 0 && Array.isArray(mergedTimeSeries) && mergedTimeSeries.length) {
+            const latest = mergedTimeSeries[mergedTimeSeries.length - 1];
+            if (isFinite(latest?.amount)) {
+                endingBalanceAmount = latest.amount;
+            }
+        }
+
+        const totalReturnPercent = calculateWeightedAverage(totalReturns, netInvestments);
+        const simpleReturnPercent = calculateWeightedAverage(simpleReturns, netInvestments);
+        const twrPercent = calculateWeightedAverage(twrReturns, netInvestments);
+
+        if (netInvestmentAmount === 0 && Array.isArray(mergedTimeSeries) && mergedTimeSeries.length) {
+            const earliest = mergedTimeSeries[0];
+            if (isFinite(earliest?.amount)) {
+                netInvestmentAmount = earliest.amount;
+            }
+        }
+
+        return {
+            totalReturnPercent,
+            simpleReturnPercent,
+            twrPercent,
+            totalReturnAmount: totalReturnAmount || null,
+            marketChangesAmount: marketChangesAmount || null,
+            netInvestmentAmount: netInvestmentAmount || null,
+            endingBalanceAmount: endingBalanceAmount || null
+        };
+    }
+
+    function createSequentialRequestQueue({ delayMs, waitFn }) {
+        const delay = Number(delayMs) || 0;
+        const wait = waitFn || (ms => new Promise(resolve => setTimeout(resolve, ms)));
+
+        return async function runSequential(items, requestFn) {
+            const results = [];
+            if (!Array.isArray(items) || typeof requestFn !== 'function') {
+                return results;
+            }
+            for (let index = 0; index < items.length; index += 1) {
+                try {
+                    const value = await requestFn(items[index]);
+                    results.push({ status: 'fulfilled', value, item: items[index] });
+                } catch (error) {
+                    results.push({ status: 'rejected', reason: error, item: items[index] });
+                }
+                if (index < items.length - 1 && delay > 0) {
+                    await wait(delay);
+                }
+            }
+            return results;
+        };
+    }
+
+    // ============================================
     // Browser-Only Code (Skip in Node.js/Testing Environment)
     // ============================================
     // Everything below this point requires browser APIs (window, document, etc.)
@@ -170,9 +565,20 @@
         summary: null
     };
 
+    const PERFORMANCE_ENDPOINT = 'https://bff.prod.silver.endowus.com/v1/performance';
+    const REQUEST_DELAY_MS = 500;
+    const PERFORMANCE_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+    const PERFORMANCE_CHART_WINDOW = PERFORMANCE_WINDOWS.sixMonth.key;
+
     // Non-persistent storage for projected investments (resets on reload)
     // Key format: "bucketName|goalType" -> projected amount
     const projectedInvestments = {};
+
+    const goalPerformanceData = {};
+    let performanceRequestHeaders = null;
+    const performanceRequestQueue = createSequentialRequestQueue({
+        delayMs: REQUEST_DELAY_MS
+    });
 
     // ============================================
     // API Interception via Monkey Patching
@@ -185,6 +591,7 @@
 
     // Fetch interception
     window.fetch = async function(...args) {
+        extractAuthHeaders(args[0], args[1]);
         const response = await originalFetch.apply(this, args);
         const url = args[0];
         
@@ -409,8 +816,354 @@
     }
 
     // ============================================
+    // Performance Data Fetching
+    // ============================================
+
+    function getHeaderValue(headers, key) {
+        if (!headers) {
+            return null;
+        }
+        if (headers instanceof Headers) {
+            return headers.get(key);
+        }
+        if (typeof headers === 'object') {
+            return headers[key] || headers[key.toLowerCase()] || headers[key.toUpperCase()] || null;
+        }
+        return null;
+    }
+
+    function extractAuthHeaders(requestUrl, requestInit) {
+        const url = typeof requestUrl === 'string' ? requestUrl : requestUrl?.url;
+        if (!url || !url.includes('endowus.com')) {
+            return;
+        }
+        const headers = requestInit?.headers || requestUrl?.headers || null;
+        const authorization = getHeaderValue(headers, 'authorization');
+        const clientId = getHeaderValue(headers, 'client-id');
+        const deviceId = getHeaderValue(headers, 'device-id');
+
+        if (authorization || clientId || deviceId) {
+            performanceRequestHeaders = {
+                authorization,
+                'client-id': clientId,
+                'device-id': deviceId
+            };
+        }
+    }
+
+    function buildPerformanceRequestHeaders() {
+        const headers = new Headers();
+        if (!performanceRequestHeaders) {
+            return headers;
+        }
+        Object.entries(performanceRequestHeaders).forEach(([key, value]) => {
+            if (value) {
+                headers.set(key, value);
+            }
+        });
+        return headers;
+    }
+
+    function readPerformanceCache(goalId) {
+        try {
+            const key = getPerformanceCacheKey(goalId);
+            const stored = GM_getValue(key, null);
+            if (!stored) {
+                return null;
+            }
+            return JSON.parse(stored);
+        } catch (error) {
+            console.error('[Endowus Portfolio Viewer] Error reading performance cache:', error);
+            return null;
+        }
+    }
+
+    function writePerformanceCache(goalId, responseData) {
+        try {
+            const key = getPerformanceCacheKey(goalId);
+            const payload = {
+                fetchedAt: Date.now(),
+                response: responseData
+            };
+            GM_setValue(key, JSON.stringify(payload));
+        } catch (error) {
+            console.error('[Endowus Portfolio Viewer] Error writing performance cache:', error);
+        }
+    }
+
+    function getCachedPerformanceResponse(goalId) {
+        const cached = readPerformanceCache(goalId);
+        if (!cached) {
+            return null;
+        }
+        if (!isCacheFresh(cached.fetchedAt, PERFORMANCE_CACHE_MAX_AGE_MS)) {
+            return null;
+        }
+        return cached.response || null;
+    }
+
+    async function fetchPerformanceForGoal(goalId) {
+        const url = `${PERFORMANCE_ENDPOINT}?displayCcy=SGD&goalId=${encodeURIComponent(goalId)}`;
+        const headers = buildPerformanceRequestHeaders();
+        const response = await fetch(url, {
+            method: 'GET',
+            credentials: 'include',
+            headers
+        });
+        const cloned = response.clone();
+        if (!response.ok) {
+            throw new Error(`Performance request failed: ${response.status}`);
+        }
+        return cloned.json();
+    }
+
+    async function ensurePerformanceData(goalIds) {
+        const results = {};
+        const idsToFetch = [];
+
+        goalIds.forEach(goalId => {
+            if (!goalId) {
+                return;
+            }
+            if (goalPerformanceData[goalId]) {
+                results[goalId] = goalPerformanceData[goalId];
+                return;
+            }
+            const cached = getCachedPerformanceResponse(goalId);
+            if (cached) {
+                goalPerformanceData[goalId] = cached;
+                results[goalId] = cached;
+            } else {
+                idsToFetch.push(goalId);
+            }
+        });
+
+        if (!idsToFetch.length) {
+            return results;
+        }
+
+        const queueResults = await performanceRequestQueue(idsToFetch, async goalId => {
+            try {
+                const data = await fetchPerformanceForGoal(goalId);
+                writePerformanceCache(goalId, data);
+                goalPerformanceData[goalId] = data;
+                return data;
+            } catch (error) {
+                console.warn('[Endowus Portfolio Viewer] Performance fetch failed:', error);
+                return null;
+            }
+        });
+
+        queueResults.forEach(result => {
+            if (result.status === 'fulfilled' && result.value) {
+                results[result.item] = result.value;
+            }
+        });
+
+        return results;
+    }
+
+    function buildGoalTypePerformanceSummary(performanceResponses) {
+        if (!performanceResponses.length) {
+            return null;
+        }
+        const mergedSeries = mergeTimeSeriesByDate(
+            performanceResponses.map(response => response?.timeSeries?.data || [])
+        );
+        const windowStart = getWindowStartDate(
+            PERFORMANCE_CHART_WINDOW,
+            mergedSeries,
+            performanceResponses[0]?.performanceDates
+        );
+        const windowSeries = getTimeSeriesWindow(mergedSeries, windowStart);
+        const windowReturns = performanceResponses.length === 1
+            ? derivePerformanceWindows(
+                performanceResponses[0]?.returnsTable,
+                performanceResponses[0]?.performanceDates,
+                performanceResponses[0]?.timeSeries?.data || []
+            )
+            : derivePerformanceWindows(null, null, mergedSeries);
+
+        const metrics = summarizePerformanceMetrics(performanceResponses, mergedSeries);
+
+        return {
+            mergedSeries,
+            windowSeries,
+            windowReturns,
+            metrics
+        };
+    }
+
+    // ============================================
     // UI
     // ============================================
+
+    function createLineChartSvg(series) {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 240 90');
+        svg.setAttribute('class', 'epv-performance-chart');
+
+        if (!Array.isArray(series) || series.length < 2) {
+            const emptyText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            emptyText.setAttribute('x', '120');
+            emptyText.setAttribute('y', '50');
+            emptyText.setAttribute('text-anchor', 'middle');
+            emptyText.setAttribute('class', 'epv-performance-chart-empty');
+            emptyText.textContent = 'No chart data';
+            svg.appendChild(emptyText);
+            return svg;
+        }
+
+        const amounts = series.map(point => Number(point.amount)).filter(val => isFinite(val));
+        if (amounts.length < 2) {
+            return svg;
+        }
+
+        const minValue = Math.min(...amounts);
+        const maxValue = Math.max(...amounts);
+        const range = maxValue - minValue || 1;
+        const padding = 8;
+        const width = 240 - padding * 2;
+        const height = 90 - padding * 2;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const trendPositive = amounts[amounts.length - 1] >= amounts[0];
+        const strokeColor = trendPositive ? '#10b981' : '#ef4444';
+
+        const points = series.map((point, index) => {
+            const x = padding + (index / (series.length - 1)) * width;
+            const y = padding + height - ((point.amount - minValue) / range) * height;
+            return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+        });
+
+        path.setAttribute('d', points.join(' '));
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', strokeColor);
+        path.setAttribute('stroke-width', '2.5');
+        path.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('stroke-linejoin', 'round');
+
+        const baseline = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        baseline.setAttribute('x1', `${padding}`);
+        baseline.setAttribute('x2', `${padding + width}`);
+        baseline.setAttribute('y1', `${padding + height}`);
+        baseline.setAttribute('y2', `${padding + height}`);
+        baseline.setAttribute('class', 'epv-performance-chart-baseline');
+
+        svg.appendChild(baseline);
+        svg.appendChild(path);
+        return svg;
+    }
+
+    function buildPerformanceWindowGrid(windowReturns) {
+        const grid = document.createElement('div');
+        grid.className = 'epv-performance-window-grid';
+
+        const items = [
+            { label: '1D', value: windowReturns?.oneDay },
+            { label: '7D', value: windowReturns?.sevenDay },
+            { label: '6M', value: windowReturns?.sixMonth },
+            { label: 'QTD', value: windowReturns?.qtd },
+            { label: 'YTD', value: windowReturns?.ytd },
+            { label: '1Y', value: windowReturns?.oneYear }
+        ];
+
+        items.forEach(item => {
+            const tile = document.createElement('div');
+            tile.className = 'epv-performance-window-tile';
+
+            const label = document.createElement('div');
+            label.className = 'epv-performance-window-label';
+            label.textContent = item.label;
+
+            const value = document.createElement('div');
+            value.className = 'epv-performance-window-value';
+            value.textContent = formatPercentage(item.value);
+            if (typeof item.value === 'number') {
+                value.classList.add(item.value >= 0 ? 'positive' : 'negative');
+            }
+
+            tile.appendChild(label);
+            tile.appendChild(value);
+            grid.appendChild(tile);
+        });
+
+        return grid;
+    }
+
+    function buildPerformanceMetricsTable(metrics) {
+        const table = document.createElement('table');
+        table.className = 'epv-performance-metrics-table';
+
+        const tbody = document.createElement('tbody');
+        const rows = [
+            { label: 'Total Return %', value: formatPercentage(metrics?.totalReturnPercent) },
+            { label: 'Simple Return %', value: formatPercentage(metrics?.simpleReturnPercent) },
+            { label: 'TWR %', value: formatPercentage(metrics?.twrPercent) },
+            { label: 'Gain / Loss', value: formatMoney(metrics?.totalReturnAmount) },
+            { label: 'Market Changes', value: formatMoney(metrics?.marketChangesAmount) },
+            { label: 'Net Investment', value: formatMoney(metrics?.netInvestmentAmount) },
+            { label: 'Ending Balance', value: formatMoney(metrics?.endingBalanceAmount) }
+        ];
+
+        rows.forEach(row => {
+            const tr = document.createElement('tr');
+            const labelCell = document.createElement('td');
+            labelCell.className = 'epv-performance-metric-label';
+            labelCell.textContent = row.label;
+
+            const valueCell = document.createElement('td');
+            valueCell.className = 'epv-performance-metric-value';
+            valueCell.textContent = row.value;
+
+            tr.appendChild(labelCell);
+            tr.appendChild(valueCell);
+            tbody.appendChild(tr);
+        });
+
+        table.appendChild(tbody);
+        return table;
+    }
+
+    function renderGoalTypePerformance(typeSection, goalIds) {
+        const performanceContainer = document.createElement('div');
+        performanceContainer.className = 'epv-performance-container';
+
+        const loading = document.createElement('div');
+        loading.className = 'epv-performance-loading';
+        loading.textContent = 'Loading performance data...';
+        performanceContainer.appendChild(loading);
+
+        typeSection.appendChild(performanceContainer);
+
+        ensurePerformanceData(goalIds).then(performanceMap => {
+            if (!performanceContainer.isConnected) {
+                return;
+            }
+            const responses = goalIds
+                .map(goalId => performanceMap[goalId])
+                .filter(Boolean);
+            const summary = buildGoalTypePerformanceSummary(responses);
+
+            performanceContainer.innerHTML = '';
+            if (!summary) {
+                const emptyState = document.createElement('div');
+                emptyState.className = 'epv-performance-loading';
+                emptyState.textContent = 'Performance data unavailable.';
+                performanceContainer.appendChild(emptyState);
+                return;
+            }
+
+            const chart = createLineChartSvg(summary.windowSeries);
+            const metricsContainer = document.createElement('div');
+            metricsContainer.className = 'epv-performance-metrics';
+            metricsContainer.appendChild(buildPerformanceWindowGrid(summary.windowReturns));
+            metricsContainer.appendChild(buildPerformanceMetricsTable(summary.metrics));
+
+            performanceContainer.appendChild(chart);
+            performanceContainer.appendChild(metricsContainer);
+        });
+    }
     
     function renderSummaryView(contentDiv, mergedInvestmentDataState) {
         contentDiv.innerHTML = '';
@@ -597,6 +1350,11 @@
             });
             
             typeSection.appendChild(typeHeader);
+
+            renderGoalTypePerformance(
+                typeSection,
+                group.goals.map(goal => goal.goalId).filter(Boolean)
+            );
 
             const table = document.createElement('table');
             table.className = 'epv-table';
@@ -1370,6 +2128,116 @@
             .epv-projected-input[type=number] {
                 -moz-appearance: textfield;
             }
+
+            /* Performance Chart + Metrics */
+
+            .epv-performance-container {
+                display: flex;
+                gap: 16px;
+                align-items: stretch;
+                padding: 12px;
+                border-radius: 10px;
+                background: #f8fafc;
+                border: 1px solid #e5e7eb;
+                margin-bottom: 14px;
+            }
+
+            .epv-performance-loading {
+                font-size: 14px;
+                font-weight: 600;
+                color: #64748b;
+                width: 100%;
+                text-align: center;
+                padding: 12px 0;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            }
+
+            .epv-performance-chart {
+                width: 240px;
+                height: 90px;
+            }
+
+            .epv-performance-chart-baseline {
+                stroke: #e2e8f0;
+                stroke-width: 1;
+            }
+
+            .epv-performance-chart-empty {
+                font-size: 12px;
+                fill: #94a3b8;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            }
+
+            .epv-performance-metrics {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .epv-performance-window-grid {
+                display: grid;
+                grid-template-columns: repeat(6, minmax(0, 1fr));
+                gap: 8px;
+            }
+
+            .epv-performance-window-tile {
+                background: #ffffff;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                padding: 6px 8px;
+                text-align: center;
+            }
+
+            .epv-performance-window-label {
+                font-size: 11px;
+                font-weight: 700;
+                color: #64748b;
+                text-transform: uppercase;
+                letter-spacing: 0.4px;
+            }
+
+            .epv-performance-window-value {
+                font-size: 13px;
+                font-weight: 700;
+                color: #0f172a;
+            }
+
+            .epv-performance-window-value.positive {
+                color: #059669;
+            }
+
+            .epv-performance-window-value.negative {
+                color: #dc2626;
+            }
+
+            .epv-performance-metrics-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 13px;
+            }
+
+            .epv-performance-metrics-table tr {
+                border-bottom: 1px solid #e5e7eb;
+            }
+
+            .epv-performance-metrics-table tr:last-child {
+                border-bottom: none;
+            }
+
+            .epv-performance-metric-label {
+                text-align: left;
+                color: #475569;
+                font-weight: 600;
+                padding: 6px 4px;
+            }
+
+            .epv-performance-metric-value {
+                text-align: right;
+                color: #0f172a;
+                font-weight: 700;
+                padding: 6px 4px;
+            }
             
             /* Scrollbar Styles */
             
@@ -1616,7 +2484,14 @@
             sortGoalTypes,
             formatMoney,
             formatGrowthPercent,
-            buildMergedInvestmentData
+            buildMergedInvestmentData,
+            getPerformanceCacheKey,
+            isCacheFresh,
+            formatPercentage,
+            getWindowStartDate,
+            calculateReturnFromTimeSeries,
+            mapReturnsTableToWindowReturns,
+            derivePerformanceWindows
         };
     }
 

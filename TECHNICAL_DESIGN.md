@@ -62,6 +62,7 @@ window.fetch = async function(...args) {
 - `/v1/goals/performance` - Performance metrics (returns, growth %)
 - `/v2/goals/investible` - Investment details (amounts, goal types)
 - `/v1/goals` - Goal summaries (names, descriptions)
+- `https://bff.prod.silver.endowus.com/v1/performance` - Goal performance time series + return windows
 
 #### XMLHttpRequest Patching
 
@@ -94,6 +95,26 @@ XMLHttpRequest.prototype.send = function(...args) {
 - Must run in page context
 - Can be affected by Content Security Policy
 - Requires careful handling to avoid infinite loops
+
+### Performance API Contract
+
+The enhanced performance view retrieves time-series data per goal from the BFF endpoint:
+
+- **Endpoint**: `https://bff.prod.silver.endowus.com/v1/performance`
+- **Query params**:
+  - `displayCcy=SGD`
+  - `goalId=<uuid>`
+- **Response fields used**:
+  - `timeSeries.data[].date`
+  - `timeSeries.data[].amount`
+  - `returnsTable.*`
+  - `performanceDates.*`
+  - `totalCumulativeReturnPercent`
+  - `totalCumulativeReturnAmount`
+- **Origin relationship**: `app.sg.endowus.com` sends same-site requests to `bff.prod.silver.endowus.com`
+- **Required headers**: `authorization` (bearer token), `client-id`, `device-id`
+
+These headers are captured from in-app fetch requests and reused for the sequential performance fetch queue.
 
 ---
 
@@ -217,6 +238,22 @@ function calculatePercentageOfType(goal, typeTotal) {
     return (goal.investment / typeTotal.totalInvestment) * 100;
 }
 ```
+
+### Performance Window Derivation
+
+Performance windows (1D, 7D, 6M, QTD, YTD, 1Y) are derived from a mix of API values and local calculations:
+
+1. **Returns table** values are used when available (6M, 1Y, YTD).
+2. **Time series** data is used to compute 1D, 7D, and QTD returns when missing.
+3. **Nearest available date** is chosen when exact window start dates fall on non-trading days.
+
+### Sequential Fetch Queue + Cache
+
+Performance requests are executed sequentially with a configurable delay to avoid rate limiting.
+
+- **Queue**: runs `fetch` per goal ID with a delay between calls.
+- **Cache**: Tampermonkey storage keyed by `epv_performance_<goalId>`.
+- **TTL**: 7 days; cached responses are reused if still fresh.
 
 ### Money Formatting
 
