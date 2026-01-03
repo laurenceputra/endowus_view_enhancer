@@ -1156,15 +1156,106 @@
     // UI
     // ============================================
 
-    function createLineChartSvg(series) {
+    const PERFORMANCE_CHART_DEFAULT_WIDTH = 400;
+    const PERFORMANCE_CHART_DEFAULT_HEIGHT = 110;
+    const PERFORMANCE_CHART_MIN_WIDTH = 240;
+    const PERFORMANCE_CHART_MIN_HEIGHT = 90;
+    const PERFORMANCE_CHART_MAX_HEIGHT = 180;
+    const PERFORMANCE_CHART_ASPECT_RATIO = 0.28;
+
+    function getChartHeightForWidth(width) {
+        const safeWidth = Math.max(PERFORMANCE_CHART_MIN_WIDTH, Number(width) || PERFORMANCE_CHART_DEFAULT_WIDTH);
+        const targetHeight = Math.round(safeWidth * PERFORMANCE_CHART_ASPECT_RATIO);
+        return Math.min(
+            PERFORMANCE_CHART_MAX_HEIGHT,
+            Math.max(PERFORMANCE_CHART_MIN_HEIGHT, targetHeight || PERFORMANCE_CHART_DEFAULT_HEIGHT)
+        );
+    }
+
+    function getChartPadding(chartWidth, chartHeight) {
+        const base = Math.min(chartWidth, chartHeight);
+        return Math.min(22, Math.max(12, Math.round(base * 0.18)));
+    }
+
+    function getChartDimensions(container) {
+        if (!container || typeof container.getBoundingClientRect !== 'function') {
+            return {
+                width: PERFORMANCE_CHART_DEFAULT_WIDTH,
+                height: PERFORMANCE_CHART_DEFAULT_HEIGHT
+            };
+        }
+        const rect = container.getBoundingClientRect();
+        const width = Math.max(PERFORMANCE_CHART_MIN_WIDTH, Math.round(rect.width));
+        const baseHeight = rect.height ? Math.round(rect.height) : getChartHeightForWidth(width);
+        const height = Math.max(PERFORMANCE_CHART_MIN_HEIGHT, baseHeight);
+        return {
+            width: width || PERFORMANCE_CHART_DEFAULT_WIDTH,
+            height: height || PERFORMANCE_CHART_DEFAULT_HEIGHT
+        };
+    }
+
+    function renderPerformanceChart(chartWrapper, series, dimensionsOverride) {
+        if (!chartWrapper) {
+            return;
+        }
+        const dimensions = dimensionsOverride || getChartDimensions(chartWrapper);
+        const svg = createLineChartSvg(series, dimensions.width, dimensions.height);
+        chartWrapper.innerHTML = '';
+        chartWrapper.appendChild(svg);
+    }
+
+    function setupPerformanceChartResizeObserver(chartWrapper, series) {
+        if (typeof ResizeObserver === 'undefined' || !chartWrapper) {
+            renderPerformanceChart(chartWrapper, series);
+            return null;
+        }
+
+        let resizeTimer = null;
+        const observer = new ResizeObserver(entries => {
+            const entry = entries[0];
+            if (!entry) {
+                return;
+            }
+            const { width, height } = entry.contentRect;
+            if (!width || !height) {
+                return;
+            }
+            const targetHeight = getChartHeightForWidth(width);
+            if (Math.round(height) !== targetHeight) {
+                chartWrapper.style.height = `${targetHeight}px`;
+            }
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                if (!chartWrapper.isConnected) {
+                    observer.disconnect();
+                    return;
+                }
+                renderPerformanceChart(chartWrapper, series, {
+                    width: Math.max(PERFORMANCE_CHART_MIN_WIDTH, Math.round(width)),
+                    height: Math.max(PERFORMANCE_CHART_MIN_HEIGHT, Math.round(targetHeight))
+                });
+            }, 140);
+        });
+
+        observer.observe(chartWrapper);
+
+        return () => {
+            clearTimeout(resizeTimer);
+            observer.disconnect();
+        };
+    }
+
+    function createLineChartSvg(series, chartWidth, chartHeight) {
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('viewBox', '0 0 400 110');
+        const widthValue = Math.max(PERFORMANCE_CHART_MIN_WIDTH, Number(chartWidth) || PERFORMANCE_CHART_DEFAULT_WIDTH);
+        const heightValue = Math.max(PERFORMANCE_CHART_MIN_HEIGHT, Number(chartHeight) || PERFORMANCE_CHART_DEFAULT_HEIGHT);
+        svg.setAttribute('viewBox', `0 0 ${widthValue} ${heightValue}`);
         svg.setAttribute('class', 'epv-performance-chart');
 
         if (!Array.isArray(series) || series.length < 2) {
             const emptyText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            emptyText.setAttribute('x', '120');
-            emptyText.setAttribute('y', '50');
+            emptyText.setAttribute('x', `${widthValue / 2}`);
+            emptyText.setAttribute('y', `${heightValue / 2}`);
             emptyText.setAttribute('text-anchor', 'middle');
             emptyText.setAttribute('class', 'epv-performance-chart-empty');
             emptyText.textContent = 'No chart data';
@@ -1180,9 +1271,9 @@
         const minValue = Math.min(...amounts);
         const maxValue = Math.max(...amounts);
         const range = maxValue - minValue || 1;
-        const padding = 18;
-        const width = 400 - padding * 2;
-        const height = 110 - padding * 2;
+        const padding = getChartPadding(widthValue, heightValue);
+        const width = Math.max(1, widthValue - padding * 2);
+        const height = Math.max(1, heightValue - padding * 2);
 
         const axisGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         axisGroup.setAttribute('class', 'epv-performance-chart-axis');
@@ -1264,7 +1355,8 @@
         xLabels.forEach(labelInfo => {
             const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             label.setAttribute('x', `${labelInfo.x}`);
-            label.setAttribute('y', `${padding + height + 12}`);
+            const labelY = Math.min(heightValue - 6, padding + height + 12);
+            label.setAttribute('y', `${labelY}`);
             label.setAttribute('text-anchor', labelInfo.anchor);
             label.setAttribute('class', 'epv-performance-chart-label');
             label.textContent = formatDateLabel(labelInfo.value);
@@ -1273,14 +1365,14 @@
 
         const axisTitleX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         axisTitleX.setAttribute('x', `${padding + width / 2}`);
-        axisTitleX.setAttribute('y', `${padding + height + 20}`);
+        axisTitleX.setAttribute('y', `${Math.min(heightValue - 2, padding + height + 20)}`);
         axisTitleX.setAttribute('text-anchor', 'middle');
         axisTitleX.setAttribute('class', 'epv-performance-chart-title');
         axisTitleX.textContent = 'Date';
 
         const axisTitleY = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        axisTitleY.setAttribute('x', `${padding - 10}`);
-        axisTitleY.setAttribute('y', `${padding - 8}`);
+        axisTitleY.setAttribute('x', `${Math.max(4, padding - 10)}`);
+        axisTitleY.setAttribute('y', `${Math.max(12, padding - 6)}`);
         axisTitleY.setAttribute('text-anchor', 'start');
         axisTitleY.setAttribute('class', 'epv-performance-chart-title');
         axisTitleY.textContent = 'Value (SGD)';
@@ -1411,16 +1503,26 @@
             }
 
             const windowGrid = buildPerformanceWindowGrid(summary.windowReturns);
-            const chart = createLineChartSvg(summary.windowSeries);
+            const chartWrapper = document.createElement('div');
+            chartWrapper.className = 'epv-performance-chart-wrapper';
             const metricsTable = buildPerformanceMetricsTable(summary.metrics);
 
             const detailRow = document.createElement('div');
             detailRow.className = 'epv-performance-detail-row';
-            detailRow.appendChild(chart);
+            detailRow.appendChild(chartWrapper);
             detailRow.appendChild(metricsTable);
 
             performanceContainer.appendChild(windowGrid);
             performanceContainer.appendChild(detailRow);
+
+            requestAnimationFrame(() => {
+                if (!chartWrapper.isConnected) {
+                    return;
+                }
+                const initialWidth = chartWrapper.getBoundingClientRect().width;
+                chartWrapper.style.height = `${getChartHeightForWidth(initialWidth)}px`;
+                setupPerformanceChartResizeObserver(chartWrapper, summary.windowSeries);
+            });
         });
     }
     
@@ -1574,7 +1676,14 @@
                 </div>
             `;
             
-            // Add projected investment input
+            typeSection.appendChild(typeHeader);
+
+            renderGoalTypePerformance(
+                typeSection,
+                group.goals.map(goal => goal.goalId).filter(Boolean)
+            );
+
+            // Add projected investment input below performance metrics
             const projectedInputContainer = document.createElement('div');
             projectedInputContainer.className = 'epv-projected-input-container';
             projectedInputContainer.innerHTML = `
@@ -1593,7 +1702,7 @@
                 />
             `;
             
-            typeHeader.appendChild(projectedInputContainer);
+            typeSection.appendChild(projectedInputContainer);
             
             // Add event listener for projected investment input
             const projectedInput = projectedInputContainer.querySelector('.epv-projected-input');
@@ -1607,13 +1716,6 @@
                     projectedInvestmentsState
                 );
             });
-            
-            typeSection.appendChild(typeHeader);
-
-            renderGoalTypePerformance(
-                typeSection,
-                group.goals.map(goal => goal.goalId).filter(Boolean)
-            );
 
             const table = document.createElement('table');
             table.className = 'epv-table';
@@ -2418,9 +2520,17 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
 
+            .epv-performance-chart-wrapper {
+                flex: 1;
+                min-width: 240px;
+                min-height: 90px;
+                height: auto;
+            }
+
             .epv-performance-chart {
                 width: 100%;
-                height: 110px;
+                height: 100%;
+                display: block;
             }
 
             .epv-performance-chart-axis line {
@@ -2511,7 +2621,7 @@
                 font-size: 13px;
             }
 
-            .epv-performance-detail-row .epv-performance-chart {
+            .epv-performance-detail-row .epv-performance-chart-wrapper {
                 flex: 1;
                 min-width: 240px;
             }

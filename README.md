@@ -19,7 +19,7 @@ Group your real goals together — Retirement, Education, Emergency Fund, or any
 - **Buckets made easy:** See your holdings sorted by actual purpose, not just account type or product.
 - **No more confusion:** CPF, SRS, and cash are tracked together. Color-coded growth and return stats make reading easy.
 - **Modern, distraction-free view:** Gorgeous visual design fits right into your Endowus experience, without feeling bolted on.
-- **Performance snapshots:** Inline charts and return windows surface recent momentum per goal type.
+- **Performance snapshots:** Responsive inline charts with dynamic height plus return windows surface recent momentum per goal type.
 - **Privacy by default:** Your investment data stays on your device, processed locally in your browser. Nothing is shared or uploaded, ever.
 - **Just works:** Install the script, log in to Endowus, and your portfolio is auto-organized if you use the "Bucket Name  -  Description" goal naming pattern. If not, it's just a quick rename.
 

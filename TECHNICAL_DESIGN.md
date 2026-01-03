@@ -732,7 +732,9 @@ function exportToCSV(data) {
 
 ### Q: How do I add chart visualizations?
 
-Use a lightweight charting library:
+The current userscript renders lightweight SVG charts that resize with their container using `ResizeObserver`, including a dynamic height derived from available width. If you add new charts, follow the same pattern: measure the container, render with a matching `viewBox`, and re-render on resize to keep coordinates accurate.
+
+If you need a larger charting library, keep it lightweight:
 
 ```javascript
 // Add to userscript header
