@@ -34,7 +34,9 @@ Core-satellite strategies complement this approach. The core anchors each goal w
 
 ## Why This View Matters
 
-Most dashboards group by product or account type. This viewer groups by intent. Endowus tracks each asset as its own goal, so a core-satellite approach with multiple life goals can quickly turn into a long list of goals with no clear allocation view. This overlay brings those assets back together so you can evaluate allocation by goal, not just by individual products.
+Endowus already provides excellent low-cost investment options and thoughtfully designed thematic portfolios. The gap is in visualizing your portfolio using a core-satellite approach. When each asset is tracked as its own goal, a multi-goal, core-satellite strategy quickly becomes a long list of goals without a clear allocation view.
+
+This overlay brings those assets back together so more sophisticated retail investors can see how each goal balances core holdings with focused exposures. That means it is easier to track satellite tilts such as China, Tech, or custom thematic portfolios built with FundSmart, while keeping the overall allocation aligned to each life goal.
 
 - **Purpose-led investing:** Every goal is tracked with its own core-satellite balance.
 - **Better decisions faster:** Identify imbalances, underweight satellites, or overexposed cores within seconds.
