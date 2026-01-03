@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.4.1
+// @version      2.4.2
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -566,7 +566,7 @@
         summary: null
     };
 
-    const DEBUG_AUTH = true;
+    const DEBUG_AUTH = false;
     const PERFORMANCE_ENDPOINT = 'https://bff.prod.silver.endowus.com/v1/performance';
     const REQUEST_DELAY_MS = 500;
     const PERFORMANCE_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -891,22 +891,11 @@
     }
 
     function dumpAvailableCookies() {
-        if (gmCookieDumped) {
+        if (gmCookieDumped || !DEBUG_AUTH) {
             return;
         }
         gmCookieDumped = true;
-        listCookieByQuery({}).then(cookies => {
-            if (!DEBUG_AUTH) {
-                return;
-            }
-            const summaries = cookies.map(cookie => ({
-                name: cookie?.name,
-                domain: cookie?.domain,
-                path: cookie?.path,
-                httpOnly: cookie?.httpOnly
-            }));
-            console.log('[Endowus Portfolio Viewer] GM_cookie visible cookies:', summaries);
-        });
+        listCookieByQuery({});
     }
 
     function getAuthTokenFromGMCookie() {
@@ -927,9 +916,6 @@
             ];
             const tryNext = index => {
                 if (index >= queries.length) {
-                    if (DEBUG_AUTH) {
-                        console.log('[Endowus Portfolio Viewer] GM_cookie token:', formatAuthLogValue(null));
-                    }
                     resolve(null);
                     return;
                 }
@@ -937,9 +923,6 @@
                     const token = selectAuthCookieToken(cookies) || findCookieValue(cookies, cookieNames[1]);
                     if (token) {
                         gmCookieAuthToken = token;
-                        if (DEBUG_AUTH) {
-                            console.log('[Endowus Portfolio Viewer] GM_cookie token:', formatAuthLogValue(token));
-                        }
                         resolve(token);
                         return;
                     }
@@ -978,14 +961,6 @@
         const deviceId = getCookieValue('webapp-deviceId');
         const clientId = localStorage.getItem('client-id') || localStorage.getItem('clientId') || null;
 
-        if (DEBUG_AUTH) {
-            console.log('[Endowus Portfolio Viewer] Auth fallback GM_cookie token:', formatAuthLogValue(gmCookieToken));
-            console.log('[Endowus Portfolio Viewer] Auth fallback cookie token:', formatAuthLogValue(token));
-            console.log('[Endowus Portfolio Viewer] Auth fallback cookie name:', cookieValue?.name || 'missing');
-            console.log('[Endowus Portfolio Viewer] Auth fallback device id:', deviceId ? 'present' : 'missing');
-            console.log('[Endowus Portfolio Viewer] Auth fallback client id:', clientId ? 'present' : 'missing');
-        }
-
         return {
             authorization: buildAuthorizationValue(token),
             'client-id': clientId,
@@ -1009,9 +984,6 @@
                 'client-id': clientId,
                 'device-id': deviceId
             };
-            if (DEBUG_AUTH && authorization) {
-                console.log('[Endowus Portfolio Viewer] Captured authorization header:', formatAuthLogValue(authorization));
-            }
         }
     }
 
@@ -1037,18 +1009,6 @@
                 headers.set(key, value);
             }
         });
-        if (DEBUG_AUTH) {
-            const mergedKeys = Object.keys(mergedHeaders).filter(key => mergedHeaders[key]);
-            console.log('[Endowus Portfolio Viewer] Performance header merge keys:', mergedKeys);
-            console.log('[Endowus Portfolio Viewer] Performance authorization value:', formatAuthLogValue(authorizationValue));
-            console.log('[Endowus Portfolio Viewer] Performance Authorization:', formatAuthLogValue(authorizationValue));
-            console.log('[Endowus Portfolio Viewer] Header entries:', Array.from(headers.entries()).map(([key, value]) => {
-                if (key.toLowerCase() === 'authorization') {
-                    return [key, formatAuthLogValue(value)];
-                }
-                return [key, value];
-            }));
-        }
         return headers;
     }
 
@@ -1093,14 +1053,6 @@
     async function fetchPerformanceForGoal(goalId) {
         const url = `${PERFORMANCE_ENDPOINT}?displayCcy=SGD&goalId=${encodeURIComponent(goalId)}`;
         const headers = await buildPerformanceRequestHeaders();
-        if (DEBUG_AUTH) {
-            console.log('[Endowus Portfolio Viewer] Fetching performance', {
-                goalId,
-                url,
-                authorization: formatAuthLogValue(headers.get('Authorization')),
-                headerKeys: Array.from(headers.keys())
-            });
-        }
         const response = await fetch(url, {
             method: 'GET',
             credentials: 'include',
@@ -1196,7 +1148,7 @@
 
     function createLineChartSvg(series) {
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('viewBox', '0 0 240 90');
+        svg.setAttribute('viewBox', '0 0 240 110');
         svg.setAttribute('class', 'epv-performance-chart');
 
         if (!Array.isArray(series) || series.length < 2) {
@@ -1218,9 +1170,26 @@
         const minValue = Math.min(...amounts);
         const maxValue = Math.max(...amounts);
         const range = maxValue - minValue || 1;
-        const padding = 8;
+        const padding = 18;
         const width = 240 - padding * 2;
-        const height = 90 - padding * 2;
+        const height = 110 - padding * 2;
+
+        const axisGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        axisGroup.setAttribute('class', 'epv-performance-chart-axis');
+
+        const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        xAxis.setAttribute('x1', `${padding}`);
+        xAxis.setAttribute('x2', `${padding + width}`);
+        xAxis.setAttribute('y1', `${padding + height}`);
+        xAxis.setAttribute('y2', `${padding + height}`);
+        axisGroup.appendChild(xAxis);
+
+        const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        yAxis.setAttribute('x1', `${padding}`);
+        yAxis.setAttribute('x2', `${padding}`);
+        yAxis.setAttribute('y1', `${padding}`);
+        yAxis.setAttribute('y2', `${padding + height}`);
+        axisGroup.appendChild(yAxis);
 
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         const trendPositive = amounts[amounts.length - 1] >= amounts[0];
@@ -1239,15 +1208,96 @@
         path.setAttribute('stroke-linecap', 'round');
         path.setAttribute('stroke-linejoin', 'round');
 
-        const baseline = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        baseline.setAttribute('x1', `${padding}`);
-        baseline.setAttribute('x2', `${padding + width}`);
-        baseline.setAttribute('y1', `${padding + height}`);
-        baseline.setAttribute('y2', `${padding + height}`);
-        baseline.setAttribute('class', 'epv-performance-chart-baseline');
+        const tickValues = [maxValue, (maxValue + minValue) / 2, minValue];
+        tickValues.forEach((value, index) => {
+            const y = padding + height - ((value - minValue) / range) * height;
+            const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            tick.setAttribute('x1', `${padding - 3}`);
+            tick.setAttribute('x2', `${padding}`);
+            tick.setAttribute('y1', `${y}`);
+            tick.setAttribute('y2', `${y}`);
+            tick.setAttribute('class', 'epv-performance-chart-tick');
+            axisGroup.appendChild(tick);
 
-        svg.appendChild(baseline);
+            const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            label.setAttribute('x', `${padding - 6}`);
+            label.setAttribute('y', `${y + 3}`);
+            label.setAttribute('text-anchor', 'end');
+            label.setAttribute('class', 'epv-performance-chart-label');
+            label.textContent = formatMoney(value);
+            axisGroup.appendChild(label);
+
+            if (index === 1) {
+                const grid = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                grid.setAttribute('x1', `${padding}`);
+                grid.setAttribute('x2', `${padding + width}`);
+                grid.setAttribute('y1', `${y}`);
+                grid.setAttribute('y2', `${y}`);
+                grid.setAttribute('class', 'epv-performance-chart-grid');
+                axisGroup.appendChild(grid);
+            }
+        });
+
+        const formatDateLabel = dateString => {
+            const date = new Date(dateString);
+            if (!isFinite(date.getTime())) {
+                return dateString;
+            }
+            return date.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' });
+        };
+
+        const xLabels = [
+            { value: series[0].date, anchor: 'start', x: padding },
+            { value: series[series.length - 1].date, anchor: 'end', x: padding + width }
+        ];
+
+        xLabels.forEach(labelInfo => {
+            const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            label.setAttribute('x', `${labelInfo.x}`);
+            label.setAttribute('y', `${padding + height + 12}`);
+            label.setAttribute('text-anchor', labelInfo.anchor);
+            label.setAttribute('class', 'epv-performance-chart-label');
+            label.textContent = formatDateLabel(labelInfo.value);
+            axisGroup.appendChild(label);
+        });
+
+        const axisTitleX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        axisTitleX.setAttribute('x', `${padding + width / 2}`);
+        axisTitleX.setAttribute('y', `${padding + height + 20}`);
+        axisTitleX.setAttribute('text-anchor', 'middle');
+        axisTitleX.setAttribute('class', 'epv-performance-chart-title');
+        axisTitleX.textContent = 'Date';
+
+        const axisTitleY = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        axisTitleY.setAttribute('x', `${padding - 10}`);
+        axisTitleY.setAttribute('y', `${padding - 8}`);
+        axisTitleY.setAttribute('text-anchor', 'start');
+        axisTitleY.setAttribute('class', 'epv-performance-chart-title');
+        axisTitleY.textContent = 'Value (SGD)';
+
+        const highlightIndices = [0, Math.floor(series.length / 2), series.length - 1];
+        const pointGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        pointGroup.setAttribute('class', 'epv-performance-chart-points');
+        highlightIndices.forEach(index => {
+            const point = series[index];
+            if (!point) {
+                return;
+            }
+            const x = padding + (index / (series.length - 1)) * width;
+            const y = padding + height - ((point.amount - minValue) / range) * height;
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('cx', `${x}`);
+            circle.setAttribute('cy', `${y}`);
+            circle.setAttribute('r', '2.5');
+            circle.setAttribute('class', 'epv-performance-chart-point');
+            pointGroup.appendChild(circle);
+        });
+
+        svg.appendChild(axisGroup);
+        svg.appendChild(axisTitleX);
+        svg.appendChild(axisTitleY);
         svg.appendChild(path);
+        svg.appendChild(pointGroup);
         return svg;
     }
 
@@ -2350,7 +2400,40 @@
 
             .epv-performance-chart {
                 width: 240px;
-                height: 90px;
+                height: 110px;
+            }
+
+            .epv-performance-chart-axis line {
+                stroke: #cbd5f5;
+                stroke-width: 1;
+            }
+
+            .epv-performance-chart-grid {
+                stroke: #e2e8f0;
+                stroke-width: 1;
+                stroke-dasharray: 2 2;
+            }
+
+            .epv-performance-chart-tick {
+                stroke: #94a3b8;
+                stroke-width: 1;
+            }
+
+            .epv-performance-chart-label {
+                font-size: 9px;
+                fill: #64748b;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            }
+
+            .epv-performance-chart-title {
+                font-size: 9px;
+                fill: #475569;
+                font-weight: 600;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            }
+
+            .epv-performance-chart-point {
+                fill: #1f2937;
             }
 
             .epv-performance-chart-baseline {
@@ -2647,16 +2730,6 @@
     function init() {
         // Load stored API data
         loadStoredData(apiData);
-
-        if (DEBUG_AUTH) {
-            const cookieString = document?.cookie || '';
-            console.log('[Endowus Portfolio Viewer] Auth context:', {
-                origin: window.location.origin,
-                cookieLength: cookieString.length,
-                hasAccessTokenCookie: cookieString.includes('webapp-sg-access-token'),
-                hasDeviceIdCookie: cookieString.includes('webapp-deviceId')
-            });
-        }
 
         if (DEBUG_AUTH) {
             getAuthTokenFromGMCookie();
