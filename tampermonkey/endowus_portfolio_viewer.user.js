@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.3.9
+// @version      2.4.0
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -979,6 +979,7 @@
         const clientId = localStorage.getItem('client-id') || localStorage.getItem('clientId') || null;
 
         if (DEBUG_AUTH) {
+            console.log('[Endowus Portfolio Viewer] Auth fallback GM_cookie token:', formatAuthLogValue(gmCookieToken));
             console.log('[Endowus Portfolio Viewer] Auth fallback cookie token:', formatAuthLogValue(token));
             console.log('[Endowus Portfolio Viewer] Auth fallback cookie name:', cookieValue?.name || 'missing');
             console.log('[Endowus Portfolio Viewer] Auth fallback device id:', deviceId ? 'present' : 'missing');
@@ -1033,6 +1034,7 @@
         if (DEBUG_AUTH) {
             const mergedKeys = Object.keys(mergedHeaders).filter(key => mergedHeaders[key]);
             console.log('[Endowus Portfolio Viewer] Performance header merge keys:', mergedKeys);
+            console.log('[Endowus Portfolio Viewer] Performance authorization value:', formatAuthLogValue(authorizationValue));
             console.log('[Endowus Portfolio Viewer] Performance Authorization:', formatAuthLogValue(authorizationValue));
             console.log('[Endowus Portfolio Viewer] Header entries:', Array.from(headers.entries()).map(([key, value]) => {
                 if (key.toLowerCase() === 'authorization') {
