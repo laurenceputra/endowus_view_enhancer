@@ -10,7 +10,15 @@
 
 Endowus Portfolio Viewer is built for investors who structure their wealth with intention. Whether you run a classic core-satellite strategy or a disciplined asset allocation plan, this userscript turns your Endowus dashboard into a purpose-first view of your portfolio.
 
-It groups your goals by real-life outcomes — retirement, education, emergency funds, or any other life milestone — so you can see how each goal maps to your core and satellite holdings at a glance.
+It groups your goals by real-life outcomes — retirement, education, emergency funds, or any other life milestone — so you can see how each goal maps to your core and satellite holdings at a glance. Different goals naturally come with different timelines and risk tolerances, and this view helps you reflect those differences in how you allocate your portfolio.
+
+---
+
+## Asset Allocation Frameworks and Core-Satellite Strategies
+
+A strong asset allocation framework makes sure your portfolio matches your time horizon and risk tolerance. Near-term goals often prioritize stability and liquidity, while long-term goals can take on more growth-oriented allocations. Seeing everything by goal makes it easier to keep each allocation aligned with its purpose.
+
+Core-satellite strategies complement this approach. The core anchors each goal with broadly diversified, long-term holdings, while satellites provide focused exposures or tactical tilts. When your goals are grouped clearly, you can spot whether each goal has the right balance between steady core positions and more targeted satellite positions.
 
 ---
 
