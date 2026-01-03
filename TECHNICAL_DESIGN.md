@@ -115,6 +115,8 @@ The enhanced performance view retrieves time-series data per goal from the BFF e
 - **Required headers**: `authorization` (bearer token), `client-id`, `device-id`
 
 These headers are captured from in-app fetch requests and reused for the sequential performance fetch queue.
+If captured headers are missing, the script falls back to the `webapp-sg-access-token` and `webapp-deviceId` cookies
+and any locally stored `client-id` to build the performance request headers.
 
 ---
 

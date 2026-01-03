@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.3.0
+// @version      2.3.1
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -588,6 +588,7 @@
     const originalFetch = window.fetch;
     const originalXHROpen = XMLHttpRequest.prototype.open;
     const originalXHRSend = XMLHttpRequest.prototype.send;
+    const originalXHRSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
 
     // Fetch interception
     window.fetch = async function(...args) {
@@ -644,11 +645,20 @@
     // XMLHttpRequest interception
     XMLHttpRequest.prototype.open = function(method, url, ...rest) {
         this._url = url;
+        this._headers = {};
         return originalXHROpen.apply(this, [method, url, ...rest]);
+    };
+
+    XMLHttpRequest.prototype.setRequestHeader = function(header, value) {
+        if (this._headers) {
+            this._headers[header] = value;
+        }
+        return originalXHRSetRequestHeader.apply(this, [header, value]);
     };
 
     XMLHttpRequest.prototype.send = function(...args) {
         const url = this._url;
+        extractAuthHeaders(url, { headers: this._headers });
         
         if (url && typeof url === 'string') {
             // Check more specific patterns first to avoid false matches
@@ -832,6 +842,31 @@
         return null;
     }
 
+    function getCookieValue(name) {
+        if (typeof document === 'undefined' || !document.cookie) {
+            return null;
+        }
+        const entries = document.cookie.split(';').map(entry => entry.trim());
+        const match = entries.find(entry => entry.startsWith(`${name}=`));
+        if (!match) {
+            return null;
+        }
+        const value = match.slice(name.length + 1);
+        return value ? decodeURIComponent(value) : null;
+    }
+
+    function getFallbackAuthHeaders() {
+        const token = getCookieValue('webapp-sg-access-token');
+        const deviceId = getCookieValue('webapp-deviceId');
+        const clientId = localStorage.getItem('client-id') || localStorage.getItem('clientId') || null;
+
+        return {
+            authorization: token ? `Bearer ${token}` : null,
+            'client-id': clientId,
+            'device-id': deviceId
+        };
+    }
+
     function extractAuthHeaders(requestUrl, requestInit) {
         const url = typeof requestUrl === 'string' ? requestUrl : requestUrl?.url;
         if (!url || !url.includes('endowus.com')) {
@@ -853,10 +888,12 @@
 
     function buildPerformanceRequestHeaders() {
         const headers = new Headers();
-        if (!performanceRequestHeaders) {
-            return headers;
-        }
-        Object.entries(performanceRequestHeaders).forEach(([key, value]) => {
+        const fallbackHeaders = getFallbackAuthHeaders();
+        const mergedHeaders = {
+            ...fallbackHeaders,
+            ...(performanceRequestHeaders || {})
+        };
+        Object.entries(mergedHeaders).forEach(([key, value]) => {
             if (value) {
                 headers.set(key, value);
             }
