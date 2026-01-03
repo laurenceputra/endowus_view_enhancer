@@ -21,7 +21,7 @@ applies_to:
 - **Runtime**: Browser (Tampermonkey/Greasemonkey/Violentmonkey)
 - **Language**: Vanilla JavaScript (ES6+)
 - **API Interception**: Monkey patching of fetch() and XMLHttpRequest
-- **UI**: Inline CSS with modern gradient design system
+- **UI**: Injected CSS via `injectStyles()` with a modern gradient design system
 - **Data Flow**: Intercept → Process → Aggregate → Visualize
 
 ### Critical Context
@@ -56,8 +56,9 @@ for (var i = 0; i < apiData.performance.length; i++) {
 - Use arrow functions for callbacks
 - Use template literals for strings with variables
 - Use destructuring for objects and arrays
-- 2-space indentation (no tabs)
-- Single quotes for strings
+- 4-space indentation (no tabs)
+- Always include semicolons
+- Prefer single quotes for strings
 
 ### Naming Conventions
 
@@ -66,7 +67,7 @@ for (var i = 0; i < apiData.performance.length; i++) {
 | Functions | camelCase with verb | `extractBucket()`, `renderSummaryView()` |
 | Constants | UPPER_SNAKE_CASE | `API_ENDPOINTS`, `DEBUG` |
 | Variables | camelCase | `apiData`, `bucketName`, `totalInvestment` |
-| CSS Classes | kebab-case with prefix | `portfolio-viewer-button`, `modal-container` |
+| CSS Classes | kebab-case with `epv-` prefix | `epv-trigger-btn`, `epv-container` |
 | Event Handlers | `on` + Event | `onButtonClick()`, `onModalClose()` |
 
 ### File Structure Pattern
@@ -78,7 +79,7 @@ The userscript follows this structure (order matters):
 4. API interception (monkey patching)
 5. Data processing functions
 6. UI rendering functions
-7. Styling injection
+7. Styling injection via `injectStyles()`
 8. Initialization
 
 ---
@@ -349,7 +350,7 @@ function renderComponent(data) {
   `).join('');
   
   return `
-    <table class="portfolio-table">
+    <table class="epv-table">
       <thead>
         <tr>
           <th>Goal</th>
@@ -478,7 +479,7 @@ function showBucketDetail(bucketName) {
 modalContainer.addEventListener('click', (event) => {
   if (event.target.matches('.close-button')) {
     closeModal();
-  } else if (event.target.matches('.bucket-card')) {
+  } else if (event.target.matches('.epv-bucket-card')) {
     showBucketDetail(event.target.dataset.bucket);
   }
 });
@@ -705,11 +706,11 @@ endowus_view_enhancer/
 - `calculateGrowthPercentage(inv, ret)` - Calculate growth %
 
 ### CSS Classes
-- `.portfolio-viewer-button` - Trigger button
-- `.portfolio-modal` - Modal overlay
-- `.modal-container` - Modal content
-- `.bucket-card` - Bucket summary card
-- `.goal-table` - Goals table
+- `.epv-trigger-btn` - Trigger button
+- `.epv-overlay` - Modal overlay
+- `.epv-container` - Modal content
+- `.epv-bucket-card` - Bucket summary card
+- `.epv-table` - Goals table
 
 ---
 
