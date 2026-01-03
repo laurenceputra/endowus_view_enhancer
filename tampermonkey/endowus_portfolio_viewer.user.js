@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.3.7
+// @version      2.3.8
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -867,6 +867,23 @@
         return (httpOnlyCookie || cookies[0])?.value || null;
     }
 
+    function findCookieValue(cookies, name) {
+        if (!Array.isArray(cookies)) {
+            return null;
+        }
+        return cookies.find(cookie => cookie?.name === name)?.value || null;
+    }
+
+    function getCookieValueByNames(names) {
+        for (const name of names) {
+            const value = getCookieValue(name);
+            if (value) {
+                return { name, value };
+            }
+        }
+        return null;
+    }
+
     function listCookieByQuery(query) {
         return new Promise(resolve => {
             GM_cookie.list(query, cookies => resolve(cookies || []));
@@ -906,7 +923,7 @@
                 path: '/',
                 name: 'webapp-sg-access-token'
             }).then(cookies => {
-                const token = selectAuthCookieToken(cookies);
+                const token = selectAuthCookieToken(cookies) || findCookieValue(cookies, 'webapp-sg-accessToken');
                 if (token) {
                     gmCookieAuthToken = token;
                     if (DEBUG_AUTH) {
@@ -920,7 +937,8 @@
                     path: '/',
                     name: 'webapp-sg-access-token'
                 }).then(fallbackCookies => {
-                    const fallbackToken = selectAuthCookieToken(fallbackCookies);
+                    const fallbackToken = selectAuthCookieToken(fallbackCookies)
+                        || findCookieValue(fallbackCookies, 'webapp-sg-accessToken');
                     if (fallbackToken) {
                         gmCookieAuthToken = fallbackToken;
                     }
@@ -955,12 +973,15 @@
 
     async function getFallbackAuthHeaders() {
         const gmCookieToken = await getAuthTokenFromGMCookie();
-        const token = gmCookieToken || getCookieValue('webapp-sg-access-token');
+        const cookieNames = ['webapp-sg-access-token', 'webapp-sg-accessToken'];
+        const cookieValue = getCookieValueByNames(cookieNames);
+        const token = gmCookieToken || cookieValue?.value || null;
         const deviceId = getCookieValue('webapp-deviceId');
         const clientId = localStorage.getItem('client-id') || localStorage.getItem('clientId') || null;
 
         if (DEBUG_AUTH) {
             console.log('[Endowus Portfolio Viewer] Auth fallback cookie token:', formatAuthLogValue(token));
+            console.log('[Endowus Portfolio Viewer] Auth fallback cookie name:', cookieValue?.name || 'missing');
             console.log('[Endowus Portfolio Viewer] Auth fallback device id:', deviceId ? 'present' : 'missing');
             console.log('[Endowus Portfolio Viewer] Auth fallback client id:', clientId ? 'present' : 'missing');
         }
