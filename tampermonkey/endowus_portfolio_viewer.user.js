@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.3.8
+// @version      2.3.9
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -918,36 +918,35 @@
         }
         return new Promise(resolve => {
             dumpAvailableCookies();
-            listCookieByQuery({
-                domain: '.endowus.com',
-                path: '/',
-                name: 'webapp-sg-access-token'
-            }).then(cookies => {
-                const token = selectAuthCookieToken(cookies) || findCookieValue(cookies, 'webapp-sg-accessToken');
-                if (token) {
-                    gmCookieAuthToken = token;
+            const cookieNames = ['webapp-sg-access-token', 'webapp-sg-accessToken'];
+            const queries = [
+                { domain: '.endowus.com', path: '/', name: cookieNames[0] },
+                { domain: '.endowus.com', path: '/', name: cookieNames[1] },
+                { domain: 'app.sg.endowus.com', path: '/', name: cookieNames[0] },
+                { domain: 'app.sg.endowus.com', path: '/', name: cookieNames[1] }
+            ];
+            const tryNext = index => {
+                if (index >= queries.length) {
                     if (DEBUG_AUTH) {
-                        console.log('[Endowus Portfolio Viewer] GM_cookie token:', formatAuthLogValue(token));
+                        console.log('[Endowus Portfolio Viewer] GM_cookie token:', formatAuthLogValue(null));
                     }
-                    resolve(token);
+                    resolve(null);
                     return;
                 }
-                listCookieByQuery({
-                    domain: 'app.sg.endowus.com',
-                    path: '/',
-                    name: 'webapp-sg-access-token'
-                }).then(fallbackCookies => {
-                    const fallbackToken = selectAuthCookieToken(fallbackCookies)
-                        || findCookieValue(fallbackCookies, 'webapp-sg-accessToken');
-                    if (fallbackToken) {
-                        gmCookieAuthToken = fallbackToken;
+                listCookieByQuery(queries[index]).then(cookies => {
+                    const token = selectAuthCookieToken(cookies) || findCookieValue(cookies, cookieNames[1]);
+                    if (token) {
+                        gmCookieAuthToken = token;
+                        if (DEBUG_AUTH) {
+                            console.log('[Endowus Portfolio Viewer] GM_cookie token:', formatAuthLogValue(token));
+                        }
+                        resolve(token);
+                        return;
                     }
-                    if (DEBUG_AUTH) {
-                        console.log('[Endowus Portfolio Viewer] GM_cookie token:', formatAuthLogValue(fallbackToken));
-                    }
-                    resolve(fallbackToken);
+                    tryNext(index + 1);
                 });
-            });
+            };
+            tryNext(0);
         });
     }
 
