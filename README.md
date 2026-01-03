@@ -16,15 +16,19 @@ It groups your goals by real-life outcomes — retirement, education, emergency 
 
 ## Asset Allocation Frameworks and Core-Satellite Strategies
 
-- **Buckets made easy:** See your holdings sorted by actual purpose, not just account type or product.
-- **No more confusion:** CPF, SRS, and cash are tracked together. Color-coded growth and return stats make reading easy.
-- **Modern, distraction-free view:** Gorgeous visual design fits right into your Endowus experience, without feeling bolted on.
-- **Performance snapshots:** Responsive inline charts with dynamic height plus return windows surface recent momentum per goal type.
-- **Privacy by default:** Your investment data stays on your device, processed locally in your browser. Nothing is shared or uploaded, ever.
-- **Just works:** Install the script, log in to Endowus, and your portfolio is auto-organized if you use the "Bucket Name  -  Description" goal naming pattern. If not, it's just a quick rename.
 A strong asset allocation framework makes sure your portfolio matches your time horizon and risk tolerance. Near-term goals often prioritize stability and liquidity, while long-term goals can take on more growth-oriented allocations. Seeing everything by goal makes it easier to keep each allocation aligned with its purpose.
 
 Core-satellite strategies complement this approach. The core anchors each goal with broadly diversified, long-term holdings, while satellites provide focused exposures or tactical tilts. When your goals are grouped clearly, you can spot whether each goal has the right balance between steady core positions and more targeted satellite positions.
+
+---
+
+## Support for Multiple Goals and Allocation Styles
+
+- **Goal-based clarity:** Keep multiple goals organized without spreadsheets or manual rollups.
+- **Core + satellite aligned:** See long-term core holdings and tactical satellites side-by-side within each life goal.
+- **Asset allocation visibility:** CPF, SRS, and cash investments show together with clear return and growth indicators.
+- **Privacy first:** All data stays on your device and is processed locally in the browser.
+- **Zero friction:** Use the "Bucket Name - Description" naming pattern in Endowus and the script does the rest.
 
 ---
 
