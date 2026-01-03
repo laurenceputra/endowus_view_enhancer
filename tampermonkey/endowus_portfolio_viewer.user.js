@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.3.2
+// @version      2.3.3
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -903,6 +903,10 @@
             ...fallbackHeaders,
             ...(performanceRequestHeaders || {})
         };
+        const authorizationValue = mergedHeaders.authorization || mergedHeaders.Authorization || null;
+        if (authorizationValue) {
+            headers.set('Authorization', authorizationValue);
+        }
         Object.entries(mergedHeaders).forEach(([key, value]) => {
             if (value) {
                 headers.set(key, value);
