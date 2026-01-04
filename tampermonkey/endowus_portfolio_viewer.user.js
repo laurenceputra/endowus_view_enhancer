@@ -2457,6 +2457,7 @@
             
             .epv-projected-input-container {
                 margin-top: 12px;
+                margin-bottom: 12px;
                 padding: 12px;
                 background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
                 border: 2px dashed #0284c7;
