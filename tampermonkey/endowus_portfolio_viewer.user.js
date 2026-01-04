@@ -1288,6 +1288,9 @@
         const originalWidthReduction = 280;
         const totalWidthReduction = leftPadding + originalWidthReduction;
         const viewBoxWidth = Math.max(PERFORMANCE_CHART_MIN_WIDTH, widthValue - totalWidthReduction);
+        // Reduce actual SVG width by 100px to prevent overflow
+        const svgWidth = Math.max(PERFORMANCE_CHART_MIN_WIDTH, widthValue - 100);
+        svg.setAttribute('width', `${svgWidth}`);
         svg.setAttribute('viewBox', `${leftPadding} 0 ${viewBoxWidth} ${heightValue}`);
         svg.setAttribute('class', 'epv-performance-chart');
 
