@@ -1,8 +1,8 @@
 {
-  "name": "endowus-portfolio-viewer",
+  "name": "goal-portfolio-viewer",
   "version": "2.3.0",
-  "description": "View and organize your Endowus portfolio by buckets with a modern interface",
-  "main": "tampermonkey/endowus_portfolio_viewer.user.js",
+  "description": "View and organize your investment portfolio by buckets with a modern interface",
+  "main": "tampermonkey/goal_portfolio_viewer.user.js",
   "scripts": {
     "test": "jest",
     "test:watch": "jest --watch",
@@ -10,10 +10,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/laurenceputra/endowus_view_enhancer.git"
+    "url": "git+https://github.com/laurenceputra/goal-portfolio-viewer.git"
   },
   "keywords": [
-    "endowus",
+    "goal-portfolio-viewer",
     "portfolio",
     "investment",
     "tampermonkey",
@@ -22,9 +22,9 @@
   "author": "laurenceputra",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/laurenceputra/endowus_view_enhancer/issues"
+    "url": "https://github.com/laurenceputra/goal-portfolio-viewer/issues"
   },
-  "homepage": "https://github.com/laurenceputra/endowus_view_enhancer#readme",
+  "homepage": "https://github.com/laurenceputra/goal-portfolio-viewer#readme",
   "devDependencies": {
     "jest": "^29.7.0"
   },

@@ -1,5 +1,5 @@
 /**
- * Unit tests for Endowus Portfolio Viewer utility functions
+ * Unit tests for Goal Portfolio Viewer utility functions
  * 
  * These tests import pure logic functions directly from the userscript.
  * The userscript conditionally exports functions when running in Node.js,
@@ -23,7 +23,7 @@ const {
     calculateWeightedWindowReturns,
     summarizePerformanceMetrics,
     derivePerformanceWindows
-} = require('../tampermonkey/endowus_portfolio_viewer.user.js');
+} = require('../tampermonkey/goal_portfolio_viewer.user.js');
 
 describe('getGoalTargetKey', () => {
     test('should generate correct storage key format', () => {
@@ -194,7 +194,7 @@ describe('formatGrowthPercent', () => {
 
 describe('getPerformanceCacheKey', () => {
     test('should generate performance cache key', () => {
-        expect(getPerformanceCacheKey('goal-123')).toBe('epv_performance_goal-123');
+        expect(getPerformanceCacheKey('goal-123')).toBe('gpv_performance_goal-123');
     });
 });
 

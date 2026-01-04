@@ -1,4 +1,4 @@
-# Endowus Portfolio Viewer - Tampermonkey Script
+# Goal Portfolio Viewer - Tampermonkey Script
 
 A modern Tampermonkey userscript that provides an enhanced portfolio viewing experience for Endowus users. This script allows you to organize and visualize your Endowus portfolio by custom buckets with a beautiful, modern interface.
 
@@ -52,11 +52,11 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
    - Install Tampermonkey (recommended) from your browser's extension store
    
 2. **Install the Script**
-   - Option A: Click [here](https://raw.githubusercontent.com/laurenceputra/endowus_view_enhancer/main/tampermonkey/endowus_portfolio_viewer.user.js) to install directly
+   - Option A: Click [here](https://raw.githubusercontent.com/laurenceputra/goal-portfolio-viewer/main/tampermonkey/goal_portfolio_viewer.user.js) to install directly
    - Option B: 
      1. Open Tampermonkey dashboard
      2. Click "Create a new script"
-     3. Copy the contents of `endowus_portfolio_viewer.user.js`
+     3. Copy the contents of `goal_portfolio_viewer.user.js`
      4. Paste into the editor
      5. Save (Ctrl+S or Cmd+S)
 
@@ -171,7 +171,7 @@ The script uses monkey patching to intercept API responses from Endowus:
 ### File Structure
 ```
 tampermonkey/
-├── endowus_portfolio_viewer.user.js  # Main script file
+├── goal_portfolio_viewer.user.js  # Main script file
 └── README.md                          # This file
 ```
 

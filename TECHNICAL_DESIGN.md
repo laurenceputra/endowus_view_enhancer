@@ -1,6 +1,6 @@
 # Technical Design Documentation
 
-This document provides technical details about the Endowus Portfolio Viewer implementation, architecture, and development guide.
+This document provides technical details about the Goal Portfolio Viewer implementation, architecture, and development guide.
 
 ## Table of Contents
 
@@ -28,7 +28,7 @@ The Tampermonkey userscript uses a single-file architecture that:
 **File Structure:**
 ```
 tampermonkey/
-├── endowus_portfolio_viewer.user.js  # Main script file
+├── goal_portfolio_viewer.user.js  # Main script file
 └── README.md                          # User documentation
 ```
 
@@ -272,7 +272,7 @@ Performance windows (1D, 7D, 6M, QTD, YTD, 1Y) are derived from a mix of API val
 Performance requests are executed sequentially with a configurable delay to avoid rate limiting.
 
 - **Queue**: runs `fetch` per goal ID with a delay between calls.
-- **Cache**: Tampermonkey storage keyed by `epv_performance_<goalId>`.
+- **Cache**: Tampermonkey storage keyed by `gpv_performance_<goalId>`.
 - **TTL**: 7 days; cached responses are reused if still fresh.
 
 ### Money Formatting
@@ -467,7 +467,7 @@ const DEBUG = true;
 
 function debug(message, data) {
     if (DEBUG) {
-        console.log(`[Portfolio Viewer] ${message}`, data);
+        console.log(`[Goal Portfolio Viewer] ${message}`, data);
     }
 }
 

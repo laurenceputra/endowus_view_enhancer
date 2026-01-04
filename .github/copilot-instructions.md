@@ -1,6 +1,6 @@
 ---
-title: Endowus Portfolio Viewer Development Guide
-description: Comprehensive instructions for GitHub Copilot when working on the Endowus Portfolio Viewer Tampermonkey userscript
+title: Goal Portfolio Viewer Development Guide
+description: Comprehensive instructions for GitHub Copilot when working on the Goal Portfolio Viewer Tampermonkey userscript
 applies_to:
   - copilot-chat
   - copilot-cli
@@ -8,7 +8,7 @@ applies_to:
   - copilot-code-review
 ---
 
-# Endowus Portfolio Viewer - Development Guide
+# Goal Portfolio Viewer - Development Guide
 
 ## Project Overview
 
@@ -67,7 +67,7 @@ for (var i = 0; i < apiData.performance.length; i++) {
 | Functions | camelCase with verb | `extractBucket()`, `renderSummaryView()` |
 | Constants | UPPER_SNAKE_CASE | `API_ENDPOINTS`, `DEBUG` |
 | Variables | camelCase | `apiData`, `bucketName`, `totalInvestment` |
-| CSS Classes | kebab-case with `epv-` prefix | `epv-trigger-btn`, `epv-container` |
+| CSS Classes | kebab-case with `gpv-` prefix | `gpv-trigger-btn`, `gpv-container` |
 | Event Handlers | `on` + Event | `onButtonClick()`, `onModalClose()` |
 
 ### File Structure Pattern
@@ -173,7 +173,7 @@ window.fetch = async function(...args) {
       processData(data); // Process asynchronously
       GM_setValue('cache_key', JSON.stringify(data)); // Cache in Tampermonkey storage
     } catch (error) {
-      console.error('[Portfolio Viewer] Error:', error);
+      console.error('[Goal Portfolio Viewer] Error:', error);
       // Don't break original flow
     }
   }
@@ -350,7 +350,7 @@ function renderComponent(data) {
   `).join('');
   
   return `
-    <table class="epv-table">
+    <table class="gpv-table">
       <thead>
         <tr>
           <th>Goal</th>
@@ -479,7 +479,7 @@ function showBucketDetail(bucketName) {
 modalContainer.addEventListener('click', (event) => {
   if (event.target.matches('.close-button')) {
     closeModal();
-  } else if (event.target.matches('.epv-bucket-card')) {
+  } else if (event.target.matches('.gpv-bucket-card')) {
     showBucketDetail(event.target.dataset.bucket);
   }
 });
@@ -689,7 +689,7 @@ endowus_view_enhancer/
 ├── .github/
 │   └── copilot-instructions.md (this file)
 ├── tampermonkey/
-│   ├── endowus_portfolio_viewer.user.js (main script)
+│   ├── goal_portfolio_viewer.user.js (main script)
 │   └── README.md
 ├── README.md (user guide)
 ├── TECHNICAL_DESIGN.md (technical details)
@@ -706,11 +706,11 @@ endowus_view_enhancer/
 - `calculateGrowthPercentage(inv, ret)` - Calculate growth %
 
 ### CSS Classes
-- `.epv-trigger-btn` - Trigger button
-- `.epv-overlay` - Modal overlay
-- `.epv-container` - Modal content
-- `.epv-bucket-card` - Bucket summary card
-- `.epv-table` - Goals table
+- `.gpv-trigger-btn` - Trigger button
+- `.gpv-overlay` - Modal overlay
+- `.gpv-container` - Modal content
+- `.gpv-bucket-card` - Bucket summary card
+- `.gpv-table` - Goals table
 
 ---
 

@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Endowus Portfolio Viewer
-// @namespace    https://github.com/laurenceputra/endowus_view_enhancer
+// @name         Goal Portfolio Viewer
+// @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
 // @version      2.3.1
-// @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
+// @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
 // @grant        GM_setValue
@@ -10,8 +10,8 @@
 // @grant        GM_deleteValue
 // @grant        GM_cookie
 // @run-at       document-start
-// @updateURL    https://raw.githubusercontent.com/laurenceputra/endowus_view_enhancer/main/tampermonkey/endowus_portfolio_viewer.user.js
-// @downloadURL  https://raw.githubusercontent.com/laurenceputra/endowus_view_enhancer/main/tampermonkey/endowus_portfolio_viewer.user.js
+// @updateURL    https://raw.githubusercontent.com/laurenceputra/goal-portfolio-viewer/main/tampermonkey/goal_portfolio_viewer.user.js
+// @downloadURL  https://raw.githubusercontent.com/laurenceputra/goal-portfolio-viewer/main/tampermonkey/goal_portfolio_viewer.user.js
 // ==/UserScript==
 
 (function() {
@@ -168,7 +168,7 @@
     };
 
     function getPerformanceCacheKey(goalId) {
-        return `epv_performance_${goalId}`;
+        return `gpv_performance_${goalId}`;
     }
 
     function isCacheFresh(fetchedAt, maxAgeMs, nowMs = Date.now()) {
@@ -630,23 +630,23 @@
                 const clonedResponse = response.clone();
                 try {
                     const data = await clonedResponse.json();
-                    console.log('[Endowus Portfolio Viewer] Intercepted performance data');
+                    console.log('[Goal Portfolio Viewer] Intercepted performance data');
                     apiData.performance = data;
                     // Store in Tampermonkey storage
                     GM_setValue('api_performance', JSON.stringify(data));
                 } catch (e) {
-                    console.error('[Endowus Portfolio Viewer] Error parsing API response:', e);
+                    console.error('[Goal Portfolio Viewer] Error parsing API response:', e);
                 }
             } else if (url.includes('/v2/goals/investible')) {
                 const clonedResponse = response.clone();
                 try {
                     const data = await clonedResponse.json();
-                    console.log('[Endowus Portfolio Viewer] Intercepted investible data');
+                    console.log('[Goal Portfolio Viewer] Intercepted investible data');
                     apiData.investible = data;
                     // Store in Tampermonkey storage
                     GM_setValue('api_investible', JSON.stringify(data));
                 } catch (e) {
-                    console.error('[Endowus Portfolio Viewer] Error parsing API response:', e);
+                    console.error('[Goal Portfolio Viewer] Error parsing API response:', e);
                 }
             } else if (url.match(/\/v1\/goals(?:[?#]|$)/)) {
                 // Check for base goals endpoint (summary data)
@@ -656,13 +656,13 @@
                     const data = await clonedResponse.json();
                     // Only store if data is an array (the summary endpoint returns an array of goals)
                     if (Array.isArray(data)) {
-                        console.log('[Endowus Portfolio Viewer] Intercepted summary data');
+                        console.log('[Goal Portfolio Viewer] Intercepted summary data');
                         apiData.summary = data;
                         // Store in Tampermonkey storage
                         GM_setValue('api_summary', JSON.stringify(data));
                     }
                 } catch (e) {
-                    console.error('[Endowus Portfolio Viewer] Error parsing API response:', e);
+                    console.error('[Goal Portfolio Viewer] Error parsing API response:', e);
                 }
             }
         }
@@ -694,24 +694,24 @@
                 this.addEventListener('load', function() {
                     try {
                         const data = JSON.parse(this.responseText);
-                        console.log('[Endowus Portfolio Viewer] Intercepted performance data (XHR)');
+                        console.log('[Goal Portfolio Viewer] Intercepted performance data (XHR)');
                         apiData.performance = data;
                         // Store in Tampermonkey storage
                         GM_setValue('api_performance', JSON.stringify(data));
                     } catch (e) {
-                        console.error('[Endowus Portfolio Viewer] Error parsing XHR response:', e);
+                        console.error('[Goal Portfolio Viewer] Error parsing XHR response:', e);
                     }
                 });
             } else if (url.includes('/v2/goals/investible')) {
                 this.addEventListener('load', function() {
                     try {
                         const data = JSON.parse(this.responseText);
-                        console.log('[Endowus Portfolio Viewer] Intercepted investible data (XHR)');
+                        console.log('[Goal Portfolio Viewer] Intercepted investible data (XHR)');
                         apiData.investible = data;
                         // Store in Tampermonkey storage
                         GM_setValue('api_investible', JSON.stringify(data));
                     } catch (e) {
-                        console.error('[Endowus Portfolio Viewer] Error parsing XHR response:', e);
+                        console.error('[Goal Portfolio Viewer] Error parsing XHR response:', e);
                     }
                 });
             } else if (url.match(/\/v1\/goals(?:[?#]|$)/)) {
@@ -722,13 +722,13 @@
                         const data = JSON.parse(this.responseText);
                         // Only store if data is an array (the summary endpoint returns an array of goals)
                         if (Array.isArray(data)) {
-                            console.log('[Endowus Portfolio Viewer] Intercepted summary data (XHR)');
+                            console.log('[Goal Portfolio Viewer] Intercepted summary data (XHR)');
                             apiData.summary = data;
                             // Store in Tampermonkey storage
                             GM_setValue('api_summary', JSON.stringify(data));
                         }
                     } catch (e) {
-                        console.error('[Endowus Portfolio Viewer] Error parsing XHR response:', e);
+                        console.error('[Goal Portfolio Viewer] Error parsing XHR response:', e);
                     }
                 });
             }
@@ -737,7 +737,7 @@
         return originalXHRSend.apply(this, args);
     };
 
-    console.log('[Endowus Portfolio Viewer] API interception initialized');
+    console.log('[Goal Portfolio Viewer] API interception initialized');
 
     // ============================================
     // Storage Management
@@ -754,18 +754,18 @@
             
             if (storedPerformance) {
                 apiDataState.performance = JSON.parse(storedPerformance);
-                console.log('[Endowus Portfolio Viewer] Loaded performance data from storage');
+                console.log('[Goal Portfolio Viewer] Loaded performance data from storage');
             }
             if (storedInvestible) {
                 apiDataState.investible = JSON.parse(storedInvestible);
-                console.log('[Endowus Portfolio Viewer] Loaded investible data from storage');
+                console.log('[Goal Portfolio Viewer] Loaded investible data from storage');
             }
             if (storedSummary) {
                 apiDataState.summary = JSON.parse(storedSummary);
-                console.log('[Endowus Portfolio Viewer] Loaded summary data from storage');
+                console.log('[Goal Portfolio Viewer] Loaded summary data from storage');
             }
         } catch (e) {
-            console.error('[Endowus Portfolio Viewer] Error loading stored data:', e);
+            console.error('[Goal Portfolio Viewer] Error loading stored data:', e);
         }
     }
 
@@ -780,7 +780,7 @@
             const value = GM_getValue(key, null);
             return value !== null ? parseFloat(value) : null;
         } catch (e) {
-            console.error('[Endowus Portfolio Viewer] Error loading goal target percentage:', e);
+            console.error('[Goal Portfolio Viewer] Error loading goal target percentage:', e);
             return null;
         }
     }
@@ -796,10 +796,10 @@
             const key = getGoalTargetKey(goalId);
             const validPercentage = Math.max(0, Math.min(100, parseFloat(percentage)));
             GM_setValue(key, validPercentage);
-            console.log(`[Endowus Portfolio Viewer] Saved goal target percentage for ${goalId}: ${validPercentage}%`);
+            console.log(`[Goal Portfolio Viewer] Saved goal target percentage for ${goalId}: ${validPercentage}%`);
             return validPercentage;
         } catch (e) {
-            console.error('[Endowus Portfolio Viewer] Error saving goal target percentage:', e);
+            console.error('[Goal Portfolio Viewer] Error saving goal target percentage:', e);
             return Math.max(0, Math.min(100, parseFloat(percentage)));
         }
     }
@@ -812,9 +812,9 @@
         try {
             const key = getGoalTargetKey(goalId);
             GM_deleteValue(key);
-            console.log(`[Endowus Portfolio Viewer] Deleted goal target percentage for ${goalId}`);
+            console.log(`[Goal Portfolio Viewer] Deleted goal target percentage for ${goalId}`);
         } catch (e) {
-            console.error('[Endowus Portfolio Viewer] Error deleting goal target percentage:', e);
+            console.error('[Goal Portfolio Viewer] Error deleting goal target percentage:', e);
         }
     }
 
@@ -839,7 +839,7 @@
         const key = getProjectedInvestmentKey(bucket, goalType);
         const validAmount = parseFloat(amount) || 0;
         projectedInvestmentsState[key] = validAmount;
-        console.log(`[Endowus Portfolio Viewer] Set projected investment for ${bucket}|${goalType}: ${validAmount}`);
+        console.log(`[Goal Portfolio Viewer] Set projected investment for ${bucket}|${goalType}: ${validAmount}`);
     }
 
     /**
@@ -850,7 +850,7 @@
     function clearProjectedInvestment(projectedInvestmentsState, bucket, goalType) {
         const key = getProjectedInvestmentKey(bucket, goalType);
         delete projectedInvestmentsState[key];
-        console.log(`[Endowus Portfolio Viewer] Cleared projected investment for ${bucket}|${goalType}`);
+        console.log(`[Goal Portfolio Viewer] Cleared projected investment for ${bucket}|${goalType}`);
     }
 
     // ============================================
@@ -936,11 +936,11 @@
                     name: cookie.name
                 }));
                 // eslint-disable-next-line no-console
-                console.log('[Endowus Portfolio Viewer][DEBUG_AUTH] Available GM_cookie entries:', summary);
+                console.log('[Goal Portfolio Viewer][DEBUG_AUTH] Available GM_cookie entries:', summary);
             })
             .catch(error => {
                 // eslint-disable-next-line no-console
-                console.error('[Endowus Portfolio Viewer][DEBUG_AUTH] Failed to list GM_cookie entries:', error);
+                console.error('[Goal Portfolio Viewer][DEBUG_AUTH] Failed to list GM_cookie entries:', error);
             });
     }
 
@@ -1009,7 +1009,7 @@
         if (!url || !url.includes('endowus.com')) {
             if (DEBUG_AUTH && url) {
                 // eslint-disable-next-line no-console
-                console.log('[Endowus Portfolio Viewer][DEBUG_AUTH] Skipping header extraction for non-endowus.com URL:', url);
+                console.log('[Goal Portfolio Viewer][DEBUG_AUTH] Skipping header extraction for non-endowus.com URL:', url);
             }
             return;
         }
@@ -1057,7 +1057,7 @@
             }
             return JSON.parse(stored);
         } catch (error) {
-            console.error('[Endowus Portfolio Viewer] Error reading performance cache:', error);
+            console.error('[Goal Portfolio Viewer] Error reading performance cache:', error);
             return null;
         }
     }
@@ -1071,7 +1071,7 @@
             };
             GM_setValue(key, JSON.stringify(payload));
         } catch (error) {
-            console.error('[Endowus Portfolio Viewer] Error writing performance cache:', error);
+            console.error('[Goal Portfolio Viewer] Error writing performance cache:', error);
         }
     }
 
@@ -1133,7 +1133,7 @@
                 goalPerformanceData[goalId] = data;
                 return data;
             } catch (error) {
-                console.warn('[Endowus Portfolio Viewer] Performance fetch failed:', error);
+                console.warn('[Goal Portfolio Viewer] Performance fetch failed:', error);
                 return null;
             }
         });
@@ -1288,7 +1288,7 @@
         // ViewBox shows full width since we now handle padding internally
         const viewBoxWidth = widthValue;
         svg.setAttribute('viewBox', `0 0 ${viewBoxWidth} ${heightValue}`);
-        svg.setAttribute('class', 'epv-performance-chart');
+        svg.setAttribute('class', 'gpv-performance-chart');
 
         if (!Array.isArray(series) || series.length < 2) {
             const emptyText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -1296,7 +1296,7 @@
             emptyText.setAttribute('x', `${leftPadding + (viewBoxWidth - totalHorizontalPadding) / 2}`);
             emptyText.setAttribute('y', `${heightValue / 2}`);
             emptyText.setAttribute('text-anchor', 'middle');
-            emptyText.setAttribute('class', 'epv-performance-chart-empty');
+            emptyText.setAttribute('class', 'gpv-performance-chart-empty');
             emptyText.textContent = 'No chart data';
             svg.appendChild(emptyText);
             return svg;
@@ -1317,7 +1317,7 @@
         const height = Math.max(1, heightValue - padding * 2);
 
         const axisGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        axisGroup.setAttribute('class', 'epv-performance-chart-axis');
+        axisGroup.setAttribute('class', 'gpv-performance-chart-axis');
 
         const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         xAxis.setAttribute('x1', `${leftPadding + padding}`);
@@ -1358,14 +1358,14 @@
             tick.setAttribute('x2', `${leftPadding + padding}`);
             tick.setAttribute('y1', `${y}`);
             tick.setAttribute('y2', `${y}`);
-            tick.setAttribute('class', 'epv-performance-chart-tick');
+            tick.setAttribute('class', 'gpv-performance-chart-tick');
             axisGroup.appendChild(tick);
 
             const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             label.setAttribute('x', `${leftPadding + padding - 6}`);
             label.setAttribute('y', `${y + 3}`);
             label.setAttribute('text-anchor', 'end');
-            label.setAttribute('class', 'epv-performance-chart-label');
+            label.setAttribute('class', 'gpv-performance-chart-label');
             label.textContent = formatMoney(value);
             axisGroup.appendChild(label);
 
@@ -1375,7 +1375,7 @@
                 grid.setAttribute('x2', `${leftPadding + padding + width}`);
                 grid.setAttribute('y1', `${y}`);
                 grid.setAttribute('y2', `${y}`);
-                grid.setAttribute('class', 'epv-performance-chart-grid');
+                grid.setAttribute('class', 'gpv-performance-chart-grid');
                 axisGroup.appendChild(grid);
             }
         });
@@ -1399,7 +1399,7 @@
             const labelY = Math.min(heightValue - 6, padding + height + 12);
             label.setAttribute('y', `${labelY}`);
             label.setAttribute('text-anchor', labelInfo.anchor);
-            label.setAttribute('class', 'epv-performance-chart-label');
+            label.setAttribute('class', 'gpv-performance-chart-label');
             label.textContent = formatDateLabel(labelInfo.value);
             axisGroup.appendChild(label);
         });
@@ -1408,19 +1408,19 @@
         axisTitleX.setAttribute('x', `${leftPadding + padding + width / 2}`);
         axisTitleX.setAttribute('y', `${Math.min(heightValue - 2, padding + height + 20)}`);
         axisTitleX.setAttribute('text-anchor', 'middle');
-        axisTitleX.setAttribute('class', 'epv-performance-chart-title');
+        axisTitleX.setAttribute('class', 'gpv-performance-chart-title');
         axisTitleX.textContent = 'Date';
 
         const axisTitleY = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         axisTitleY.setAttribute('x', `${Math.max(leftPadding + 4, leftPadding + padding - 10)}`);
         axisTitleY.setAttribute('y', `${Math.max(12, padding - 6)}`);
         axisTitleY.setAttribute('text-anchor', 'start');
-        axisTitleY.setAttribute('class', 'epv-performance-chart-title');
+        axisTitleY.setAttribute('class', 'gpv-performance-chart-title');
         axisTitleY.textContent = 'Value (SGD)';
 
         const highlightIndices = [0, Math.floor(series.length / 2), series.length - 1];
         const pointGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        pointGroup.setAttribute('class', 'epv-performance-chart-points');
+        pointGroup.setAttribute('class', 'gpv-performance-chart-points');
         highlightIndices.forEach(index => {
             const point = series[index];
             if (!point) {
@@ -1432,7 +1432,7 @@
             circle.setAttribute('cx', `${x}`);
             circle.setAttribute('cy', `${y}`);
             circle.setAttribute('r', '2.5');
-            circle.setAttribute('class', 'epv-performance-chart-point');
+            circle.setAttribute('class', 'gpv-performance-chart-point');
             pointGroup.appendChild(circle);
         });
 
@@ -1446,7 +1446,7 @@
 
     function buildPerformanceWindowGrid(windowReturns) {
         const grid = document.createElement('div');
-        grid.className = 'epv-performance-window-grid';
+        grid.className = 'gpv-performance-window-grid';
 
         const items = [
             { label: '1M', value: windowReturns?.oneMonth },
@@ -1458,14 +1458,14 @@
 
         items.forEach(item => {
             const tile = document.createElement('div');
-            tile.className = 'epv-performance-window-tile';
+            tile.className = 'gpv-performance-window-tile';
 
             const label = document.createElement('div');
-            label.className = 'epv-performance-window-label';
+            label.className = 'gpv-performance-window-label';
             label.textContent = item.label;
 
             const value = document.createElement('div');
-            value.className = 'epv-performance-window-value';
+            value.className = 'gpv-performance-window-value';
             value.textContent = formatPercentage(item.value);
             if (typeof item.value === 'number') {
                 value.classList.add(item.value >= 0 ? 'positive' : 'negative');
@@ -1481,7 +1481,7 @@
 
     function buildPerformanceMetricsTable(metrics) {
         const table = document.createElement('table');
-        table.className = 'epv-performance-metrics-table';
+        table.className = 'gpv-performance-metrics-table';
 
         const tbody = document.createElement('tbody');
         const rows = [
@@ -1497,11 +1497,11 @@
         rows.forEach(row => {
             const tr = document.createElement('tr');
             const labelCell = document.createElement('td');
-            labelCell.className = 'epv-performance-metric-label';
+            labelCell.className = 'gpv-performance-metric-label';
             labelCell.textContent = row.label;
 
             const valueCell = document.createElement('td');
-            valueCell.className = 'epv-performance-metric-value';
+            valueCell.className = 'gpv-performance-metric-value';
             valueCell.textContent = row.value;
 
             tr.appendChild(labelCell);
@@ -1515,10 +1515,10 @@
 
     function renderGoalTypePerformance(typeSection, goalIds) {
         const performanceContainer = document.createElement('div');
-        performanceContainer.className = 'epv-performance-container';
+        performanceContainer.className = 'gpv-performance-container';
 
         const loading = document.createElement('div');
-        loading.className = 'epv-performance-loading';
+        loading.className = 'gpv-performance-loading';
         loading.textContent = 'Loading performance data...';
         performanceContainer.appendChild(loading);
 
@@ -1536,7 +1536,7 @@
             performanceContainer.innerHTML = '';
             if (!summary) {
                 const emptyState = document.createElement('div');
-                emptyState.className = 'epv-performance-loading';
+                emptyState.className = 'gpv-performance-loading';
                 emptyState.textContent = 'Performance data unavailable.';
                 performanceContainer.appendChild(emptyState);
                 return;
@@ -1544,11 +1544,11 @@
 
             const windowGrid = buildPerformanceWindowGrid(summary.windowReturns);
             const chartWrapper = document.createElement('div');
-            chartWrapper.className = 'epv-performance-chart-wrapper';
+            chartWrapper.className = 'gpv-performance-chart-wrapper';
             const metricsTable = buildPerformanceMetricsTable(summary.metrics);
 
             const detailRow = document.createElement('div');
-            detailRow.className = 'epv-performance-detail-row';
+            detailRow.className = 'gpv-performance-detail-row';
             detailRow.appendChild(chartWrapper);
             detailRow.appendChild(metricsTable);
 
@@ -1570,7 +1570,7 @@
         contentDiv.innerHTML = '';
 
         const summaryContainer = document.createElement('div');
-        summaryContainer.className = 'epv-summary-container';
+        summaryContainer.className = 'gpv-summary-container';
 
         Object.keys(mergedInvestmentDataState).sort().forEach(bucket => {
             const bucketObj = mergedInvestmentDataState[bucket];
@@ -1583,7 +1583,7 @@
             });
 
             const bucketCard = document.createElement('div');
-            bucketCard.className = 'epv-bucket-card';
+            bucketCard.className = 'gpv-bucket-card';
             bucketCard.dataset.bucket = bucket;
             bucketCard.setAttribute('role', 'button');
             bucketCard.setAttribute('tabindex', '0');
@@ -1598,31 +1598,31 @@
             }
 
             const bucketHeader = document.createElement('div');
-            bucketHeader.className = 'epv-bucket-header';
+            bucketHeader.className = 'gpv-bucket-header';
             
             const bucketTitle = document.createElement('h2');
-            bucketTitle.className = 'epv-bucket-title';
+            bucketTitle.className = 'gpv-bucket-title';
             bucketTitle.textContent = bucket;
             
             const bucketStats = document.createElement('div');
-            bucketStats.className = 'epv-bucket-stats';
+            bucketStats.className = 'gpv-bucket-stats';
             
             const totalDisplay = formatMoney(bucketObj.total);
             const returnDisplay = formatMoney(bucketTotalReturn);
             const growthDisplay = formatGrowthPercent(bucketTotalReturn, bucketObj.total);
             
             bucketStats.innerHTML = `
-                <div class="epv-stat">
-                    <span class="epv-stat-label">Total</span>
-                    <span class="epv-stat-value">${totalDisplay}</span>
+                <div class="gpv-stat">
+                    <span class="gpv-stat-label">Total</span>
+                    <span class="gpv-stat-value">${totalDisplay}</span>
                 </div>
-                <div class="epv-stat">
-                    <span class="epv-stat-label">Return</span>
-                    <span class="epv-stat-value ${bucketTotalReturn >= 0 ? 'positive' : 'negative'}">${returnDisplay}</span>
+                <div class="gpv-stat">
+                    <span class="gpv-stat-label">Return</span>
+                    <span class="gpv-stat-value ${bucketTotalReturn >= 0 ? 'positive' : 'negative'}">${returnDisplay}</span>
                 </div>
-                <div class="epv-stat">
-                    <span class="epv-stat-label">Growth</span>
-                    <span class="epv-stat-value ${bucketTotalReturn >= 0 ? 'positive' : 'negative'}">${growthDisplay}</span>
+                <div class="gpv-stat">
+                    <span class="gpv-stat-label">Growth</span>
+                    <span class="gpv-stat-value ${bucketTotalReturn >= 0 ? 'positive' : 'negative'}">${growthDisplay}</span>
                 </div>
             `;
             
@@ -1640,12 +1640,12 @@
                 const typeGrowthDisplay = formatGrowthPercent(group.totalCumulativeReturn, group.totalInvestmentAmount);
                 
                 const typeRow = document.createElement('div');
-                typeRow.className = 'epv-goal-type-row';
+                typeRow.className = 'gpv-goal-type-row';
                 typeRow.innerHTML = `
-                    <span class="epv-goal-type-name">${getDisplayGoalType(goalType)}</span>
-                    <span class="epv-goal-type-stat">Total: ${typeTotalDisplay}</span>
-                    <span class="epv-goal-type-stat">Return: ${typeReturnDisplay}</span>
-                    <span class="epv-goal-type-stat">Growth: ${typeGrowthDisplay}</span>
+                    <span class="gpv-goal-type-name">${getDisplayGoalType(goalType)}</span>
+                    <span class="gpv-goal-type-stat">Total: ${typeTotalDisplay}</span>
+                    <span class="gpv-goal-type-stat">Return: ${typeReturnDisplay}</span>
+                    <span class="gpv-goal-type-stat">Growth: ${typeGrowthDisplay}</span>
                 `;
                 bucketCard.appendChild(typeRow);
             });
@@ -1668,31 +1668,31 @@
         });
 
         const bucketHeader = document.createElement('div');
-        bucketHeader.className = 'epv-detail-header';
+        bucketHeader.className = 'gpv-detail-header';
         
         const bucketTitle = document.createElement('h2');
-        bucketTitle.className = 'epv-detail-title';
+        bucketTitle.className = 'gpv-detail-title';
         bucketTitle.textContent = bucket;
         
         const bucketStats = document.createElement('div');
-        bucketStats.className = 'epv-detail-stats';
+        bucketStats.className = 'gpv-detail-stats';
         
         const totalDisplay = formatMoney(bucketObj.total);
         const returnDisplay = formatMoney(bucketTotalReturn);
         const growthDisplay = formatGrowthPercent(bucketTotalReturn, bucketObj.total);
         
         bucketStats.innerHTML = `
-            <div class="epv-stat-item">
-                <span class="epv-stat-label">Total Investment</span>
-                <span class="epv-stat-value">${totalDisplay}</span>
+            <div class="gpv-stat-item">
+                <span class="gpv-stat-label">Total Investment</span>
+                <span class="gpv-stat-value">${totalDisplay}</span>
             </div>
-            <div class="epv-stat-item">
-                <span class="epv-stat-label">Total Return</span>
-                <span class="epv-stat-value ${bucketTotalReturn >= 0 ? 'positive' : 'negative'}">${returnDisplay}</span>
+            <div class="gpv-stat-item">
+                <span class="gpv-stat-label">Total Return</span>
+                <span class="gpv-stat-value ${bucketTotalReturn >= 0 ? 'positive' : 'negative'}">${returnDisplay}</span>
             </div>
-            <div class="epv-stat-item">
-                <span class="epv-stat-label">Growth</span>
-                <span class="epv-stat-value ${bucketTotalReturn >= 0 ? 'positive' : 'negative'}">${growthDisplay}</span>
+            <div class="gpv-stat-item">
+                <span class="gpv-stat-label">Growth</span>
+                <span class="gpv-stat-value ${bucketTotalReturn >= 0 ? 'positive' : 'negative'}">${growthDisplay}</span>
             </div>
         `;
         
@@ -1709,19 +1709,19 @@
             const typeGrowth = formatGrowthPercent(typeReturn, group.totalInvestmentAmount);
             
             const typeSection = document.createElement('div');
-            typeSection.className = 'epv-type-section';
+            typeSection.className = 'gpv-type-section';
             typeSection.dataset.bucket = bucket;
             typeSection.dataset.goalType = goalType;
             
             const typeHeader = document.createElement('div');
-            typeHeader.className = 'epv-type-header';
+            typeHeader.className = 'gpv-type-header';
             
             // Get current projected investment for this goal type
             const currentProjectedInvestment = getProjectedInvestment(projectedInvestmentsState, bucket, goalType);
             
             typeHeader.innerHTML = `
                 <h3>${getDisplayGoalType(goalType)}</h3>
-                <div class="epv-type-summary">
+                <div class="gpv-type-summary">
                     <span>Total: ${formatMoney(group.totalInvestmentAmount)}</span>
                     <span>Return: ${formatMoney(typeReturn)}</span>
                     <span>Growth: ${typeGrowth}</span>
@@ -1737,15 +1737,15 @@
 
             // Add projected investment input section as sibling after performance container
             const projectedInputContainer = document.createElement('div');
-            projectedInputContainer.className = 'epv-projected-input-container';
+            projectedInputContainer.className = 'gpv-projected-input-container';
             projectedInputContainer.innerHTML = `
-                <label class="epv-projected-label">
-                    <span class="epv-projected-icon">💡</span>
+                <label class="gpv-projected-label">
+                    <span class="gpv-projected-icon">💡</span>
                     <span>Add Projected Investment (simulation only):</span>
                 </label>
                 <input 
                     type="number" 
-                    class="epv-projected-input" 
+                    class="gpv-projected-input" 
                     step="100"
                     value="${currentProjectedInvestment > 0 ? currentProjectedInvestment : ''}"
                     placeholder="Enter amount"
@@ -1757,7 +1757,7 @@
             typeSection.appendChild(projectedInputContainer);
             
             // Add event listener for projected investment input
-            const projectedInput = projectedInputContainer.querySelector('.epv-projected-input');
+            const projectedInput = projectedInputContainer.querySelector('.gpv-projected-input');
             projectedInput.addEventListener('input', function() {
                 handleProjectedInvestmentChange(
                     this,
@@ -1770,7 +1770,7 @@
             });
 
             const table = document.createElement('table');
-            table.className = 'epv-table';
+            table.className = 'gpv-table';
             table.innerHTML = `
                 <thead>
                     <tr>
@@ -1826,13 +1826,13 @@
                 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="epv-goal-name">${item.goalName}</td>
+                    <td class="gpv-goal-name">${item.goalName}</td>
                     <td>${formatMoney(item.totalInvestmentAmount)}</td>
                     <td>${percentOfType}%</td>
-                    <td class="epv-target-cell">
+                    <td class="gpv-target-cell">
                         <input 
                             type="number" 
-                            class="epv-target-input" 
+                            class="gpv-target-input" 
                             min="0" 
                             max="100" 
                             step="0.01"
@@ -1841,13 +1841,13 @@
                             data-goal-id="${item.goalId}"
                         />
                     </td>
-                    <td class="epv-diff-cell ${diffClass}">${diffDisplay}</td>
+                    <td class="gpv-diff-cell ${diffClass}">${diffDisplay}</td>
                     <td class="${returnClass}">${formatMoney(item.totalCumulativeReturn)}</td>
                     <td class="${returnClass}">${returnPercent}</td>
                 `;
                 
                 // Add event listener to the target input
-                const input = tr.querySelector('.epv-target-input');
+                const input = tr.querySelector('.gpv-target-input');
                 input.addEventListener('input', function() {
                     handleGoalTargetChange(
                         this,
@@ -1889,13 +1889,13 @@
     ) {
         const value = input.value;
         const row = input.closest('tr');
-        const diffCell = row.querySelector('.epv-diff-cell');
+        const diffCell = row.querySelector('.gpv-diff-cell');
         
         if (value === '') {
             // Clear the target if input is empty
             deleteGoalTargetPercentage(goalId);
             diffCell.textContent = '-';
-            diffCell.className = 'epv-diff-cell';
+            diffCell.className = 'gpv-diff-cell';
             return;
         }
         
@@ -1942,10 +1942,10 @@
             const diffClass = Math.abs(diffAmount) > threshold ? 'negative' : 'positive';
             
             diffCell.textContent = diffDisplay;
-            diffCell.className = `epv-diff-cell ${diffClass}`;
+            diffCell.className = `gpv-diff-cell ${diffClass}`;
         } else {
             diffCell.textContent = '-';
-            diffCell.className = 'epv-diff-cell';
+            diffCell.className = 'gpv-diff-cell';
         }
     }
 
@@ -1997,8 +1997,8 @@
         if (tbody) {
             const rows = tbody.querySelectorAll('tr');
             rows.forEach(row => {
-                const targetInput = row.querySelector('.epv-target-input');
-                const diffCell = row.querySelector('.epv-diff-cell');
+                const targetInput = row.querySelector('.gpv-target-input');
+                const diffCell = row.querySelector('.gpv-diff-cell');
                 
                 if (targetInput && diffCell) {
                     const goalId = targetInput.dataset.goalId;
@@ -2028,10 +2028,10 @@
                                 const diffClass = Math.abs(diffAmount) > threshold ? 'negative' : 'positive';
                                 
                                 diffCell.textContent = diffDisplay;
-                                diffCell.className = `epv-diff-cell ${diffClass}`;
+                                diffCell.className = `gpv-diff-cell ${diffClass}`;
                             } else {
                                 diffCell.textContent = '-';
-                                diffCell.className = 'epv-diff-cell';
+                                diffCell.className = 'gpv-diff-cell';
                             }
                         }
                     }
@@ -2049,7 +2049,7 @@
         style.textContent = `
             /* Modern Portfolio Viewer Styles */
             
-            .epv-trigger-btn {
+            .gpv-trigger-btn {
                 position: fixed;
                 bottom: 20px;
                 right: 20px;
@@ -2068,16 +2068,16 @@
                 backdrop-filter: blur(10px);
             }
             
-            .epv-trigger-btn:hover {
+            .gpv-trigger-btn:hover {
                 transform: translateY(-2px);
                 box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
             }
             
-            .epv-trigger-btn:active {
+            .gpv-trigger-btn:active {
                 transform: translateY(0);
             }
             
-            .epv-overlay {
+            .gpv-overlay {
                 position: fixed;
                 top: 0;
                 left: 0;
@@ -2089,15 +2089,15 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                animation: epv-fadeIn 0.2s ease;
+                animation: gpv-fadeIn 0.2s ease;
             }
             
-            @keyframes epv-fadeIn {
+            @keyframes gpv-fadeIn {
                 from { opacity: 0; }
                 to { opacity: 1; }
             }
             
-            .epv-container {
+            .gpv-container {
                 background: #ffffff;
                 border-radius: 20px;
                 padding: 0;
@@ -2109,10 +2109,10 @@
                 min-width: 800px;
                 display: flex;
                 flex-direction: column;
-                animation: epv-slideUp 0.3s ease;
+                animation: gpv-slideUp 0.3s ease;
             }
             
-            @keyframes epv-slideUp {
+            @keyframes gpv-slideUp {
                 from { 
                     opacity: 0;
                     transform: translateY(20px);
@@ -2123,7 +2123,7 @@
                 }
             }
             
-            .epv-header {
+            .gpv-header {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
@@ -2133,7 +2133,7 @@
                 border-radius: 20px 20px 0 0;
             }
             
-            .epv-header h1 {
+            .gpv-header h1 {
                 margin: 0;
                 font-size: 20px;
                 font-weight: 700;
@@ -2141,7 +2141,7 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
-            .epv-close-btn {
+            .gpv-close-btn {
                 background: rgba(255, 255, 255, 0.2);
                 border: none;
                 color: #ffffff;
@@ -2157,12 +2157,12 @@
                 font-weight: 300;
             }
             
-            .epv-close-btn:hover {
+            .gpv-close-btn:hover {
                 background: rgba(255, 255, 255, 0.3);
                 transform: rotate(90deg);
             }
             
-            .epv-controls {
+            .gpv-controls {
                 padding: 12px 24px;
                 background: #f9fafb;
                 border-bottom: 1px solid #e5e7eb;
@@ -2171,14 +2171,14 @@
                 gap: 12px;
             }
             
-            .epv-select-label {
+            .gpv-select-label {
                 font-weight: 600;
                 color: #1f2937;
                 font-size: 16px;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
-            .epv-select {
+            .gpv-select {
                 padding: 10px 18px;
                 border: 2px solid #e5e7eb;
                 border-radius: 8px;
@@ -2192,17 +2192,17 @@
                 min-width: 220px;
             }
             
-            .epv-select:hover {
+            .gpv-select:hover {
                 border-color: #667eea;
             }
             
-            .epv-select:focus {
+            .gpv-select:focus {
                 outline: none;
                 border-color: #667eea;
                 box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
             }
             
-            .epv-content {
+            .gpv-content {
                 overflow-y: auto;
                 padding: 16px 24px;
                 flex: 1;
@@ -2210,13 +2210,13 @@
             
             /* Summary View Styles */
             
-            .epv-summary-container {
+            .gpv-summary-container {
                 display: flex;
                 flex-direction: column;
                 gap: 14px;
             }
             
-            .epv-bucket-card {
+            .gpv-bucket-card {
                 background: #ffffff;
                 border: 2px solid #e5e7eb;
                 border-radius: 12px;
@@ -2225,22 +2225,22 @@
                 transition: all 0.3s ease;
             }
             
-            .epv-bucket-card:hover {
+            .gpv-bucket-card:hover {
                 border-color: #667eea;
                 box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
                 transform: translateY(-2px);
             }
 
-            .epv-bucket-card:focus-visible {
+            .gpv-bucket-card:focus-visible {
                 outline: 3px solid rgba(102, 126, 234, 0.7);
                 outline-offset: 2px;
             }
             
-            .epv-bucket-header {
+            .gpv-bucket-header {
                 margin-bottom: 12px;
             }
             
-            .epv-bucket-title {
+            .gpv-bucket-title {
                 font-size: 19px;
                 font-weight: 700;
                 color: #111827;
@@ -2248,19 +2248,19 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
-            .epv-bucket-stats {
+            .gpv-bucket-stats {
                 display: flex;
                 gap: 24px;
                 flex-wrap: wrap;
             }
             
-            .epv-stat {
+            .gpv-stat {
                 display: flex;
                 flex-direction: column;
                 gap: 4px;
             }
             
-            .epv-stat-label {
+            .gpv-stat-label {
                 font-size: 12px;
                 font-weight: 600;
                 color: #4b5563;
@@ -2268,22 +2268,22 @@
                 letter-spacing: 0.5px;
             }
             
-            .epv-stat-value {
+            .gpv-stat-value {
                 font-size: 18px;
                 font-weight: 700;
                 color: #111827;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
-            .epv-stat-value.positive {
+            .gpv-stat-value.positive {
                 color: #059669;
             }
             
-            .epv-stat-value.negative {
+            .gpv-stat-value.negative {
                 color: #dc2626;
             }
             
-            .epv-goal-type-row {
+            .gpv-goal-type-row {
                 display: flex;
                 gap: 16px;
                 padding: 10px 12px;
@@ -2293,14 +2293,14 @@
                 align-items: center;
             }
             
-            .epv-goal-type-name {
+            .gpv-goal-type-name {
                 font-weight: 700;
                 color: #1f2937;
                 min-width: 120px;
                 font-size: 14px;
             }
             
-            .epv-goal-type-stat {
+            .gpv-goal-type-stat {
                 font-size: 13px;
                 color: #4b5563;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -2308,13 +2308,13 @@
             
             /* Detail View Styles */
             
-            .epv-detail-header {
+            .gpv-detail-header {
                 margin-bottom: 16px;
                 padding-bottom: 12px;
                 border-bottom: 2px solid #e5e7eb;
             }
             
-            .epv-detail-title {
+            .gpv-detail-title {
                 font-size: 22px;
                 font-weight: 700;
                 color: #111827;
@@ -2322,26 +2322,26 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
-            .epv-detail-stats {
+            .gpv-detail-stats {
                 display: flex;
                 gap: 28px;
             }
             
-            .epv-stat-item {
+            .gpv-stat-item {
                 display: flex;
                 flex-direction: column;
                 gap: 4px;
             }
             
-            .epv-type-section {
+            .gpv-type-section {
                 margin-bottom: 24px;
             }
             
-            .epv-type-header {
+            .gpv-type-header {
                 margin-bottom: 12px;
             }
             
-            .epv-type-header h3 {
+            .gpv-type-header h3 {
                 font-size: 17px;
                 font-weight: 700;
                 color: #1f2937;
@@ -2349,7 +2349,7 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
-            .epv-type-summary {
+            .gpv-type-summary {
                 display: flex;
                 gap: 20px;
                 font-size: 14px;
@@ -2360,7 +2360,7 @@
             
             /* Table Styles */
             
-            .epv-table {
+            .gpv-table {
                 width: 100%;
                 border-collapse: separate;
                 border-spacing: 0;
@@ -2370,11 +2370,11 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
-            .epv-table thead tr {
+            .gpv-table thead tr {
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             }
             
-            .epv-table th {
+            .gpv-table th {
                 padding: 10px 14px;
                 text-align: left;
                 font-weight: 700;
@@ -2384,7 +2384,7 @@
                 letter-spacing: 0.5px;
             }
             
-            .epv-table td {
+            .gpv-table td {
                 padding: 10px 14px;
                 text-align: right;
                 font-size: 14px;
@@ -2393,15 +2393,15 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
-            .epv-table tbody tr {
+            .gpv-table tbody tr {
                 transition: background-color 0.2s ease;
             }
             
-            .epv-table tbody tr:hover {
+            .gpv-table tbody tr:hover {
                 background-color: #f3f4f6;
             }
             
-            .epv-table .epv-goal-name {
+            .gpv-table .gpv-goal-name {
                 text-align: left;
                 font-weight: 600;
                 color: #111827;
@@ -2409,23 +2409,23 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
-            .epv-table .positive {
+            .gpv-table .positive {
                 color: #059669;
                 font-weight: 700;
             }
             
-            .epv-table .negative {
+            .gpv-table .negative {
                 color: #dc2626;
                 font-weight: 700;
             }
             
             /* Target Input Styles */
             
-            .epv-target-cell {
+            .gpv-target-cell {
                 padding: 6px 8px !important;
             }
             
-            .epv-target-input {
+            .gpv-target-input {
                 width: 70px;
                 padding: 4px 8px;
                 border: 2px solid #e5e7eb;
@@ -2438,51 +2438,51 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
-            .epv-target-input:focus {
+            .gpv-target-input:focus {
                 outline: none;
                 border-color: #667eea;
                 box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
             }
             
-            .epv-target-input:hover {
+            .gpv-target-input:hover {
                 border-color: #667eea;
             }
             
-            .epv-target-input::placeholder {
+            .gpv-target-input::placeholder {
                 color: #9ca3af;
                 font-weight: 400;
                 font-size: 12px;
             }
             
             /* Remove spinner arrows in Chrome, Safari, Edge, Opera */
-            .epv-target-input::-webkit-outer-spin-button,
-            .epv-target-input::-webkit-inner-spin-button {
+            .gpv-target-input::-webkit-outer-spin-button,
+            .gpv-target-input::-webkit-inner-spin-button {
                 -webkit-appearance: none;
                 margin: 0;
             }
             
             /* Remove spinner arrows in Firefox */
-            .epv-target-input[type=number] {
+            .gpv-target-input[type=number] {
                 -moz-appearance: textfield;
             }
             
-            .epv-diff-cell {
+            .gpv-diff-cell {
                 font-weight: 700;
                 font-size: 14px;
                 text-align: center;
             }
             
-            .epv-diff-cell.positive {
+            .gpv-diff-cell.positive {
                 color: #059669;
             }
             
-            .epv-diff-cell.negative {
+            .gpv-diff-cell.negative {
                 color: #dc2626;
             }
             
             /* Projected Investment Input Styles */
             
-            .epv-projected-input-container {
+            .gpv-projected-input-container {
                 margin-top: 12px;
                 margin-bottom: 12px;
                 padding: 12px;
@@ -2494,7 +2494,7 @@
                 gap: 12px;
             }
             
-            .epv-projected-label {
+            .gpv-projected-label {
                 display: flex;
                 align-items: center;
                 gap: 6px;
@@ -2505,11 +2505,11 @@
                 white-space: nowrap;
             }
             
-            .epv-projected-icon {
+            .gpv-projected-icon {
                 font-size: 16px;
             }
             
-            .epv-projected-input {
+            .gpv-projected-input {
                 width: 140px;
                 padding: 6px 12px;
                 border: 2px solid #0284c7;
@@ -2522,36 +2522,36 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
-            .epv-projected-input:focus {
+            .gpv-projected-input:focus {
                 outline: none;
                 border-color: #0369a1;
                 box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
             }
             
-            .epv-projected-input:hover {
+            .gpv-projected-input:hover {
                 border-color: #0369a1;
             }
             
-            .epv-projected-input::placeholder {
+            .gpv-projected-input::placeholder {
                 color: #075985;
                 font-weight: 400;
                 font-size: 13px;
             }
             
             /* Remove spinner arrows for projected input */
-            .epv-projected-input::-webkit-outer-spin-button,
-            .epv-projected-input::-webkit-inner-spin-button {
+            .gpv-projected-input::-webkit-outer-spin-button,
+            .gpv-projected-input::-webkit-inner-spin-button {
                 -webkit-appearance: none;
                 margin: 0;
             }
             
-            .epv-projected-input[type=number] {
+            .gpv-projected-input[type=number] {
                 -moz-appearance: textfield;
             }
 
             /* Performance Chart + Metrics */
 
-            .epv-performance-container {
+            .gpv-performance-container {
                 display: flex;
                 flex-direction: column;
                 gap: 20px;
@@ -2563,13 +2563,13 @@
                 margin-bottom: 14px;
             }
 
-            .epv-performance-detail-row {
+            .gpv-performance-detail-row {
                 display: flex;
                 gap: 20px;
                 align-items: stretch;
             }
 
-            .epv-performance-loading {
+            .gpv-performance-loading {
                 font-size: 14px;
                 font-weight: 600;
                 color: #64748b;
@@ -2579,71 +2579,71 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
 
-            .epv-performance-chart-wrapper {
+            .gpv-performance-chart-wrapper {
                 flex: 1;
                 min-width: 240px;
                 min-height: 90px;
                 height: auto;
             }
 
-            .epv-performance-chart {
+            .gpv-performance-chart {
                 width: 100%;
                 height: 100%;
                 display: block;
             }
 
-            .epv-performance-chart-axis line {
+            .gpv-performance-chart-axis line {
                 stroke: #cbd5f5;
                 stroke-width: 1;
             }
 
-            .epv-performance-chart-grid {
+            .gpv-performance-chart-grid {
                 stroke: #e2e8f0;
                 stroke-width: 1;
                 stroke-dasharray: 2 2;
             }
 
-            .epv-performance-chart-tick {
+            .gpv-performance-chart-tick {
                 stroke: #94a3b8;
                 stroke-width: 1;
             }
 
-            .epv-performance-chart-label {
+            .gpv-performance-chart-label {
                 font-size: 9px;
                 fill: #64748b;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
 
-            .epv-performance-chart-title {
+            .gpv-performance-chart-title {
                 font-size: 9px;
                 fill: #475569;
                 font-weight: 600;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
 
-            .epv-performance-chart-point {
+            .gpv-performance-chart-point {
                 fill: #1f2937;
             }
 
-            .epv-performance-chart-baseline {
+            .gpv-performance-chart-baseline {
                 stroke: #e2e8f0;
                 stroke-width: 1;
             }
 
-            .epv-performance-chart-empty {
+            .gpv-performance-chart-empty {
                 font-size: 12px;
                 fill: #94a3b8;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
 
-            .epv-performance-window-grid {
+            .gpv-performance-window-grid {
                 display: grid;
                 grid-template-columns: repeat(6, minmax(0, 1fr));
                 gap: 8px;
                 width: 100%;
             }
 
-            .epv-performance-window-tile {
+            .gpv-performance-window-tile {
                 background: #ffffff;
                 border: 1px solid #e5e7eb;
                 border-radius: 8px;
@@ -2651,7 +2651,7 @@
                 text-align: center;
             }
 
-            .epv-performance-window-label {
+            .gpv-performance-window-label {
                 font-size: 11px;
                 font-weight: 700;
                 color: #64748b;
@@ -2659,48 +2659,48 @@
                 letter-spacing: 0.4px;
             }
 
-            .epv-performance-window-value {
+            .gpv-performance-window-value {
                 font-size: 13px;
                 font-weight: 700;
                 color: #0f172a;
             }
 
-            .epv-performance-window-value.positive {
+            .gpv-performance-window-value.positive {
                 color: #059669;
             }
 
-            .epv-performance-window-value.negative {
+            .gpv-performance-window-value.negative {
                 color: #dc2626;
             }
 
-            .epv-performance-metrics-table {
+            .gpv-performance-metrics-table {
                 width: 100%;
                 max-width: 320px;
                 border-collapse: collapse;
                 font-size: 13px;
             }
 
-            .epv-performance-detail-row .epv-performance-chart-wrapper {
+            .gpv-performance-detail-row .gpv-performance-chart-wrapper {
                 flex: 1;
                 min-width: 240px;
             }
 
-            .epv-performance-metrics-table tr {
+            .gpv-performance-metrics-table tr {
                 border-bottom: 1px solid #e5e7eb;
             }
 
-            .epv-performance-metrics-table tr:last-child {
+            .gpv-performance-metrics-table tr:last-child {
                 border-bottom: none;
             }
 
-            .epv-performance-metric-label {
+            .gpv-performance-metric-label {
                 text-align: left;
                 color: #475569;
                 font-weight: 600;
                 padding: 6px 4px;
             }
 
-            .epv-performance-metric-value {
+            .gpv-performance-metric-value {
                 text-align: right;
                 color: #0f172a;
                 font-weight: 700;
@@ -2709,21 +2709,21 @@
             
             /* Scrollbar Styles */
             
-            .epv-content::-webkit-scrollbar {
+            .gpv-content::-webkit-scrollbar {
                 width: 8px;
             }
             
-            .epv-content::-webkit-scrollbar-track {
+            .gpv-content::-webkit-scrollbar-track {
                 background: #f1f1f1;
                 border-radius: 4px;
             }
             
-            .epv-content::-webkit-scrollbar-thumb {
+            .gpv-content::-webkit-scrollbar-thumb {
                 background: #cbd5e1;
                 border-radius: 4px;
             }
             
-            .epv-content::-webkit-scrollbar-thumb:hover {
+            .gpv-content::-webkit-scrollbar-thumb:hover {
                 background: #94a3b8;
             }
         `;
@@ -2735,7 +2735,7 @@
     // ============================================
 
     function showOverlay() {
-        let old = document.getElementById('epv-overlay');
+        let old = document.getElementById('gpv-overlay');
         if (old) old.remove();
 
         const data = buildMergedInvestmentData(
@@ -2744,27 +2744,27 @@
             apiData.summary
         );
         if (!data) {
-            console.log('[Endowus Portfolio Viewer] Not all API data available yet');
+            console.log('[Goal Portfolio Viewer] Not all API data available yet');
             alert('Please wait for portfolio data to load, then try again.');
             return;
         }
-        console.log('[Endowus Portfolio Viewer] Data merged successfully');
+        console.log('[Goal Portfolio Viewer] Data merged successfully');
 
         const overlay = document.createElement('div');
-        overlay.id = 'epv-overlay';
-        overlay.className = 'epv-overlay';
+        overlay.id = 'gpv-overlay';
+        overlay.className = 'gpv-overlay';
 
         const container = document.createElement('div');
-        container.className = 'epv-container';
+        container.className = 'gpv-container';
 
         const header = document.createElement('div');
-        header.className = 'epv-header';
+        header.className = 'gpv-header';
         
         const title = document.createElement('h1');
         title.textContent = 'Portfolio Viewer';
         
         const closeBtn = document.createElement('button');
-        closeBtn.className = 'epv-close-btn';
+        closeBtn.className = 'gpv-close-btn';
         closeBtn.innerHTML = '✕';
         closeBtn.onclick = () => overlay.remove();
         
@@ -2773,14 +2773,14 @@
         container.appendChild(header);
 
         const controls = document.createElement('div');
-        controls.className = 'epv-controls';
+        controls.className = 'gpv-controls';
         
         const selectLabel = document.createElement('label');
         selectLabel.textContent = 'View:';
-        selectLabel.className = 'epv-select-label';
+        selectLabel.className = 'gpv-select-label';
         
         const select = document.createElement('select');
-        select.className = 'epv-select';
+        select.className = 'gpv-select';
         
         const summaryOption = document.createElement('option');
         summaryOption.value = 'SUMMARY';
@@ -2799,7 +2799,7 @@
         container.appendChild(controls);
 
         const contentDiv = document.createElement('div');
-        contentDiv.className = 'epv-content';
+        contentDiv.className = 'gpv-content';
         container.appendChild(contentDiv);
 
         function renderView(value) {
@@ -2850,7 +2850,7 @@
     function createButton() {
         if (!portfolioButton) {
             portfolioButton = document.createElement('button');
-            portfolioButton.className = 'epv-trigger-btn';
+            portfolioButton.className = 'gpv-trigger-btn';
             portfolioButton.textContent = '📊 Portfolio Viewer';
             portfolioButton.onclick = showOverlay;
         }
@@ -2867,11 +2867,11 @@
             // Show button
             const btn = createButton();
             document.body.appendChild(btn);
-            console.log('[Endowus Portfolio Viewer] Button shown on dashboard');
+            console.log('[Goal Portfolio Viewer] Button shown on dashboard');
         } else if (!shouldShow && buttonExists) {
             // Hide button
             portfolioButton.remove();
-            console.log('[Endowus Portfolio Viewer] Button hidden (not on dashboard)');
+            console.log('[Goal Portfolio Viewer] Button hidden (not on dashboard)');
         }
     }
     
@@ -2879,7 +2879,7 @@
         const currentUrl = window.location.href;
         if (currentUrl !== lastUrl) {
             lastUrl = currentUrl;
-            console.log('[Endowus Portfolio Viewer] URL changed to:', currentUrl);
+            console.log('[Goal Portfolio Viewer] URL changed to:', currentUrl);
             updateButtonVisibility();
         }
     }
@@ -2924,7 +2924,7 @@
             handleUrlChange();
         };
         
-        console.log('[Endowus Portfolio Viewer] URL monitoring started with MutationObserver');
+        console.log('[Goal Portfolio Viewer] URL monitoring started with MutationObserver');
     }
     
     function init() {
