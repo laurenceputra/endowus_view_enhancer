@@ -127,6 +127,7 @@ combined, percentage metrics are weighted by each goal’s net investment amount
 | --- | --- | --- |
 | Total Return % | `totalCumulativeReturnPercent` | Weighted by `netInvestmentAmount` across goals. |
 | TWR % | `timeWeightedReturnPercent` → `twrPercent` | Weighted by `gainOrLossTable.netInvestment.allTimeValue.amount` across goals. |
+| Annualised IRR | `returnsTable.annualisedIrr.allTimeValue` | Weighted by `gainOrLossTable.netInvestment.allTimeValue.amount` across goals. |
 | Gain / Loss | `totalCumulativeReturnAmount` | Summed across goals. |
 | Net Fees | `gainOrLossTable.accessFeeCharged.allTimeValue.amount` − `gainOrLossTable.trailerFeeRebates.allTimeValue.amount` | Summed across goals. |
 | Net Investment | `gainOrLossTable.netInvestment.allTimeValue.amount` → `netInvestmentAmount` → `netInvestment` | Summed; falls back to earliest time-series amount when missing. |
@@ -260,7 +261,8 @@ function calculatePercentageOfType(goal, typeTotal) {
 Performance windows (1D, 7D, 6M, QTD, YTD, 1Y) are derived from a mix of API values and local calculations:
 
 1. **Returns table** values are used when available (6M, 1Y, YTD).
-2. **Time-weighted return windows** are read from `returnsTable.twr.*` when available for 1D, 7D, QTD, 6M, YTD, and 1Y.
+2. **Time-weighted return windows** are read from `returnsTable.twr.*` using the `*Value` fields:
+   - 1M (`oneMonthValue`), 6M (`sixMonthValue`), YTD (`ytdValue`), 1Y (`oneYearValue`), 3Y (`threeYearValue`).
    - When multiple goals are combined, window returns are weighted by net investment across goals.
    - Goals without a TWR value for a window are excluded from that window’s aggregate.
 3. **Nearest available date** is chosen when exact window start dates fall on non-trading days.
