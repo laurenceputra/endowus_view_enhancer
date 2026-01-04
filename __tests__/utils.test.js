@@ -20,7 +20,8 @@ const {
     getWindowStartDate,
     calculateReturnFromTimeSeries,
     mapReturnsTableToWindowReturns,
-    derivePerformanceWindows
+    derivePerformanceWindows,
+    summarizePerformanceMetrics
 } = require('../tampermonkey/endowus_portfolio_viewer.user.js');
 
 describe('getGoalTargetKey', () => {
@@ -226,6 +227,22 @@ describe('formatPercentage', () => {
 
     test('should return dash for invalid input', () => {
         expect(formatPercentage('invalid')).toBe('-');
+    });
+});
+
+describe('summarizePerformanceMetrics', () => {
+    test('should preserve zero-valued totals', () => {
+        const performanceResponses = [{
+            totalCumulativeReturnAmount: { amount: 0 },
+            netInvestmentAmount: { amount: 0 },
+            endingBalanceAmount: { amount: 0 }
+        }];
+
+        const result = summarizePerformanceMetrics(performanceResponses, []);
+
+        expect(result.totalReturnAmount).toBe(0);
+        expect(result.netInvestmentAmount).toBe(0);
+        expect(result.endingBalanceAmount).toBe(0);
     });
 });
 
