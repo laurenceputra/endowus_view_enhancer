@@ -1281,24 +1281,19 @@
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         const widthValue = Math.max(PERFORMANCE_CHART_MIN_WIDTH, Number(chartWidth) || PERFORMANCE_CHART_DEFAULT_WIDTH);
         const heightValue = Math.max(PERFORMANCE_CHART_MIN_HEIGHT, Number(chartHeight) || PERFORMANCE_CHART_DEFAULT_HEIGHT);
-        // Add 100px left padding and decrease width by 380px total (100px padding + 280px original reduction)
-        // Note: Math.max ensures viewBoxWidth is never less than PERFORMANCE_CHART_MIN_WIDTH
-        // even when totalWidthReduction exceeds widthValue
+        // Add 100px left padding and 50px right padding for proper spacing
         const leftPadding = 100;
-        const originalWidthReduction = 280;
-        const totalWidthReduction = leftPadding + originalWidthReduction;
-        const viewBoxWidth = Math.max(PERFORMANCE_CHART_MIN_WIDTH, widthValue - totalWidthReduction);
-        // Reduce actual SVG width by 100px to prevent overflow
-        // Use inline style to override CSS width: 100%
-        const svgWidth = Math.max(PERFORMANCE_CHART_MIN_WIDTH, widthValue - 100);
-        svg.style.width = `${svgWidth}px`;
-        svg.setAttribute('viewBox', `${leftPadding} 0 ${viewBoxWidth} ${heightValue}`);
+        const rightPadding = 50;
+        const totalHorizontalPadding = leftPadding + rightPadding;
+        // ViewBox shows full width since we now handle padding internally
+        const viewBoxWidth = widthValue;
+        svg.setAttribute('viewBox', `0 0 ${viewBoxWidth} ${heightValue}`);
         svg.setAttribute('class', 'epv-performance-chart');
 
         if (!Array.isArray(series) || series.length < 2) {
             const emptyText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            // Position at center of viewBox (accounting for left padding offset)
-            emptyText.setAttribute('x', `${leftPadding + (viewBoxWidth / 2)}`);
+            // Position at center of viewBox (accounting for left and right padding)
+            emptyText.setAttribute('x', `${leftPadding + (viewBoxWidth - totalHorizontalPadding) / 2}`);
             emptyText.setAttribute('y', `${heightValue / 2}`);
             emptyText.setAttribute('text-anchor', 'middle');
             emptyText.setAttribute('class', 'epv-performance-chart-empty');
@@ -1315,10 +1310,10 @@
         const minValue = Math.min(...amounts);
         const maxValue = Math.max(...amounts);
         const range = maxValue - minValue || 1;
-        // Use svgWidth for padding calculation to match actual rendered size
-        const padding = getChartPadding(svgWidth, heightValue);
-        // Chart dimensions should be based on actual SVG width minus left padding
-        const width = Math.max(1, svgWidth - leftPadding - padding * 2);
+        // Use full width for padding calculation
+        const padding = getChartPadding(widthValue, heightValue);
+        // Chart dimensions account for left padding, right padding, and internal padding
+        const width = Math.max(1, widthValue - leftPadding - rightPadding - padding * 2);
         const height = Math.max(1, heightValue - padding * 2);
 
         const axisGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
