@@ -1281,14 +1281,19 @@
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         const widthValue = Math.max(PERFORMANCE_CHART_MIN_WIDTH, Number(chartWidth) || PERFORMANCE_CHART_DEFAULT_WIDTH);
         const heightValue = Math.max(PERFORMANCE_CHART_MIN_HEIGHT, Number(chartHeight) || PERFORMANCE_CHART_DEFAULT_HEIGHT);
-        const viewBoxWidth = Math.max(PERFORMANCE_CHART_MIN_WIDTH, widthValue - 280);
-        const viewBoxOffsetX = Math.max(0, Math.round((widthValue - viewBoxWidth) / 2));
-        svg.setAttribute('viewBox', `${viewBoxOffsetX} 0 ${viewBoxWidth} ${heightValue}`);
+        // Add 100px left padding and 50px right padding for proper spacing
+        const leftPadding = 100;
+        const rightPadding = 50;
+        const totalHorizontalPadding = leftPadding + rightPadding;
+        // ViewBox shows full width since we now handle padding internally
+        const viewBoxWidth = widthValue;
+        svg.setAttribute('viewBox', `0 0 ${viewBoxWidth} ${heightValue}`);
         svg.setAttribute('class', 'epv-performance-chart');
 
         if (!Array.isArray(series) || series.length < 2) {
             const emptyText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            emptyText.setAttribute('x', `${widthValue / 2}`);
+            // Position at center of viewBox (accounting for left and right padding)
+            emptyText.setAttribute('x', `${leftPadding + (viewBoxWidth - totalHorizontalPadding) / 2}`);
             emptyText.setAttribute('y', `${heightValue / 2}`);
             emptyText.setAttribute('text-anchor', 'middle');
             emptyText.setAttribute('class', 'epv-performance-chart-empty');
@@ -1305,23 +1310,25 @@
         const minValue = Math.min(...amounts);
         const maxValue = Math.max(...amounts);
         const range = maxValue - minValue || 1;
+        // Use full width for padding calculation
         const padding = getChartPadding(widthValue, heightValue);
-        const width = Math.max(1, widthValue - padding * 2);
+        // Chart dimensions account for left padding, right padding, and internal padding
+        const width = Math.max(1, widthValue - leftPadding - rightPadding - padding * 2);
         const height = Math.max(1, heightValue - padding * 2);
 
         const axisGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         axisGroup.setAttribute('class', 'epv-performance-chart-axis');
 
         const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        xAxis.setAttribute('x1', `${padding}`);
-        xAxis.setAttribute('x2', `${padding + width}`);
+        xAxis.setAttribute('x1', `${leftPadding + padding}`);
+        xAxis.setAttribute('x2', `${leftPadding + padding + width}`);
         xAxis.setAttribute('y1', `${padding + height}`);
         xAxis.setAttribute('y2', `${padding + height}`);
         axisGroup.appendChild(xAxis);
 
         const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        yAxis.setAttribute('x1', `${padding}`);
-        yAxis.setAttribute('x2', `${padding}`);
+        yAxis.setAttribute('x1', `${leftPadding + padding}`);
+        yAxis.setAttribute('x2', `${leftPadding + padding}`);
         yAxis.setAttribute('y1', `${padding}`);
         yAxis.setAttribute('y2', `${padding + height}`);
         axisGroup.appendChild(yAxis);
@@ -1331,7 +1338,7 @@
         const strokeColor = trendPositive ? '#10b981' : '#ef4444';
 
         const points = series.map((point, index) => {
-            const x = padding + (index / (series.length - 1)) * width;
+            const x = leftPadding + padding + (index / (series.length - 1)) * width;
             const y = padding + height - ((point.amount - minValue) / range) * height;
             return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
         });
@@ -1347,15 +1354,15 @@
         tickValues.forEach((value, index) => {
             const y = padding + height - ((value - minValue) / range) * height;
             const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            tick.setAttribute('x1', `${padding - 3}`);
-            tick.setAttribute('x2', `${padding}`);
+            tick.setAttribute('x1', `${leftPadding + padding - 3}`);
+            tick.setAttribute('x2', `${leftPadding + padding}`);
             tick.setAttribute('y1', `${y}`);
             tick.setAttribute('y2', `${y}`);
             tick.setAttribute('class', 'epv-performance-chart-tick');
             axisGroup.appendChild(tick);
 
             const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            label.setAttribute('x', `${padding - 6}`);
+            label.setAttribute('x', `${leftPadding + padding - 6}`);
             label.setAttribute('y', `${y + 3}`);
             label.setAttribute('text-anchor', 'end');
             label.setAttribute('class', 'epv-performance-chart-label');
@@ -1364,8 +1371,8 @@
 
             if (index === 1) {
                 const grid = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                grid.setAttribute('x1', `${padding}`);
-                grid.setAttribute('x2', `${padding + width}`);
+                grid.setAttribute('x1', `${leftPadding + padding}`);
+                grid.setAttribute('x2', `${leftPadding + padding + width}`);
                 grid.setAttribute('y1', `${y}`);
                 grid.setAttribute('y2', `${y}`);
                 grid.setAttribute('class', 'epv-performance-chart-grid');
@@ -1382,8 +1389,8 @@
         };
 
         const xLabels = [
-            { value: series[0].date, anchor: 'start', x: padding },
-            { value: series[series.length - 1].date, anchor: 'end', x: padding + width }
+            { value: series[0].date, anchor: 'start', x: leftPadding + padding },
+            { value: series[series.length - 1].date, anchor: 'end', x: leftPadding + padding + width }
         ];
 
         xLabels.forEach(labelInfo => {
@@ -1398,14 +1405,14 @@
         });
 
         const axisTitleX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        axisTitleX.setAttribute('x', `${padding + width / 2}`);
+        axisTitleX.setAttribute('x', `${leftPadding + padding + width / 2}`);
         axisTitleX.setAttribute('y', `${Math.min(heightValue - 2, padding + height + 20)}`);
         axisTitleX.setAttribute('text-anchor', 'middle');
         axisTitleX.setAttribute('class', 'epv-performance-chart-title');
         axisTitleX.textContent = 'Date';
 
         const axisTitleY = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        axisTitleY.setAttribute('x', `${Math.max(4, padding - 10)}`);
+        axisTitleY.setAttribute('x', `${Math.max(leftPadding + 4, leftPadding + padding - 10)}`);
         axisTitleY.setAttribute('y', `${Math.max(12, padding - 6)}`);
         axisTitleY.setAttribute('text-anchor', 'start');
         axisTitleY.setAttribute('class', 'epv-performance-chart-title');
@@ -1419,7 +1426,7 @@
             if (!point) {
                 return;
             }
-            const x = padding + (index / (series.length - 1)) * width;
+            const x = leftPadding + padding + (index / (series.length - 1)) * width;
             const y = padding + height - ((point.amount - minValue) / range) * height;
             const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             circle.setAttribute('cx', `${x}`);
