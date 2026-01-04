@@ -1,6 +1,7 @@
 # Endowus Portfolio Viewer
 
-![Endowus Portfolio Viewer Screenshot](assets/endowus_view_enhancer_screenshot.png)
+![Endowus Portfolio Viewer Graph](assets/investment_graph.png)
+![Endowus Portfolio Viewer Table](assets/investment_table.png)
 
 **Track core-satellite portfolios the way they were meant to be seen — clean, goal-aware, and entirely private.**
 
