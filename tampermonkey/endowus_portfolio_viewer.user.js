@@ -1289,7 +1289,8 @@
 
         if (!Array.isArray(series) || series.length < 2) {
             const emptyText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            emptyText.setAttribute('x', `${widthValue / 2}`);
+            // Position at center of viewBox (accounting for left padding offset)
+            emptyText.setAttribute('x', `${leftPadding + (viewBoxWidth / 2)}`);
             emptyText.setAttribute('y', `${heightValue / 2}`);
             emptyText.setAttribute('text-anchor', 'middle');
             emptyText.setAttribute('class', 'epv-performance-chart-empty');
