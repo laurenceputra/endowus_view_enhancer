@@ -1,15 +1,17 @@
-# Endowus Portfolio Viewer
+# Goal Portfolio Viewer
 
-![Endowus Portfolio Viewer Graph](assets/investment_graph.png)
-![Endowus Portfolio Viewer Table](assets/investment_table.png)
+![Goal Portfolio Viewer Graph](assets/investment_graph.png)
+![Goal Portfolio Viewer Table](assets/investment_table.png)
 
 **Track core-satellite portfolios the way they were meant to be seen — clean, goal-aware, and entirely private.**
+
+> **Platform Support**: Currently works with Endowus (Singapore). This userscript enhances your portfolio visualization experience by organizing goals into custom buckets.
 
 ---
 
 ## Core-Satellite Portfolio Tracking, Done Right
 
-Endowus Portfolio Viewer is built for investors who structure their wealth with intention. Whether you run a classic core-satellite strategy or a disciplined asset allocation plan, this userscript turns your Endowus dashboard into a purpose-first view of your portfolio.
+Goal Portfolio Viewer is built for investors who structure their wealth with intention. Whether you run a classic core-satellite strategy or a disciplined asset allocation plan, this userscript turns your Endowus dashboard into a purpose-first view of your portfolio.
 
 It groups your goals by real-life outcomes — retirement, education, emergency funds, or any other life milestone — so you can see how each goal maps to your core and satellite holdings at a glance. Different goals naturally come with different timelines and risk tolerances, and this view helps you reflect those differences in how you allocate your portfolio.
 
@@ -48,7 +50,7 @@ This overlay brings those assets back together so more sophisticated retail inve
 ## Get Started in Minutes
 
 1. [Install Tampermonkey](https://www.tampermonkey.net/) for your browser.
-2. [Add the Endowus Portfolio Viewer Script](https://raw.githubusercontent.com/laurenceputra/endowus_view_enhancer/main/tampermonkey/endowus_portfolio_viewer.user.js).
+2. [Add the Goal Portfolio Viewer Script](https://raw.githubusercontent.com/laurenceputra/goal-portfolio-viewer/main/tampermonkey/goal_portfolio_viewer.user.js).
 3. Log in to Endowus. If you see the 📊 button, you're all set.
 
 Bring your core-satellite strategy to life with a view that aligns with how you actually invest.

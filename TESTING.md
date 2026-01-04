@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document explains the testing infrastructure for the Endowus Portfolio Viewer project. The project uses Jest for testing with **zero code duplication** - all logic lives in one place.
+This document explains the testing infrastructure for the Goal Portfolio Viewer project. The project uses Jest for testing with **zero code duplication** - all logic lives in one place.
 
 ## Architecture
 
@@ -10,7 +10,7 @@ This document explains the testing infrastructure for the Endowus Portfolio View
 
 The project uses a unique pattern to enable testing without code duplication:
 
-1. **The Userscript** (`tampermonkey/endowus_portfolio_viewer.user.js`):
+1. **The Userscript** (`tampermonkey/goal_portfolio_viewer.user.js`):
    - Single self-contained file with ALL logic
    - Pure functions defined at the top
    - Browser-specific code wrapped in `if (typeof window !== 'undefined')`
@@ -27,7 +27,7 @@ The project uses a unique pattern to enable testing without code duplication:
 - In Node.js: Browser code is skipped, functions are exported for testing
 
 **IMPORTANT**: Changes to logic are made in ONE place:
-- Update function in `tampermonkey/endowus_portfolio_viewer.user.js`
+- Update function in `tampermonkey/goal_portfolio_viewer.user.js`
 - Add function to exports section if it's new
 - Add/update tests in `__tests__/utils.test.js`
 
@@ -236,7 +236,7 @@ expect(formatMoney(1000)).toMatch(/^\$1,000\.00$/);
 
 When updating the userscript:
 
-1. ✅ Update function in `tampermonkey/endowus_portfolio_viewer.user.js`
+1. ✅ Update function in `tampermonkey/goal_portfolio_viewer.user.js`
 2. ✅ If adding a new testable function, add it to the conditional exports section
 3. ✅ Update or add tests in `__tests__/utils.test.js`
 4. ✅ Run tests locally

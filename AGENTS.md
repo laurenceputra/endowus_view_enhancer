@@ -1,10 +1,10 @@
 # AGENTS
 
 ## Repository overview
-This repo contains a Tampermonkey userscript for Endowus view enhancements and a Jest test suite for validating its logic.
+This repo contains a Tampermonkey userscript for goal-based portfolio view enhancements and a Jest test suite for validating its logic. Currently supports Endowus platform.
 
 ## Coding conventions
-- Align with the existing codebase style in `tampermonkey/endowus_portfolio_viewer.user.js`.
+- Align with the existing codebase style in `tampermonkey/goal_portfolio_viewer.user.js`.
 - Use 4-space indentation.
 - Always include semicolons.
 - Use camelCase for variables and functions.
@@ -17,7 +17,7 @@ This repo contains a Tampermonkey userscript for Endowus view enhancements and a
 
 ## Styling pattern
 - Inject CSS via a string in `injectStyles()`.
-- Use the `epv-` prefix for class names.
+- Use the `gpv-` prefix for class names.
 
 ## Testing guidance
 - Jest tests should import functions from the userscript.
@@ -45,7 +45,7 @@ This repo contains a Tampermonkey userscript for Endowus view enhancements and a
 - Keep logic above the browser-only block and preserve the IIFE structure.
 - Follow coding conventions (4-space indentation, semicolons, camelCase).
 - Export new logic for Jest tests and keep functions pure.
-- Use `injectStyles()` with `epv-` class naming for any new UI.
+- Use `injectStyles()` with `gpv-` class naming for any new UI.
 
 ### QA (Phase 3)
 - Run Jest tests for logic changes and validate behavior manually.
