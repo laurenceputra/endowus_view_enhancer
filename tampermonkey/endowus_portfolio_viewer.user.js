@@ -1281,9 +1281,11 @@
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         const widthValue = Math.max(PERFORMANCE_CHART_MIN_WIDTH, Number(chartWidth) || PERFORMANCE_CHART_DEFAULT_WIDTH);
         const heightValue = Math.max(PERFORMANCE_CHART_MIN_HEIGHT, Number(chartHeight) || PERFORMANCE_CHART_DEFAULT_HEIGHT);
-        // Add 100px left padding and decrease width by 380px total (100px padding + 280px reduction)
+        // Add 100px left padding and decrease width by 380px total (100px padding + 280px original reduction)
         const leftPadding = 100;
-        const viewBoxWidth = Math.max(PERFORMANCE_CHART_MIN_WIDTH, widthValue - 380);
+        const originalWidthReduction = 280;
+        const totalWidthReduction = leftPadding + originalWidthReduction;
+        const viewBoxWidth = Math.max(PERFORMANCE_CHART_MIN_WIDTH, widthValue - totalWidthReduction);
         svg.setAttribute('viewBox', `${leftPadding} 0 ${viewBoxWidth} ${heightValue}`);
         svg.setAttribute('class', 'epv-performance-chart');
 
