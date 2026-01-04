@@ -259,12 +259,6 @@
         const startDate = new Date(latestDate.getTime());
 
         switch (windowKey) {
-            case 'oneDay':
-                startDate.setDate(startDate.getDate() - 1);
-                return startDate;
-            case 'sevenDay':
-                startDate.setDate(startDate.getDate() - 7);
-                return startDate;
             case 'oneMonth':
                 startDate.setMonth(startDate.getMonth() - 1);
                 return startDate;
@@ -283,19 +277,6 @@
                     return ytdDate;
                 }
                 return new Date(latestDate.getFullYear(), 0, 1);
-            }
-            case 'qtd': {
-                const qtdDate = getPerformanceDate(performanceDates, [
-                    'qtd',
-                    'qtdStartDate',
-                    'quarterStartDate',
-                    'quarterToDateStartDate'
-                ]);
-                if (qtdDate) {
-                    return qtdDate;
-                }
-                const quarter = Math.floor(latestDate.getMonth() / 3);
-                return new Date(latestDate.getFullYear(), quarter * 3, 1);
             }
             default:
                 return null;
