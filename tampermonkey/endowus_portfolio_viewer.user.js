@@ -160,12 +160,11 @@
     // ============================================
 
     const PERFORMANCE_WINDOWS = {
-        oneDay: { key: 'oneDay', label: '1D' },
-        sevenDay: { key: 'sevenDay', label: '7D' },
+        oneMonth: { key: 'oneMonth', label: '1M' },
         sixMonth: { key: 'sixMonth', label: '6M' },
-        qtd: { key: 'qtd', label: 'QTD' },
         ytd: { key: 'ytd', label: 'YTD' },
-        oneYear: { key: 'oneYear', label: '1Y' }
+        oneYear: { key: 'oneYear', label: '1Y' },
+        threeYear: { key: 'threeYear', label: '3Y' }
     };
 
     function getPerformanceCacheKey(goalId) {
@@ -260,37 +259,24 @@
         const startDate = new Date(latestDate.getTime());
 
         switch (windowKey) {
-            case PERFORMANCE_WINDOWS.oneDay.key:
-                startDate.setDate(startDate.getDate() - 1);
+            case 'oneMonth':
+                startDate.setMonth(startDate.getMonth() - 1);
                 return startDate;
-            case PERFORMANCE_WINDOWS.sevenDay.key:
-                startDate.setDate(startDate.getDate() - 7);
-                return startDate;
-            case PERFORMANCE_WINDOWS.sixMonth.key:
+            case 'sixMonth':
                 startDate.setMonth(startDate.getMonth() - 6);
                 return startDate;
-            case PERFORMANCE_WINDOWS.oneYear.key:
+            case 'oneYear':
                 startDate.setFullYear(startDate.getFullYear() - 1);
                 return startDate;
-            case PERFORMANCE_WINDOWS.ytd.key: {
+            case 'threeYear':
+                startDate.setFullYear(startDate.getFullYear() - 3);
+                return startDate;
+            case 'ytd': {
                 const ytdDate = getPerformanceDate(performanceDates, ['ytd', 'ytdStartDate', 'yearStartDate']);
                 if (ytdDate) {
                     return ytdDate;
                 }
                 return new Date(latestDate.getFullYear(), 0, 1);
-            }
-            case PERFORMANCE_WINDOWS.qtd.key: {
-                const qtdDate = getPerformanceDate(performanceDates, [
-                    'qtd',
-                    'qtdStartDate',
-                    'quarterStartDate',
-                    'quarterToDateStartDate'
-                ]);
-                if (qtdDate) {
-                    return qtdDate;
-                }
-                const quarter = Math.floor(latestDate.getMonth() / 3);
-                return new Date(latestDate.getFullYear(), quarter * 3, 1);
             }
             default:
                 return null;
@@ -335,53 +321,23 @@
         if (!returnsTable || typeof returnsTable !== 'object') {
             return {};
         }
+        const twrTable = returnsTable.twr && typeof returnsTable.twr === 'object'
+            ? returnsTable.twr
+            : null;
+        if (!twrTable) {
+            return {};
+        }
         return {
-            sixMonth: extractReturnPercent(returnsTable.sixMonth),
-            oneYear: extractReturnPercent(returnsTable.oneYear),
-            ytd: extractReturnPercent(returnsTable.ytd)
+            oneMonth: extractReturnPercent(twrTable.oneMonthValue),
+            sixMonth: extractReturnPercent(twrTable.sixMonthValue),
+            ytd: extractReturnPercent(twrTable.ytdValue),
+            oneYear: extractReturnPercent(twrTable.oneYearValue),
+            threeYear: extractReturnPercent(twrTable.threeYearValue)
         };
     }
 
     function derivePerformanceWindows(returnsTable, performanceDates, timeSeriesData) {
-        const mappedReturns = mapReturnsTableToWindowReturns(returnsTable);
-        const windowReturns = {
-            oneDay: calculateReturnFromTimeSeries(
-                timeSeriesData,
-                getWindowStartDate(PERFORMANCE_WINDOWS.oneDay.key, timeSeriesData, performanceDates)
-            ),
-            sevenDay: calculateReturnFromTimeSeries(
-                timeSeriesData,
-                getWindowStartDate(PERFORMANCE_WINDOWS.sevenDay.key, timeSeriesData, performanceDates)
-            ),
-            sixMonth: mappedReturns.sixMonth,
-            qtd: calculateReturnFromTimeSeries(
-                timeSeriesData,
-                getWindowStartDate(PERFORMANCE_WINDOWS.qtd.key, timeSeriesData, performanceDates)
-            ),
-            ytd: mappedReturns.ytd,
-            oneYear: mappedReturns.oneYear
-        };
-
-        if (windowReturns.sixMonth === null || windowReturns.sixMonth === undefined) {
-            windowReturns.sixMonth = calculateReturnFromTimeSeries(
-                timeSeriesData,
-                getWindowStartDate(PERFORMANCE_WINDOWS.sixMonth.key, timeSeriesData, performanceDates)
-            );
-        }
-        if (windowReturns.oneYear === null || windowReturns.oneYear === undefined) {
-            windowReturns.oneYear = calculateReturnFromTimeSeries(
-                timeSeriesData,
-                getWindowStartDate(PERFORMANCE_WINDOWS.oneYear.key, timeSeriesData, performanceDates)
-            );
-        }
-        if (windowReturns.ytd === null || windowReturns.ytd === undefined) {
-            windowReturns.ytd = calculateReturnFromTimeSeries(
-                timeSeriesData,
-                getWindowStartDate(PERFORMANCE_WINDOWS.ytd.key, timeSeriesData, performanceDates)
-            );
-        }
-
-        return windowReturns;
+        return mapReturnsTableToWindowReturns(returnsTable);
     }
 
     function mergeTimeSeriesByDate(timeSeriesCollection) {
@@ -462,12 +418,55 @@
         return total / totalWeight;
     }
 
+    function calculateWeightedWindowReturns(performanceResponses, fallbackPerformanceDates) {
+        const responses = Array.isArray(performanceResponses) ? performanceResponses : [];
+        const windowKeys = Object.values(PERFORMANCE_WINDOWS).map(window => window.key);
+        const valuesByWindow = {};
+        const weightsByWindow = {};
+
+        windowKeys.forEach(key => {
+            valuesByWindow[key] = [];
+            weightsByWindow[key] = [];
+        });
+
+        responses.forEach(response => {
+            const mappedReturns = mapReturnsTableToWindowReturns(response?.returnsTable);
+            const netInvestmentValue = extractAmount(
+                response?.gainOrLossTable?.netInvestment?.allTimeValue
+            ) ?? extractAmount(response?.netInvestmentAmount ?? response?.netInvestment);
+            const weight = isFinite(netInvestmentValue) && netInvestmentValue > 0 ? netInvestmentValue : null;
+
+            if (!weight) {
+                return;
+            }
+
+            windowKeys.forEach(windowKey => {
+                const mappedValue = mappedReturns[windowKey];
+                if (typeof mappedValue === 'number' && isFinite(mappedValue)) {
+                    valuesByWindow[windowKey].push(mappedValue);
+                    weightsByWindow[windowKey].push(weight);
+                }
+            });
+        });
+
+        const weightedReturns = {};
+        windowKeys.forEach(windowKey => {
+            weightedReturns[windowKey] = calculateWeightedAverage(
+                valuesByWindow[windowKey],
+                weightsByWindow[windowKey]
+            );
+        });
+
+        return weightedReturns;
+    }
+
     function summarizePerformanceMetrics(performanceResponses, mergedTimeSeries) {
         const responses = Array.isArray(performanceResponses) ? performanceResponses : [];
         const netInvestments = [];
         const totalReturns = [];
         const simpleReturns = [];
         const twrReturns = [];
+        const annualisedIrrReturns = [];
         let totalReturnAmount = 0;
         let totalReturnSeen = false;
         let netFeesAmount = 0;
@@ -516,6 +515,9 @@
                     ?? response?.timeWeightedReturnPercent
                     ?? response?.twrPercent
                 );
+                annualisedIrrReturns.push(
+                    response?.returnsTable?.annualisedIrr?.allTimeValue
+                );
             }
         });
 
@@ -530,6 +532,7 @@
         const totalReturnPercent = calculateWeightedAverage(totalReturns, netInvestments);
         const simpleReturnPercent = calculateWeightedAverage(simpleReturns, netInvestments);
         const twrPercent = calculateWeightedAverage(twrReturns, netInvestments);
+        const annualisedIrrPercent = calculateWeightedAverage(annualisedIrrReturns, netInvestments);
 
         // Note: We intentionally do not infer netInvestmentAmount from mergedTimeSeries, because
         // the time series typically represents market value over time, not cumulative net investment.
@@ -539,6 +542,7 @@
             totalReturnPercent,
             simpleReturnPercent,
             twrPercent,
+            annualisedIrrPercent,
             totalReturnAmount: totalReturnSeen ? totalReturnAmount : null,
             netFeesAmount: netFeesSeen ? netFeesAmount : null,
             netInvestmentAmount: netInvestmentSeen ? netInvestmentAmount : null,
@@ -1150,19 +1154,20 @@
         const mergedSeries = mergeTimeSeriesByDate(
             performanceResponses.map(response => response?.timeSeries?.data || [])
         );
+        const primaryPerformanceDates = performanceResponses[0]?.performanceDates;
         const windowStart = getWindowStartDate(
             PERFORMANCE_CHART_WINDOW,
             mergedSeries,
-            performanceResponses[0]?.performanceDates
+            primaryPerformanceDates
         );
         const windowSeries = getTimeSeriesWindow(mergedSeries, windowStart);
         const windowReturns = performanceResponses.length === 1
             ? derivePerformanceWindows(
                 performanceResponses[0]?.returnsTable,
-                performanceResponses[0]?.performanceDates,
+                primaryPerformanceDates,
                 performanceResponses[0]?.timeSeries?.data || []
             )
-            : derivePerformanceWindows(null, null, mergedSeries);
+            : calculateWeightedWindowReturns(performanceResponses, primaryPerformanceDates);
 
         const metrics = summarizePerformanceMetrics(performanceResponses, mergedSeries);
 
@@ -1276,7 +1281,9 @@
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         const widthValue = Math.max(PERFORMANCE_CHART_MIN_WIDTH, Number(chartWidth) || PERFORMANCE_CHART_DEFAULT_WIDTH);
         const heightValue = Math.max(PERFORMANCE_CHART_MIN_HEIGHT, Number(chartHeight) || PERFORMANCE_CHART_DEFAULT_HEIGHT);
-        svg.setAttribute('viewBox', `0 0 ${widthValue} ${heightValue}`);
+        const viewBoxWidth = Math.max(PERFORMANCE_CHART_MIN_WIDTH, widthValue - 280);
+        const viewBoxOffsetX = Math.max(0, Math.round((widthValue - viewBoxWidth) / 2));
+        svg.setAttribute('viewBox', `${viewBoxOffsetX} 0 ${viewBoxWidth} ${heightValue}`);
         svg.setAttribute('class', 'epv-performance-chart');
 
         if (!Array.isArray(series) || series.length < 2) {
@@ -1435,12 +1442,11 @@
         grid.className = 'epv-performance-window-grid';
 
         const items = [
-            { label: '1D', value: windowReturns?.oneDay },
-            { label: '7D', value: windowReturns?.sevenDay },
+            { label: '1M', value: windowReturns?.oneMonth },
             { label: '6M', value: windowReturns?.sixMonth },
-            { label: 'QTD', value: windowReturns?.qtd },
             { label: 'YTD', value: windowReturns?.ytd },
-            { label: '1Y', value: windowReturns?.oneYear }
+            { label: '1Y', value: windowReturns?.oneYear },
+            { label: '3Y', value: windowReturns?.threeYear }
         ];
 
         items.forEach(item => {
@@ -1473,8 +1479,8 @@
         const tbody = document.createElement('tbody');
         const rows = [
             { label: 'Total Return %', value: formatPercentage(metrics?.totalReturnPercent) },
-            { label: 'Simple Return %', value: formatPercentage(metrics?.simpleReturnPercent) },
             { label: 'TWR %', value: formatPercentage(metrics?.twrPercent) },
+            { label: 'Annualised IRR', value: formatPercentage(metrics?.annualisedIrrPercent) },
             { label: 'Gain / Loss', value: formatMoney(metrics?.totalReturnAmount) },
             { label: 'Net Fees', value: formatMoney(metrics?.netFeesAmount) },
             { label: 'Net Investment', value: formatMoney(metrics?.netInvestmentAmount) },
@@ -2453,6 +2459,7 @@
             
             .epv-projected-input-container {
                 margin-top: 12px;
+                margin-bottom: 12px;
                 padding: 12px;
                 background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
                 border: 2px dashed #0284c7;
@@ -2931,6 +2938,7 @@
             getWindowStartDate,
             calculateReturnFromTimeSeries,
             mapReturnsTableToWindowReturns,
+            calculateWeightedWindowReturns,
             summarizePerformanceMetrics,
             derivePerformanceWindows
         };

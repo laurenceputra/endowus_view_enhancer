@@ -20,6 +20,7 @@ const {
     getWindowStartDate,
     calculateReturnFromTimeSeries,
     mapReturnsTableToWindowReturns,
+    calculateWeightedWindowReturns,
     summarizePerformanceMetrics,
     derivePerformanceWindows
 } = require('../tampermonkey/endowus_portfolio_viewer.user.js');
@@ -241,19 +242,14 @@ describe('getWindowStartDate', () => {
         { date: '2024-06-03', amount: 120 }
     ];
 
-    test('should return 1D start date based on latest data point', () => {
-        const startDate = getWindowStartDate('oneDay', timeSeries, null);
-        expect(startDate.toISOString().slice(0, 10)).toBe('2024-06-02');
+    test('should return 1M start date based on latest data point', () => {
+        const startDate = getWindowStartDate('oneMonth', timeSeries, null);
+        expect(startDate.toISOString().slice(0, 10)).toBe('2024-05-03');
     });
 
-    test('should return 7D start date based on latest data point', () => {
-        const startDate = getWindowStartDate('sevenDay', timeSeries, null);
-        expect(startDate.toISOString().slice(0, 10)).toBe('2024-05-27');
-    });
-
-    test('should return QTD start date when provided', () => {
-        const startDate = getWindowStartDate('qtd', timeSeries, { qtdStartDate: '2024-04-01' });
-        expect(startDate.toISOString().slice(0, 10)).toBe('2024-04-01');
+    test('should return YTD start date when provided', () => {
+        const startDate = getWindowStartDate('ytd', timeSeries, { ytdStartDate: '2024-02-01' });
+        expect(startDate.toISOString().slice(0, 10)).toBe('2024-02-01');
     });
 });
 
@@ -316,14 +312,20 @@ describe('calculateReturnFromTimeSeries', () => {
 describe('mapReturnsTableToWindowReturns', () => {
     test('should map returns table values', () => {
         const returnsTable = {
-            sixMonth: 0.08,
-            oneYear: 0.12,
-            ytd: 0.05
+            twr: {
+                oneMonthValue: 0.02,
+                sixMonthValue: 0.08,
+                oneYearValue: 0.12,
+                threeYearValue: 0.3,
+                ytdValue: 0.05
+            }
         };
         expect(mapReturnsTableToWindowReturns(returnsTable)).toEqual({
+            oneMonth: 0.02,
             sixMonth: 0.08,
+            ytd: 0.05,
             oneYear: 0.12,
-            ytd: 0.05
+            threeYear: 0.3
         });
     });
 });
@@ -331,18 +333,91 @@ describe('mapReturnsTableToWindowReturns', () => {
 describe('derivePerformanceWindows', () => {
     test('should use returns table values when available', () => {
         const returnsTable = {
-            sixMonth: 0.08,
-            oneYear: 0.12,
-            ytd: 0.05
+            twr: {
+                oneMonthValue: 0.02,
+                sixMonthValue: 0.08,
+                oneYearValue: 0.12,
+                threeYearValue: 0.3,
+                ytdValue: 0.05
+            }
         };
         const timeSeries = [
             { date: '2024-01-01', amount: 100 },
             { date: '2024-06-01', amount: 120 }
         ];
         const result = derivePerformanceWindows(returnsTable, null, timeSeries);
+        expect(result.oneMonth).toBe(0.02);
         expect(result.sixMonth).toBe(0.08);
         expect(result.oneYear).toBe(0.12);
+        expect(result.threeYear).toBe(0.3);
         expect(result.ytd).toBe(0.05);
+    });
+});
+
+describe('calculateWeightedWindowReturns', () => {
+    test('should weight TWR window returns by net investment', () => {
+        const responses = [
+            {
+                returnsTable: {
+                    twr: {
+                        oneMonthValue: 0.01,
+                        oneYearValue: 0.1,
+                        ytdValue: 0.08
+                    }
+                },
+                gainOrLossTable: {
+                    netInvestment: { allTimeValue: 100 }
+                }
+            },
+            {
+                returnsTable: {
+                    twr: {
+                        oneMonthValue: 0.03,
+                        oneYearValue: 0.2,
+                        ytdValue: 0.04
+                    }
+                },
+                gainOrLossTable: {
+                    netInvestment: { allTimeValue: 300 }
+                }
+            }
+        ];
+        const result = calculateWeightedWindowReturns(responses, null);
+        expect(result.oneMonth).toBeCloseTo((0.01 * 100 + 0.03 * 300) / 400, 6);
+        expect(result.oneYear).toBeCloseTo((0.1 * 100 + 0.2 * 300) / 400, 6);
+        expect(result.ytd).toBeCloseTo((0.08 * 100 + 0.04 * 300) / 400, 6);
+    });
+
+    test('should exclude goals without TWR window data', () => {
+        const responses = [
+            {
+                returnsTable: {
+                    twr: {
+                        oneYearValue: 0.1
+                    }
+                },
+                gainOrLossTable: {
+                    netInvestment: { allTimeValue: 200 }
+                }
+            },
+            {
+                returnsTable: {
+                    oneYear: 0.3
+                },
+                timeSeries: {
+                    data: [
+                        { date: '2024-01-01', amount: 100 },
+                        { date: '2024-06-01', amount: 140 }
+                    ]
+                },
+                gainOrLossTable: {
+                    netInvestment: { allTimeValue: 800 }
+                }
+            }
+        ];
+        const result = calculateWeightedWindowReturns(responses, null);
+        expect(result.oneYear).toBeCloseTo(0.1, 6);
+        expect(result.oneMonth).toBeNull();
     });
 });
 
