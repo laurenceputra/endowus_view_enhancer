@@ -220,7 +220,8 @@ describe('isCacheFresh', () => {
         const now = 1_000_000;
         const maxAge = 1000;
         const fetchedAt = now - maxAge;
-        // Implementation uses `nowMs - fetchedTime < maxAge`, so equality is considered stale
+        // Implementation uses `nowMs - fetchedTime < maxAge`
+        // When nowMs - fetchedTime === maxAge (exactly at boundary), cache is stale
         expect(isCacheFresh(fetchedAt, maxAge, now)).toBe(false);
     });
 

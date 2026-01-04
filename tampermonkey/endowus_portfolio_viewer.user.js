@@ -1282,6 +1282,8 @@
         const widthValue = Math.max(PERFORMANCE_CHART_MIN_WIDTH, Number(chartWidth) || PERFORMANCE_CHART_DEFAULT_WIDTH);
         const heightValue = Math.max(PERFORMANCE_CHART_MIN_HEIGHT, Number(chartHeight) || PERFORMANCE_CHART_DEFAULT_HEIGHT);
         // Add 100px left padding and decrease width by 380px total (100px padding + 280px original reduction)
+        // Note: Math.max ensures viewBoxWidth is never less than PERFORMANCE_CHART_MIN_WIDTH
+        // even when totalWidthReduction exceeds widthValue
         const leftPadding = 100;
         const originalWidthReduction = 280;
         const totalWidthReduction = leftPadding + originalWidthReduction;
