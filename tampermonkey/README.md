@@ -97,9 +97,10 @@ The script will automatically group all goals starting with the same bucket name
 - Shows all buckets with their totals, returns, and growth percentages
 - Displays breakdown by goal type (Investment, Cash, etc.) within each bucket
 - Perfect for a quick overview of your entire portfolio
+- Click any bucket card to jump directly to its detail view (syncs the dropdown selection)
 
 #### Bucket Detail View
-- Select a specific bucket from the dropdown
+- Select a specific bucket from the dropdown (or click a bucket card in the summary view)
 - See detailed information about each goal within that bucket
 - View individual goal performance metrics
 - Compare goals within the same bucket

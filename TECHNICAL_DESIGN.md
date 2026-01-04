@@ -302,7 +302,7 @@ function formatMoney(amount) {
 The UI consists of:
 1. **Trigger Button** - Fixed position button to open the viewer
 2. **Modal Overlay** - Full-screen overlay with backdrop blur
-3. **View Selector** - Dropdown to switch between Summary and Detail views
+3. **View Selector** - Dropdown to switch between Summary and Detail views, synced with summary card clicks
 4. **Data Display Area** - Dynamic content area for tables and cards
 
 ### Styling System

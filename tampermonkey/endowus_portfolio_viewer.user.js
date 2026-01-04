@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Endowus Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/endowus_view_enhancer
-// @version      2.3.0
+// @version      2.3.1
 // @description  View and organize your Endowus portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics.
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -1566,7 +1566,7 @@
         });
     }
     
-    function renderSummaryView(contentDiv, mergedInvestmentDataState) {
+    function renderSummaryView(contentDiv, mergedInvestmentDataState, onBucketSelect) {
         contentDiv.innerHTML = '';
 
         const summaryContainer = document.createElement('div');
@@ -1584,6 +1584,18 @@
 
             const bucketCard = document.createElement('div');
             bucketCard.className = 'epv-bucket-card';
+            bucketCard.dataset.bucket = bucket;
+            bucketCard.setAttribute('role', 'button');
+            bucketCard.setAttribute('tabindex', '0');
+            if (typeof onBucketSelect === 'function') {
+                bucketCard.addEventListener('click', () => onBucketSelect(bucket));
+                bucketCard.addEventListener('keydown', event => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onBucketSelect(bucket);
+                    }
+                });
+            }
 
             const bucketHeader = document.createElement('div');
             bucketHeader.className = 'epv-bucket-header';
@@ -2209,6 +2221,7 @@
                 border: 2px solid #e5e7eb;
                 border-radius: 12px;
                 padding: 16px;
+                cursor: pointer;
                 transition: all 0.3s ease;
             }
             
@@ -2216,6 +2229,11 @@
                 border-color: #667eea;
                 box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
                 transform: translateY(-2px);
+            }
+
+            .epv-bucket-card:focus-visible {
+                outline: 3px solid rgba(102, 126, 234, 0.7);
+                outline-offset: 2px;
             }
             
             .epv-bucket-header {
@@ -2784,15 +2802,26 @@
         contentDiv.className = 'epv-content';
         container.appendChild(contentDiv);
 
-        renderSummaryView(contentDiv, data);
+        function renderView(value) {
+            if (value === 'SUMMARY') {
+                renderSummaryView(contentDiv, data, onBucketSelect);
+            } else {
+                renderBucketView(contentDiv, value, data, projectedInvestments);
+            }
+        }
+
+        function onBucketSelect(bucket) {
+            if (!bucket || !data[bucket]) {
+                return;
+            }
+            select.value = bucket;
+            renderView(bucket);
+        }
+
+        renderView('SUMMARY');
 
         select.onchange = function() {
-            const val = select.value;
-            if (val === 'SUMMARY') {
-                renderSummaryView(contentDiv, data);
-            } else {
-                renderBucketView(contentDiv, val, data, projectedInvestments);
-            }
+            renderView(select.value);
         };
 
         overlay.appendChild(container);
