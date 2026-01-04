@@ -62,6 +62,7 @@ window.fetch = async function(...args) {
 - `/v1/goals/performance` - Performance metrics (returns, growth %)
 - `/v2/goals/investible` - Investment details (amounts, goal types)
 - `/v1/goals` - Goal summaries (names, descriptions)
+- `https://bff.prod.silver.endowus.com/v1/performance` - Goal performance time series + return windows
 
 #### XMLHttpRequest Patching
 
@@ -94,6 +95,43 @@ XMLHttpRequest.prototype.send = function(...args) {
 - Must run in page context
 - Can be affected by Content Security Policy
 - Requires careful handling to avoid infinite loops
+
+### Performance API Contract
+
+The enhanced performance view retrieves time-series data per goal from the BFF endpoint:
+
+- **Endpoint**: `https://bff.prod.silver.endowus.com/v1/performance`
+- **Query params**:
+  - `displayCcy=SGD`
+  - `goalId=<uuid>`
+- **Response fields used**:
+  - `timeSeries.data[].date`
+  - `timeSeries.data[].amount`
+  - `returnsTable.*`
+  - `performanceDates.*`
+  - `totalCumulativeReturnPercent`
+  - `totalCumulativeReturnAmount`
+- **Origin relationship**: `app.sg.endowus.com` sends same-site requests to `bff.prod.silver.endowus.com`
+- **Required headers**: `authorization` (bearer token), `client-id`, `device-id`
+
+These headers are captured from in-app fetch requests and reused for the sequential performance fetch queue.
+If captured headers are missing, the script falls back to the `webapp-sg-access-token` and `webapp-deviceId` cookies
+and any locally stored `client-id` to build the performance request headers.
+
+### Performance Metrics Mapping
+
+The performance metrics table is built from the per-goal performance response fields below. When multiple goals are
+combined, percentage metrics are weighted by each goal’s net investment amount.
+
+| Table Label | Primary Response Field(s) | Notes |
+| --- | --- | --- |
+| Total Return % | `totalCumulativeReturnPercent` | Weighted by `netInvestmentAmount` across goals. |
+| TWR % | `timeWeightedReturnPercent` → `twrPercent` | Weighted by `gainOrLossTable.netInvestment.allTimeValue.amount` across goals. |
+| Annualised IRR | `returnsTable.annualisedIrr.allTimeValue` | Weighted by `gainOrLossTable.netInvestment.allTimeValue.amount` across goals. |
+| Gain / Loss | `totalCumulativeReturnAmount` | Summed across goals. |
+| Net Fees | `gainOrLossTable.accessFeeCharged.allTimeValue.amount` − `gainOrLossTable.trailerFeeRebates.allTimeValue.amount` | Summed across goals. |
+| Net Investment | `gainOrLossTable.netInvestment.allTimeValue.amount` → `netInvestmentAmount` → `netInvestment` | Summed; falls back to earliest time-series amount when missing. |
+| Ending Balance | `endingBalanceAmount` → `totalBalanceAmount` → `marketValueAmount` | Summed; falls back to latest time-series amount when missing. |
 
 ---
 
@@ -218,6 +256,25 @@ function calculatePercentageOfType(goal, typeTotal) {
 }
 ```
 
+### Performance Window Derivation
+
+Performance windows (1D, 7D, 6M, QTD, YTD, 1Y) are derived from a mix of API values and local calculations:
+
+1. **Returns table** values are used when available (6M, 1Y, YTD).
+2. **Time-weighted return windows** are read from `returnsTable.twr.*` using the `*Value` fields:
+   - 1M (`oneMonthValue`), 6M (`sixMonthValue`), YTD (`ytdValue`), 1Y (`oneYearValue`), 3Y (`threeYearValue`).
+   - When multiple goals are combined, window returns are weighted by net investment across goals.
+   - Goals without a TWR value for a window are excluded from that window’s aggregate.
+3. **Nearest available date** is chosen when exact window start dates fall on non-trading days.
+
+### Sequential Fetch Queue + Cache
+
+Performance requests are executed sequentially with a configurable delay to avoid rate limiting.
+
+- **Queue**: runs `fetch` per goal ID with a delay between calls.
+- **Cache**: Tampermonkey storage keyed by `epv_performance_<goalId>`.
+- **TTL**: 7 days; cached responses are reused if still fresh.
+
 ### Money Formatting
 
 All monetary values are formatted consistently:
@@ -245,7 +302,7 @@ function formatMoney(amount) {
 The UI consists of:
 1. **Trigger Button** - Fixed position button to open the viewer
 2. **Modal Overlay** - Full-screen overlay with backdrop blur
-3. **View Selector** - Dropdown to switch between Summary and Detail views
+3. **View Selector** - Dropdown to switch between Summary and Detail views, synced with summary card clicks
 4. **Data Display Area** - Dynamic content area for tables and cards
 
 ### Styling System
@@ -678,7 +735,9 @@ function exportToCSV(data) {
 
 ### Q: How do I add chart visualizations?
 
-Use a lightweight charting library:
+The current userscript renders lightweight SVG charts that resize with their container using `ResizeObserver`, including a dynamic height derived from available width. If you add new charts, follow the same pattern: measure the container, render with a matching `viewBox`, and re-render on resize to keep coordinates accurate.
+
+If you need a larger charting library, keep it lightweight:
 
 ```javascript
 // Add to userscript header

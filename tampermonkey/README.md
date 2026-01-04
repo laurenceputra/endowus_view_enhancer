@@ -23,6 +23,7 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 - **Real-time Data Interception**: Automatically captures portfolio data using monkey patching techniques
 - **Comprehensive Analytics**: View total investments, cumulative returns, and growth percentages
 - **Multi-level Views**: Toggle between summary view and detailed bucket views
+- **Performance Insights**: Per goal-type charts with responsive sizing (including dynamic height), recent return windows, and key metrics
 
 ### 🎨 Modern UX Design
 - **Beautiful Gradient UI**: Modern purple gradient theme with smooth animations
@@ -96,9 +97,10 @@ The script will automatically group all goals starting with the same bucket name
 - Shows all buckets with their totals, returns, and growth percentages
 - Displays breakdown by goal type (Investment, Cash, etc.) within each bucket
 - Perfect for a quick overview of your entire portfolio
+- Click any bucket card to jump directly to its detail view (syncs the dropdown selection)
 
 #### Bucket Detail View
-- Select a specific bucket from the dropdown
+- Select a specific bucket from the dropdown (or click a bucket card in the summary view)
 - See detailed information about each goal within that bucket
 - View individual goal performance metrics
 - Compare goals within the same bucket
