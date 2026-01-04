@@ -1281,7 +1281,8 @@
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         const widthValue = Math.max(PERFORMANCE_CHART_MIN_WIDTH, Number(chartWidth) || PERFORMANCE_CHART_DEFAULT_WIDTH);
         const heightValue = Math.max(PERFORMANCE_CHART_MIN_HEIGHT, Number(chartHeight) || PERFORMANCE_CHART_DEFAULT_HEIGHT);
-        svg.setAttribute('viewBox', `0 0 ${widthValue} ${heightValue}`);
+        const viewBoxWidth = Math.max(PERFORMANCE_CHART_MIN_WIDTH, widthValue - 70);
+        svg.setAttribute('viewBox', `0 0 ${viewBoxWidth} ${heightValue}`);
         svg.setAttribute('class', 'epv-performance-chart');
 
         if (!Array.isArray(series) || series.length < 2) {
