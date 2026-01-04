@@ -264,13 +264,29 @@ describe('calculateReturnFromTimeSeries', () => {
         expect(result).toBeCloseTo(120 / 110 - 1, 6);
     });
 
-    test('should return null when start amount is zero', () => {
+    test('should return null when start point amount is zero', () => {
         const timeSeries = [
             { date: '2024-06-01', amount: 0 },
             { date: '2024-06-02', amount: 100 }
         ];
         const result = calculateReturnFromTimeSeries(timeSeries, new Date('2024-06-01'));
         expect(result).toBeNull();
+    });
+
+    test('should return null when end point amount is zero or negative', () => {
+        const timeSeries = [
+            { date: '2024-06-01', amount: 100 },
+            { date: '2024-06-02', amount: 0 }
+        ];
+        const result = calculateReturnFromTimeSeries(timeSeries, new Date('2024-06-01'));
+        expect(result).toBeNull();
+
+        const timeSeriesNegative = [
+            { date: '2024-06-01', amount: 100 },
+            { date: '2024-06-02', amount: -50 }
+        ];
+        const resultNegative = calculateReturnFromTimeSeries(timeSeriesNegative, new Date('2024-06-01'));
+        expect(resultNegative).toBeNull();
     });
 });
 

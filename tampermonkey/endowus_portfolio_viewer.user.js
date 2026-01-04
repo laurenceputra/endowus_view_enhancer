@@ -306,6 +306,9 @@
         if (startPoint.amount === 0) {
             return null;
         }
+        if (endPoint.amount <= 0) {
+            return null;
+        }
         return (endPoint.amount / startPoint.amount) - 1;
     }
 
@@ -518,12 +521,9 @@
         const simpleReturnPercent = calculateWeightedAverage(simpleReturns, netInvestments);
         const twrPercent = calculateWeightedAverage(twrReturns, netInvestments);
 
-        if (netInvestmentAmount === 0 && Array.isArray(mergedTimeSeries) && mergedTimeSeries.length) {
-            const earliest = mergedTimeSeries[0];
-            if (isFinite(earliest?.amount)) {
-                netInvestmentAmount = earliest.amount;
-            }
-        }
+        // Note: We intentionally do not infer netInvestmentAmount from mergedTimeSeries, because
+        // the time series typically represents market value over time, not cumulative net investment.
+        // Using market value as net investment would produce inaccurate financial metrics.
 
         return {
             totalReturnPercent,
@@ -866,7 +866,15 @@
             return null;
         }
         const value = match.slice(name.length + 1);
-        return value ? decodeURIComponent(value) : null;
+        if (!value) {
+            return null;
+        }
+        try {
+            return decodeURIComponent(value);
+        } catch (error) {
+            // Fallback to raw value if decoding fails due to malformed encoding
+            return value;
+        }
     }
 
     function selectAuthCookieToken(cookies) {
@@ -905,7 +913,21 @@
             return;
         }
         gmCookieDumped = true;
-        listCookieByQuery({});
+        listCookieByQuery({})
+            .then(cookies => {
+                // Debug-only: log a safe summary of available GM_cookie entries
+                const summary = cookies.map(cookie => ({
+                    domain: cookie.domain,
+                    path: cookie.path,
+                    name: cookie.name
+                }));
+                // eslint-disable-next-line no-console
+                console.log('[Endowus Portfolio Viewer][DEBUG_AUTH] Available GM_cookie entries:', summary);
+            })
+            .catch(error => {
+                // eslint-disable-next-line no-console
+                console.error('[Endowus Portfolio Viewer][DEBUG_AUTH] Failed to list GM_cookie entries:', error);
+            });
     }
 
     function getAuthTokenFromGMCookie() {
@@ -943,16 +965,6 @@
         });
     }
 
-    function formatAuthLogValue(value) {
-        if (!value) {
-            return 'missing';
-        }
-        const trimmed = String(value);
-        const hasBearer = trimmed.toLowerCase().startsWith('bearer ');
-        const tokenValue = hasBearer ? trimmed.slice(7) : trimmed;
-        return `present (bearer=${hasBearer}, length=${tokenValue.length})`;
-    }
-
     function buildAuthorizationValue(token) {
         if (!token || typeof token !== 'string') {
             return null;
@@ -981,6 +993,10 @@
     function extractAuthHeaders(requestUrl, requestInit) {
         const url = typeof requestUrl === 'string' ? requestUrl : requestUrl?.url;
         if (!url || !url.includes('endowus.com')) {
+            if (DEBUG_AUTH && url) {
+                // eslint-disable-next-line no-console
+                console.log('[Endowus Portfolio Viewer][DEBUG_AUTH] Skipping header extraction for non-endowus.com URL:', url);
+            }
             return;
         }
         const headers = requestInit?.headers || requestUrl?.headers || null;
@@ -1009,10 +1025,6 @@
                     mergedHeaders[key] = value;
                 }
             });
-        }
-        const authorizationValue = mergedHeaders.authorization || mergedHeaders.Authorization || null;
-        if (authorizationValue) {
-            headers.set('Authorization', authorizationValue);
         }
         Object.entries(mergedHeaders).forEach(([key, value]) => {
             if (value) {
@@ -1161,7 +1173,12 @@
     const PERFORMANCE_CHART_MIN_WIDTH = 240;
     const PERFORMANCE_CHART_MIN_HEIGHT = 90;
     const PERFORMANCE_CHART_MAX_HEIGHT = 180;
+    // Aspect ratio tuned for typical container widths (≈240–800px) to keep charts readable
+    // while staying within PERFORMANCE_CHART_MIN_HEIGHT and PERFORMANCE_CHART_MAX_HEIGHT.
     const PERFORMANCE_CHART_ASPECT_RATIO = 0.28;
+    // Debounce timeout for chart resize operations. Balance between responsiveness
+    // and reducing re-renders during continuous resize events.
+    const CHART_RESIZE_DEBOUNCE_MS = 140;
 
     function getChartHeightForWidth(width) {
         const safeWidth = Math.max(PERFORMANCE_CHART_MIN_WIDTH, Number(width) || PERFORMANCE_CHART_DEFAULT_WIDTH);
@@ -1204,7 +1221,7 @@
         chartWrapper.appendChild(svg);
     }
 
-    function setupPerformanceChartResizeObserver(chartWrapper, series) {
+    function initializePerformanceChart(chartWrapper, series) {
         if (typeof ResizeObserver === 'undefined' || !chartWrapper) {
             renderPerformanceChart(chartWrapper, series);
             return null;
@@ -1234,7 +1251,7 @@
                     width: Math.max(PERFORMANCE_CHART_MIN_WIDTH, Math.round(width)),
                     height: Math.max(PERFORMANCE_CHART_MIN_HEIGHT, Math.round(targetHeight))
                 });
-            }, 140);
+            }, CHART_RESIZE_DEBOUNCE_MS);
         });
 
         observer.observe(chartWrapper);
@@ -1521,7 +1538,7 @@
                 }
                 const initialWidth = chartWrapper.getBoundingClientRect().width;
                 chartWrapper.style.height = `${getChartHeightForWidth(initialWidth)}px`;
-                setupPerformanceChartResizeObserver(chartWrapper, summary.windowSeries);
+                initializePerformanceChart(chartWrapper, summary.windowSeries);
             });
         });
     }
@@ -1683,7 +1700,7 @@
                 group.goals.map(goal => goal.goalId).filter(Boolean)
             );
 
-            // Add projected investment input below performance metrics
+            // Add projected investment input section as sibling after performance container
             const projectedInputContainer = document.createElement('div');
             projectedInputContainer.className = 'epv-projected-input-container';
             projectedInputContainer.innerHTML = `
