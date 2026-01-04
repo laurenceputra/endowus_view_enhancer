@@ -338,14 +338,16 @@
         const twrTable = returnsTable.twr && typeof returnsTable.twr === 'object'
             ? returnsTable.twr
             : null;
-        const source = twrTable || returnsTable;
+        if (!twrTable) {
+            return {};
+        }
         return {
-            oneDay: extractReturnPercent(source.oneDay),
-            sevenDay: extractReturnPercent(source.sevenDay),
-            sixMonth: extractReturnPercent(source.sixMonth),
-            qtd: extractReturnPercent(source.qtd),
-            ytd: extractReturnPercent(source.ytd),
-            oneYear: extractReturnPercent(source.oneYear)
+            oneDay: extractReturnPercent(twrTable.oneDay),
+            sevenDay: extractReturnPercent(twrTable.sevenDay),
+            sixMonth: extractReturnPercent(twrTable.sixMonth),
+            qtd: extractReturnPercent(twrTable.qtd),
+            ytd: extractReturnPercent(twrTable.ytd),
+            oneYear: extractReturnPercent(twrTable.oneYear)
         };
     }
 
@@ -482,8 +484,6 @@
 
         responses.forEach(response => {
             const mappedReturns = mapReturnsTableToWindowReturns(response?.returnsTable);
-            const timeSeries = response?.timeSeries?.data || [];
-            const performanceDates = response?.performanceDates || fallbackPerformanceDates || null;
             const netInvestmentValue = extractAmount(
                 response?.gainOrLossTable?.netInvestment?.allTimeValue
             ) ?? extractAmount(response?.netInvestmentAmount ?? response?.netInvestment);
@@ -495,13 +495,8 @@
 
             windowKeys.forEach(windowKey => {
                 const mappedValue = mappedReturns[windowKey];
-                const value = mappedValue ?? calculateReturnFromTimeSeries(
-                    timeSeries,
-                    getWindowStartDate(windowKey, timeSeries, performanceDates)
-                );
-
-                if (typeof value === 'number' && isFinite(value)) {
-                    valuesByWindow[windowKey].push(value);
+                if (typeof mappedValue === 'number' && isFinite(mappedValue)) {
+                    valuesByWindow[windowKey].push(mappedValue);
                     weightsByWindow[windowKey].push(weight);
                 }
             });
@@ -1220,25 +1215,6 @@
                 performanceResponses[0]?.timeSeries?.data || []
             )
             : calculateWeightedWindowReturns(performanceResponses, primaryPerformanceDates);
-
-        if (performanceResponses.length > 1) {
-            const fallbackWindows = [
-                PERFORMANCE_WINDOWS.oneDay.key,
-                PERFORMANCE_WINDOWS.sevenDay.key,
-                PERFORMANCE_WINDOWS.sixMonth.key,
-                PERFORMANCE_WINDOWS.qtd.key,
-                PERFORMANCE_WINDOWS.ytd.key,
-                PERFORMANCE_WINDOWS.oneYear.key
-            ];
-            fallbackWindows.forEach(windowKey => {
-                if (windowReturns[windowKey] === null || windowReturns[windowKey] === undefined) {
-                    windowReturns[windowKey] = calculateReturnFromTimeSeries(
-                        mergedSeries,
-                        getWindowStartDate(windowKey, mergedSeries, primaryPerformanceDates)
-                    );
-                }
-            });
-        }
 
         const metrics = summarizePerformanceMetrics(performanceResponses, mergedSeries);
 

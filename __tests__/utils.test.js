@@ -384,6 +384,38 @@ describe('calculateWeightedWindowReturns', () => {
         expect(result.oneYear).toBeCloseTo((0.1 * 100 + 0.2 * 300) / 400, 6);
         expect(result.ytd).toBeCloseTo((0.08 * 100 + 0.04 * 300) / 400, 6);
     });
+
+    test('should exclude goals without TWR window data', () => {
+        const responses = [
+            {
+                returnsTable: {
+                    twr: {
+                        oneYear: 0.1
+                    }
+                },
+                gainOrLossTable: {
+                    netInvestment: { allTimeValue: 200 }
+                }
+            },
+            {
+                returnsTable: {
+                    oneYear: 0.3
+                },
+                timeSeries: {
+                    data: [
+                        { date: '2024-01-01', amount: 100 },
+                        { date: '2024-06-01', amount: 140 }
+                    ]
+                },
+                gainOrLossTable: {
+                    netInvestment: { allTimeValue: 800 }
+                }
+            }
+        ];
+        const result = calculateWeightedWindowReturns(responses, null);
+        expect(result.oneYear).toBeCloseTo(0.1, 6);
+        expect(result.sevenDay).toBeNull();
+    });
 });
 
 describe('buildMergedInvestmentData', () => {
