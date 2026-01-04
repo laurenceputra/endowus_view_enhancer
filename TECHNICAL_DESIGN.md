@@ -126,7 +126,6 @@ combined, percentage metrics are weighted by each goal’s net investment amount
 | Table Label | Primary Response Field(s) | Notes |
 | --- | --- | --- |
 | Total Return % | `totalCumulativeReturnPercent` | Weighted by `netInvestmentAmount` across goals. |
-| Simple Return % | `simpleRateOfReturnPercent` → `simpleReturnPercent` | Weighted by `gainOrLossTable.netInvestment.allTimeValue.amount` across goals. |
 | TWR % | `timeWeightedReturnPercent` → `twrPercent` | Weighted by `gainOrLossTable.netInvestment.allTimeValue.amount` across goals. |
 | Gain / Loss | `totalCumulativeReturnAmount` | Summed across goals. |
 | Net Fees | `gainOrLossTable.accessFeeCharged.allTimeValue.amount` − `gainOrLossTable.trailerFeeRebates.allTimeValue.amount` | Summed across goals. |
@@ -261,7 +260,8 @@ function calculatePercentageOfType(goal, typeTotal) {
 Performance windows (1D, 7D, 6M, QTD, YTD, 1Y) are derived from a mix of API values and local calculations:
 
 1. **Returns table** values are used when available (6M, 1Y, YTD).
-2. **Time series** data is used to compute 1D, 7D, and QTD returns when missing.
+2. **Time-weighted return windows** are read from `returnsTable.twr.*` when available for 1D, 7D, QTD, 6M, YTD, and 1Y.
+   - If a window is missing from the TWR table, the script falls back to time-series-derived returns for that window.
 3. **Nearest available date** is chosen when exact window start dates fall on non-trading days.
 
 ### Sequential Fetch Queue + Cache

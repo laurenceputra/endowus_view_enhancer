@@ -316,14 +316,19 @@ describe('calculateReturnFromTimeSeries', () => {
 describe('mapReturnsTableToWindowReturns', () => {
     test('should map returns table values', () => {
         const returnsTable = {
-            sixMonth: 0.08,
-            oneYear: 0.12,
-            ytd: 0.05
+            twr: {
+                sixMonth: 0.08,
+                oneYear: 0.12,
+                ytd: 0.05
+            }
         };
         expect(mapReturnsTableToWindowReturns(returnsTable)).toEqual({
+            oneDay: null,
+            sevenDay: null,
             sixMonth: 0.08,
-            oneYear: 0.12,
-            ytd: 0.05
+            qtd: null,
+            ytd: 0.05,
+            oneYear: 0.12
         });
     });
 });
@@ -331,9 +336,11 @@ describe('mapReturnsTableToWindowReturns', () => {
 describe('derivePerformanceWindows', () => {
     test('should use returns table values when available', () => {
         const returnsTable = {
-            sixMonth: 0.08,
-            oneYear: 0.12,
-            ytd: 0.05
+            twr: {
+                sixMonth: 0.08,
+                oneYear: 0.12,
+                ytd: 0.05
+            }
         };
         const timeSeries = [
             { date: '2024-01-01', amount: 100 },

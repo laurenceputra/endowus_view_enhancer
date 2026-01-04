@@ -335,26 +335,33 @@
         if (!returnsTable || typeof returnsTable !== 'object') {
             return {};
         }
+        const twrTable = returnsTable.twr && typeof returnsTable.twr === 'object'
+            ? returnsTable.twr
+            : null;
+        const source = twrTable || returnsTable;
         return {
-            sixMonth: extractReturnPercent(returnsTable.sixMonth),
-            oneYear: extractReturnPercent(returnsTable.oneYear),
-            ytd: extractReturnPercent(returnsTable.ytd)
+            oneDay: extractReturnPercent(source.oneDay),
+            sevenDay: extractReturnPercent(source.sevenDay),
+            sixMonth: extractReturnPercent(source.sixMonth),
+            qtd: extractReturnPercent(source.qtd),
+            ytd: extractReturnPercent(source.ytd),
+            oneYear: extractReturnPercent(source.oneYear)
         };
     }
 
     function derivePerformanceWindows(returnsTable, performanceDates, timeSeriesData) {
         const mappedReturns = mapReturnsTableToWindowReturns(returnsTable);
         const windowReturns = {
-            oneDay: calculateReturnFromTimeSeries(
+            oneDay: mappedReturns.oneDay ?? calculateReturnFromTimeSeries(
                 timeSeriesData,
                 getWindowStartDate(PERFORMANCE_WINDOWS.oneDay.key, timeSeriesData, performanceDates)
             ),
-            sevenDay: calculateReturnFromTimeSeries(
+            sevenDay: mappedReturns.sevenDay ?? calculateReturnFromTimeSeries(
                 timeSeriesData,
                 getWindowStartDate(PERFORMANCE_WINDOWS.sevenDay.key, timeSeriesData, performanceDates)
             ),
             sixMonth: mappedReturns.sixMonth,
-            qtd: calculateReturnFromTimeSeries(
+            qtd: mappedReturns.qtd ?? calculateReturnFromTimeSeries(
                 timeSeriesData,
                 getWindowStartDate(PERFORMANCE_WINDOWS.qtd.key, timeSeriesData, performanceDates)
             ),
@@ -1473,7 +1480,6 @@
         const tbody = document.createElement('tbody');
         const rows = [
             { label: 'Total Return %', value: formatPercentage(metrics?.totalReturnPercent) },
-            { label: 'Simple Return %', value: formatPercentage(metrics?.simpleReturnPercent) },
             { label: 'TWR %', value: formatPercentage(metrics?.twrPercent) },
             { label: 'Gain / Loss', value: formatMoney(metrics?.totalReturnAmount) },
             { label: 'Net Fees', value: formatMoney(metrics?.netFeesAmount) },
