@@ -20,6 +20,7 @@ const {
     getWindowStartDate,
     calculateReturnFromTimeSeries,
     mapReturnsTableToWindowReturns,
+    summarizePerformanceMetrics,
     derivePerformanceWindows
 } = require('../tampermonkey/endowus_portfolio_viewer.user.js');
 
@@ -227,6 +228,10 @@ describe('formatPercentage', () => {
     test('should return dash for invalid input', () => {
         expect(formatPercentage('invalid')).toBe('-');
     });
+
+    test('should return dash for null input', () => {
+        expect(formatPercentage(null)).toBe('-');
+    });
 });
 
 describe('getWindowStartDate', () => {
@@ -249,6 +254,24 @@ describe('getWindowStartDate', () => {
     test('should return QTD start date when provided', () => {
         const startDate = getWindowStartDate('qtd', timeSeries, { qtdStartDate: '2024-04-01' });
         expect(startDate.toISOString().slice(0, 10)).toBe('2024-04-01');
+    });
+});
+
+describe('summarizePerformanceMetrics', () => {
+    test('should preserve zero-valued summary amounts', () => {
+        const metrics = summarizePerformanceMetrics([
+            {
+                totalCumulativeReturnAmount: 0,
+                gainOrLossTable: {
+                    netInvestment: { allTimeValue: 0 }
+                },
+                endingBalanceAmount: 0
+            }
+        ], []);
+
+        expect(metrics.totalReturnAmount).toBe(0);
+        expect(metrics.netInvestmentAmount).toBe(0);
+        expect(metrics.endingBalanceAmount).toBe(0);
     });
 });
 

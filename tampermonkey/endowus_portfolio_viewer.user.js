@@ -182,6 +182,9 @@
     }
 
     function formatPercentage(value) {
+        if (value === null || value === undefined) {
+            return '-';
+        }
         const numericValue = Number(value);
         if (!isFinite(numericValue)) {
             return '-';
@@ -466,10 +469,13 @@
         const simpleReturns = [];
         const twrReturns = [];
         let totalReturnAmount = 0;
+        let totalReturnSeen = false;
         let netFeesAmount = 0;
         let netFeesSeen = false;
         let netInvestmentAmount = 0;
+        let netInvestmentSeen = false;
         let endingBalanceAmount = 0;
+        let endingBalanceSeen = false;
 
         responses.forEach(response => {
             const totalReturnValue = extractAmount(response?.totalCumulativeReturnAmount);
@@ -483,6 +489,7 @@
             );
 
             if (isFinite(totalReturnValue)) {
+                totalReturnSeen = true;
                 totalReturnAmount += totalReturnValue;
             }
             if (isFinite(accessFeeValue) || isFinite(trailerFeeValue)) {
@@ -491,9 +498,11 @@
                     - (isFinite(trailerFeeValue) ? trailerFeeValue : 0);
             }
             if (isFinite(netInvestmentValue)) {
+                netInvestmentSeen = true;
                 netInvestmentAmount += netInvestmentValue;
             }
             if (isFinite(endingBalanceValue)) {
+                endingBalanceSeen = true;
                 endingBalanceAmount += endingBalanceValue;
             }
 
@@ -514,6 +523,7 @@
             const latest = mergedTimeSeries[mergedTimeSeries.length - 1];
             if (isFinite(latest?.amount)) {
                 endingBalanceAmount = latest.amount;
+                endingBalanceSeen = true;
             }
         }
 
@@ -529,10 +539,10 @@
             totalReturnPercent,
             simpleReturnPercent,
             twrPercent,
-            totalReturnAmount: totalReturnAmount || null,
+            totalReturnAmount: totalReturnSeen ? totalReturnAmount : null,
             netFeesAmount: netFeesSeen ? netFeesAmount : null,
-            netInvestmentAmount: netInvestmentAmount || null,
-            endingBalanceAmount: endingBalanceAmount || null
+            netInvestmentAmount: netInvestmentSeen ? netInvestmentAmount : null,
+            endingBalanceAmount: endingBalanceSeen ? endingBalanceAmount : null
         };
     }
 
@@ -2921,6 +2931,7 @@
             getWindowStartDate,
             calculateReturnFromTimeSeries,
             mapReturnsTableToWindowReturns,
+            summarizePerformanceMetrics,
             derivePerformanceWindows
         };
     }
