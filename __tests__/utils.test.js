@@ -20,6 +20,7 @@ const {
     getWindowStartDate,
     calculateReturnFromTimeSeries,
     mapReturnsTableToWindowReturns,
+    calculateWeightedWindowReturns,
     summarizePerformanceMetrics,
     derivePerformanceWindows
 } = require('../tampermonkey/endowus_portfolio_viewer.user.js');
@@ -350,6 +351,38 @@ describe('derivePerformanceWindows', () => {
         expect(result.sixMonth).toBe(0.08);
         expect(result.oneYear).toBe(0.12);
         expect(result.ytd).toBe(0.05);
+    });
+});
+
+describe('calculateWeightedWindowReturns', () => {
+    test('should weight TWR window returns by net investment', () => {
+        const responses = [
+            {
+                returnsTable: {
+                    twr: {
+                        oneYear: 0.1,
+                        ytd: 0.08
+                    }
+                },
+                gainOrLossTable: {
+                    netInvestment: { allTimeValue: 100 }
+                }
+            },
+            {
+                returnsTable: {
+                    twr: {
+                        oneYear: 0.2,
+                        ytd: 0.04
+                    }
+                },
+                gainOrLossTable: {
+                    netInvestment: { allTimeValue: 300 }
+                }
+            }
+        ];
+        const result = calculateWeightedWindowReturns(responses, null);
+        expect(result.oneYear).toBeCloseTo((0.1 * 100 + 0.2 * 300) / 400, 6);
+        expect(result.ytd).toBeCloseTo((0.08 * 100 + 0.04 * 300) / 400, 6);
     });
 });
 

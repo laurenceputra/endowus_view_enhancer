@@ -469,6 +469,55 @@
         return total / totalWeight;
     }
 
+    function calculateWeightedWindowReturns(performanceResponses, fallbackPerformanceDates) {
+        const responses = Array.isArray(performanceResponses) ? performanceResponses : [];
+        const windowKeys = Object.values(PERFORMANCE_WINDOWS).map(window => window.key);
+        const valuesByWindow = {};
+        const weightsByWindow = {};
+
+        windowKeys.forEach(key => {
+            valuesByWindow[key] = [];
+            weightsByWindow[key] = [];
+        });
+
+        responses.forEach(response => {
+            const mappedReturns = mapReturnsTableToWindowReturns(response?.returnsTable);
+            const timeSeries = response?.timeSeries?.data || [];
+            const performanceDates = response?.performanceDates || fallbackPerformanceDates || null;
+            const netInvestmentValue = extractAmount(
+                response?.gainOrLossTable?.netInvestment?.allTimeValue
+            ) ?? extractAmount(response?.netInvestmentAmount ?? response?.netInvestment);
+            const weight = isFinite(netInvestmentValue) && netInvestmentValue > 0 ? netInvestmentValue : null;
+
+            if (!weight) {
+                return;
+            }
+
+            windowKeys.forEach(windowKey => {
+                const mappedValue = mappedReturns[windowKey];
+                const value = mappedValue ?? calculateReturnFromTimeSeries(
+                    timeSeries,
+                    getWindowStartDate(windowKey, timeSeries, performanceDates)
+                );
+
+                if (typeof value === 'number' && isFinite(value)) {
+                    valuesByWindow[windowKey].push(value);
+                    weightsByWindow[windowKey].push(weight);
+                }
+            });
+        });
+
+        const weightedReturns = {};
+        windowKeys.forEach(windowKey => {
+            weightedReturns[windowKey] = calculateWeightedAverage(
+                valuesByWindow[windowKey],
+                weightsByWindow[windowKey]
+            );
+        });
+
+        return weightedReturns;
+    }
+
     function summarizePerformanceMetrics(performanceResponses, mergedTimeSeries) {
         const responses = Array.isArray(performanceResponses) ? performanceResponses : [];
         const netInvestments = [];
@@ -1157,19 +1206,39 @@
         const mergedSeries = mergeTimeSeriesByDate(
             performanceResponses.map(response => response?.timeSeries?.data || [])
         );
+        const primaryPerformanceDates = performanceResponses[0]?.performanceDates;
         const windowStart = getWindowStartDate(
             PERFORMANCE_CHART_WINDOW,
             mergedSeries,
-            performanceResponses[0]?.performanceDates
+            primaryPerformanceDates
         );
         const windowSeries = getTimeSeriesWindow(mergedSeries, windowStart);
         const windowReturns = performanceResponses.length === 1
             ? derivePerformanceWindows(
                 performanceResponses[0]?.returnsTable,
-                performanceResponses[0]?.performanceDates,
+                primaryPerformanceDates,
                 performanceResponses[0]?.timeSeries?.data || []
             )
-            : derivePerformanceWindows(null, null, mergedSeries);
+            : calculateWeightedWindowReturns(performanceResponses, primaryPerformanceDates);
+
+        if (performanceResponses.length > 1) {
+            const fallbackWindows = [
+                PERFORMANCE_WINDOWS.oneDay.key,
+                PERFORMANCE_WINDOWS.sevenDay.key,
+                PERFORMANCE_WINDOWS.sixMonth.key,
+                PERFORMANCE_WINDOWS.qtd.key,
+                PERFORMANCE_WINDOWS.ytd.key,
+                PERFORMANCE_WINDOWS.oneYear.key
+            ];
+            fallbackWindows.forEach(windowKey => {
+                if (windowReturns[windowKey] === null || windowReturns[windowKey] === undefined) {
+                    windowReturns[windowKey] = calculateReturnFromTimeSeries(
+                        mergedSeries,
+                        getWindowStartDate(windowKey, mergedSeries, primaryPerformanceDates)
+                    );
+                }
+            });
+        }
 
         const metrics = summarizePerformanceMetrics(performanceResponses, mergedSeries);
 
@@ -2937,6 +3006,7 @@
             getWindowStartDate,
             calculateReturnFromTimeSeries,
             mapReturnsTableToWindowReturns,
+            calculateWeightedWindowReturns,
             summarizePerformanceMetrics,
             derivePerformanceWindows
         };

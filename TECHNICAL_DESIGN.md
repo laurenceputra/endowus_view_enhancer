@@ -261,6 +261,7 @@ Performance windows (1D, 7D, 6M, QTD, YTD, 1Y) are derived from a mix of API val
 
 1. **Returns table** values are used when available (6M, 1Y, YTD).
 2. **Time-weighted return windows** are read from `returnsTable.twr.*` when available for 1D, 7D, QTD, 6M, YTD, and 1Y.
+   - When multiple goals are combined, window returns are weighted by net investment across goals.
    - If a window is missing from the TWR table, the script falls back to time-series-derived returns for that window.
 3. **Nearest available date** is chosen when exact window start dates fall on non-trading days.
 
