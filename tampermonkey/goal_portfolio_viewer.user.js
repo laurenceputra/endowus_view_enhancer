@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.3.1
+// @version      2.3.2
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -1770,7 +1770,7 @@
             });
 
             const table = document.createElement('table');
-            table.className = 'gpv-table';
+            table.className = 'gpv-table gpv-goal-table';
             table.innerHTML = `
                 <thead>
                     <tr>
@@ -1993,7 +1993,7 @@
         }
         
         // Recalculate all diffs in this goal type section
-        const tbody = typeSection.querySelector('tbody');
+        const tbody = typeSection.querySelector('.gpv-goal-table tbody');
         if (tbody) {
             const rows = tbody.querySelectorAll('tr');
             rows.forEach(row => {
