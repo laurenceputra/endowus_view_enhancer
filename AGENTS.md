@@ -1,7 +1,7 @@
 # AGENTS
 
 ## Repository overview
-This repo contains a Tampermonkey userscript for goal-based portfolio view enhancements and a Jest test suite for validating its logic. Currently supports Endowus platform.
+This repo contains a Tampermonkey userscript for goal-based portfolio view enhancements and a Jest test suite for validating its logic. Currently supports the Endowus (Singapore) platform.
 
 ## Coding conventions
 - Align with the existing codebase style in `tampermonkey/goal_portfolio_viewer.user.js`.

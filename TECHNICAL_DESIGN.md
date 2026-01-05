@@ -431,7 +431,7 @@ function renderGoalTable(goalType, data) {
 **Workflow:**
 1. Edit script in Tampermonkey editor
 2. Save changes (Ctrl+S)
-3. Refresh Endowus page
+3. Refresh the platform page
 4. Test functionality
 5. Check browser console for errors
 
@@ -490,7 +490,7 @@ window.portfolioViewerDebug = {
 // portfolioViewerDebug.performanceData
 ```
 
-#### Testing Without Endowus
+#### Testing Without Live Data
 
 ```javascript
 // Mock data for testing
@@ -819,12 +819,12 @@ function formatMoney(amount, currency = 'SGD') {
 When contributing to the technical implementation:
 
 1. **Follow existing code style**
-   - Use consistent indentation (2 spaces)
+   - Use consistent indentation (4 spaces)
    - Add comments for complex logic
    - Use descriptive variable names
 
 2. **Test thoroughly**
-   - Test with real Endowus data
+   - Test with real platform data
    - Test with mock data
    - Test edge cases (empty data, single goal, etc.)
 

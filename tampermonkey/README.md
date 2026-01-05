@@ -1,10 +1,10 @@
 # Goal Portfolio Viewer - Tampermonkey Script
 
-A modern Tampermonkey userscript that provides an enhanced portfolio viewing experience for Endowus users. This script allows you to organize and visualize your Endowus portfolio by custom buckets with a beautiful, modern interface.
+A modern Tampermonkey userscript that provides an enhanced portfolio viewing experience for investors using the Endowus (Singapore) platform. This script allows you to organize and visualize your portfolio by custom buckets with a beautiful, modern interface.
 
 ## The Problem
 
-Managing multiple financial goals on Endowus can be overwhelming when you have different investment strategies across various life objectives. Whether you're saving for retirement, your children's education, or an emergency fund, tracking performance across these different "buckets" requires manually calculating totals and returns.
+Managing multiple financial goals on the platform can be overwhelming when you have different investment strategies across various life objectives. Whether you're saving for retirement, your children's education, or an emergency fund, tracking performance across these different "buckets" requires manually calculating totals and returns.
 
 ## The Solution
 
@@ -19,7 +19,7 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 ## Features
 
 ### 🎯 Core Functionality
-- **Portfolio Bucket Organization**: Group your Endowus goals by buckets (e.g., "Retirement", "Education", "Emergency")
+- **Portfolio Bucket Organization**: Group your goals by buckets (e.g., "Retirement", "Education", "Emergency")
 - **Real-time Data Interception**: Automatically captures portfolio data using monkey patching techniques
 - **Comprehensive Analytics**: View total investments, cumulative returns, and growth percentages
 - **Multi-level Views**: Toggle between summary view and detailed bucket views
@@ -34,7 +34,7 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 
 ### 🔧 Technical Features
 - **API Interception**: Monkey patches both `fetch` and `XMLHttpRequest` to capture API responses
-- **Non-blocking**: Runs seamlessly alongside Endowus's native functionality
+- **Non-blocking**: Runs seamlessly alongside the platform's native functionality
 - **Efficient Data Processing**: Merges data from multiple API endpoints intelligently
 - **Auto-updates**: Configured to check for script updates automatically
 
@@ -77,7 +77,7 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 
 ### Goal Naming Convention
 
-To use the bucket feature, name your Endowus goals following this format:
+To use the bucket feature, name your goals following this format:
 
 ```
 <Bucket Name> - <Goal Description>
@@ -118,7 +118,7 @@ For each bucket/goal, you'll see:
 
 ### API Interception
 
-The script uses monkey patching to intercept API responses from Endowus:
+The script uses monkey patching to intercept API responses from the Endowus platform:
 
 1. **Fetch API Patching**: Wraps the native `fetch` function to capture responses
 2. **XMLHttpRequest Patching**: Intercepts XHR requests for compatibility
@@ -147,11 +147,11 @@ The script uses monkey patching to intercept API responses from Endowus:
 ### Button Not Appearing
 - Ensure Tampermonkey is enabled
 - Check that the script is enabled in Tampermonkey dashboard
-- Refresh the Endowus page
+- Refresh the platform page
 - Check browser console for errors (F12)
 
 ### No Data / Alert Message
-- Wait for the Endowus page to fully load
+- Wait for the platform page to fully load
 - Navigate through your portfolio sections to trigger API calls
 - Check that you're logged into Endowus
 - Verify that your goals follow the naming convention
@@ -163,8 +163,8 @@ The script uses monkey patching to intercept API responses from Endowus:
 
 ### Script Not Running
 - Verify script is installed correctly in Tampermonkey
-- Check that the match pattern includes the Endowus URL
-- Ensure Tampermonkey has permissions for the Endowus domain
+- Check that the match pattern includes the platform URL (https://app.sg.endowus.com/)
+- Ensure Tampermonkey has permissions for the platform domain
 
 ## Development
 
@@ -183,7 +183,7 @@ To modify the script for your needs:
 2. Click on the script name to edit
 3. Make your changes
 4. Save (Ctrl+S or Cmd+S)
-5. Refresh the Endowus page to see changes
+5. Refresh the platform page to see changes
 
 ### Key Functions
 
@@ -246,4 +246,4 @@ Contributions are welcome! To contribute:
 ## Acknowledgments
 
 - Inspired by modern web design principles
-- Built for the Endowus user community
+- Built for goal-based investors
