@@ -685,7 +685,7 @@ Fixes #38
 
 ### File Structure
 ```
-goal_view_enhancer/
+goal-portfolio-viewer/
 ├── .github/
 │   └── copilot-instructions.md (this file)
 ├── tampermonkey/
