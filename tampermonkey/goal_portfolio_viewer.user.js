@@ -1770,7 +1770,7 @@
             });
 
             const table = document.createElement('table');
-            table.className = 'gpv-table';
+            table.className = 'gpv-table gpv-goal-table';
             table.innerHTML = `
                 <thead>
                     <tr>
@@ -1993,7 +1993,7 @@
         }
         
         // Recalculate all diffs in this goal type section
-        const tbody = typeSection.querySelector('tbody');
+        const tbody = typeSection.querySelector('.gpv-goal-table tbody');
         if (tbody) {
             const rows = tbody.querySelectorAll('tr');
             rows.forEach(row => {
