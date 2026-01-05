@@ -2885,9 +2885,13 @@
     }
     
     function startUrlMonitoring() {
-        // Check immediately
+        if (window.__gpvUrlMonitorCleanup) {
+            window.__gpvUrlMonitorCleanup();
+        }
+
+        lastUrl = window.location.href;
         updateButtonVisibility();
-        
+
         // Debounce function to limit how often handleUrlChange can be called
         let urlCheckTimeout = null;
         const debouncedUrlCheck = () => {
@@ -2896,35 +2900,59 @@
             }
             urlCheckTimeout = setTimeout(handleUrlChange, 100);
         };
-        
-        // Use MutationObserver to detect URL changes in the SPA
-        // This serves as a fallback for navigation patterns not caught by History API
-        const observer = new MutationObserver(debouncedUrlCheck);
-        
-        // Observe changes to the entire document
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-        
+
         // Listen to popstate event for browser back/forward navigation
         window.addEventListener('popstate', handleUrlChange);
-        
+
         // Override pushState to detect programmatic navigation
         const originalPushState = history.pushState;
         history.pushState = function(...args) {
-            originalPushState.apply(this, args);
+            const result = originalPushState.apply(this, args);
             handleUrlChange();
+            return result;
         };
-        
+
         // Override replaceState to detect programmatic navigation
         const originalReplaceState = history.replaceState;
         history.replaceState = function(...args) {
-            originalReplaceState.apply(this, args);
+            const result = originalReplaceState.apply(this, args);
             handleUrlChange();
+            return result;
         };
-        
-        console.log('[Goal Portfolio Viewer] URL monitoring started with MutationObserver');
+
+        const intervalId = window.setInterval(handleUrlChange, 500);
+
+        const appRoot = document.querySelector('#root')
+            || document.querySelector('#app')
+            || document.querySelector('main');
+        let observer = null;
+
+        if (appRoot) {
+            // Use MutationObserver as a fallback for navigation patterns not caught by History API
+            observer = new MutationObserver(debouncedUrlCheck);
+            observer.observe(appRoot, {
+                childList: true,
+                subtree: true
+            });
+        }
+
+        window.__gpvUrlMonitorCleanup = () => {
+            window.removeEventListener('popstate', handleUrlChange);
+            history.pushState = originalPushState;
+            history.replaceState = originalReplaceState;
+            window.clearInterval(intervalId);
+            if (observer) {
+                observer.disconnect();
+                observer = null;
+            }
+            if (urlCheckTimeout) {
+                clearTimeout(urlCheckTimeout);
+                urlCheckTimeout = null;
+            }
+            window.__gpvUrlMonitorCleanup = null;
+        };
+
+        console.log('[Goal Portfolio Viewer] URL monitoring started with History API hooks');
     }
     
     function init() {
