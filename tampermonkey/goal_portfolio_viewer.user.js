@@ -213,13 +213,17 @@
             .sort((a, b) => a.date.getTime() - b.date.getTime());
     }
 
-    function getLatestTimeSeriesPoint(timeSeriesData) {
-        const normalized = normalizeTimeSeriesData(timeSeriesData);
+    function getLatestTimeSeriesPoint(timeSeriesData, isNormalized = false) {
+        const normalized = isNormalized
+            ? (Array.isArray(timeSeriesData) ? timeSeriesData : [])
+            : normalizeTimeSeriesData(timeSeriesData);
         return normalized.length ? normalized[normalized.length - 1] : null;
     }
 
-    function findNearestPointOnOrBefore(timeSeriesData, targetDate) {
-        const normalized = normalizeTimeSeriesData(timeSeriesData);
+    function findNearestPointOnOrBefore(timeSeriesData, targetDate, isNormalized = false) {
+        const normalized = isNormalized
+            ? (Array.isArray(timeSeriesData) ? timeSeriesData : [])
+            : normalizeTimeSeriesData(timeSeriesData);
         if (!normalized.length) {
             return null;
         }
@@ -250,8 +254,11 @@
         return null;
     }
 
-    function getWindowStartDate(windowKey, timeSeriesData, performanceDates) {
-        const latestPoint = getLatestTimeSeriesPoint(timeSeriesData);
+    function getWindowStartDate(windowKey, timeSeriesData, performanceDates, isNormalized = false) {
+        const normalized = isNormalized
+            ? (Array.isArray(timeSeriesData) ? timeSeriesData : [])
+            : normalizeTimeSeriesData(timeSeriesData);
+        const latestPoint = getLatestTimeSeriesPoint(normalized, true);
         if (!latestPoint) {
             return null;
         }
@@ -287,8 +294,9 @@
         if (!startDate) {
             return null;
         }
-        const startPoint = findNearestPointOnOrBefore(timeSeriesData, startDate);
-        const endPoint = getLatestTimeSeriesPoint(timeSeriesData);
+        const normalized = normalizeTimeSeriesData(timeSeriesData);
+        const startPoint = findNearestPointOnOrBefore(normalized, startDate, true);
+        const endPoint = getLatestTimeSeriesPoint(normalized, true);
         if (!startPoint || !endPoint) {
             return null;
         }
@@ -340,13 +348,15 @@
         return mapReturnsTableToWindowReturns(returnsTable);
     }
 
-    function mergeTimeSeriesByDate(timeSeriesCollection) {
+    function mergeTimeSeriesByDate(timeSeriesCollection, seriesAreNormalized = false) {
         const totals = new Map();
         if (!Array.isArray(timeSeriesCollection)) {
             return [];
         }
         timeSeriesCollection.forEach(series => {
-            const normalized = normalizeTimeSeriesData(series);
+            const normalized = seriesAreNormalized
+                ? (Array.isArray(series) ? series : [])
+                : normalizeTimeSeriesData(series);
             normalized.forEach(point => {
                 const existing = totals.get(point.dateString);
                 if (existing) {
@@ -365,9 +375,12 @@
             .map(entry => ({ date: entry.dateString, amount: entry.amount }));
     }
 
-    function getTimeSeriesWindow(timeSeriesData, startDate) {
+    function getTimeSeriesWindow(timeSeriesData, startDate, isNormalized = false) {
+        const normalized = isNormalized
+            ? (Array.isArray(timeSeriesData) ? timeSeriesData : [])
+            : normalizeTimeSeriesData(timeSeriesData);
         if (!startDate) {
-            return normalizeTimeSeriesData(timeSeriesData).map(point => ({
+            return normalized.map(point => ({
                 date: point.dateString,
                 amount: point.amount
             }));
@@ -376,7 +389,7 @@
         if (!isFinite(targetDate?.getTime())) {
             return [];
         }
-        return normalizeTimeSeriesData(timeSeriesData)
+        return normalized
             .filter(point => point.date.getTime() >= targetDate.getTime())
             .map(point => ({ date: point.dateString, amount: point.amount }));
     }
@@ -1151,16 +1164,19 @@
         if (!performanceResponses.length) {
             return null;
         }
-        const mergedSeries = mergeTimeSeriesByDate(
-            performanceResponses.map(response => response?.timeSeries?.data || [])
+        const normalizedSeriesCollection = performanceResponses.map(response =>
+            normalizeTimeSeriesData(response?.timeSeries?.data || [])
         );
+        const mergedSeries = mergeTimeSeriesByDate(normalizedSeriesCollection, true);
+        const normalizedMergedSeries = normalizeTimeSeriesData(mergedSeries);
         const primaryPerformanceDates = performanceResponses[0]?.performanceDates;
         const windowStart = getWindowStartDate(
             PERFORMANCE_CHART_WINDOW,
-            mergedSeries,
-            primaryPerformanceDates
+            normalizedMergedSeries,
+            primaryPerformanceDates,
+            true
         );
-        const windowSeries = getTimeSeriesWindow(mergedSeries, windowStart);
+        const windowSeries = getTimeSeriesWindow(normalizedMergedSeries, windowStart, true);
         const windowReturns = performanceResponses.length === 1
             ? derivePerformanceWindows(
                 performanceResponses[0]?.returnsTable,
@@ -1169,7 +1185,7 @@
             )
             : calculateWeightedWindowReturns(performanceResponses, primaryPerformanceDates);
 
-        const metrics = summarizePerformanceMetrics(performanceResponses, mergedSeries);
+        const metrics = summarizePerformanceMetrics(performanceResponses, normalizedMergedSeries);
 
         return {
             mergedSeries,
