@@ -13,7 +13,7 @@ applies_to:
 ## Project Overview
 
 **Type**: Browser Extension (Tampermonkey Userscript)  
-**Purpose**: Enhance Endowus investment platform with custom portfolio visualization  
+**Purpose**: Enhance the Endowus (Singapore) investment platform with custom portfolio visualization  
 **Architecture**: Single-file JavaScript with API interception  
 **Key Feature**: Organize investment goals into custom "buckets" for better portfolio management
 
@@ -379,11 +379,11 @@ function escapeHtml(text) {
 
 Before any commit:
 - [ ] Test in clean browser profile with fresh Tampermonkey install
-- [ ] Verify button appears on Endowus page
+- [ ] Verify button appears on the platform page (app.sg.endowus.com)
 - [ ] Check modal opens and displays data correctly
 - [ ] Test with zero goals (empty state)
 - [ ] Test with negative returns
-- [ ] Verify financial calculations match Endowus (spot check 3 goals)
+- [ ] Verify financial calculations match the platform (spot check 3 goals)
 - [ ] Test in Chrome, Firefox, Edge
 - [ ] Check console for errors (should be zero in production mode)
 - [ ] Verify no data leaves browser (check Network tab)
@@ -580,7 +580,7 @@ if (DEBUG) {
 2. **Data not merging**: Verify all 3 endpoints have been called
 3. **UI not updating**: Check for JavaScript errors in console
 4. **Calculations wrong**: Verify input data, check for division by zero
-5. **Button not appearing**: Check CSS conflicts with Endowus styles
+5. **Button not appearing**: Check CSS conflicts with platform styles
 
 ---
 
@@ -652,7 +652,7 @@ Fixes #38
 ### DO NOT
 
 - ❌ Send data to external servers
-- ❌ Modify Endowus API requests (only intercept responses)
+- ❌ Modify platform API requests (only intercept responses)
 - ❌ Use external libraries (keep it vanilla JS)
 - ❌ Add build process (must work as single file)
 - ❌ Break bucket naming convention without migration
@@ -685,7 +685,7 @@ Fixes #38
 
 ### File Structure
 ```
-endowus_view_enhancer/
+goal_view_enhancer/
 ├── .github/
 │   └── copilot-instructions.md (this file)
 ├── tampermonkey/
