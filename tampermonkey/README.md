@@ -187,9 +187,11 @@ To modify the script for your needs:
 
 ### Key Functions
 
-- `mergeAPIResponses()`: Processes and merges API data
-- `renderSummaryView()`: Renders the summary view
-- `renderBucketView()`: Renders detailed bucket view
+- `buildMergedInvestmentData()`: Merges API data into bucket map
+- `buildSummaryViewModel()`: Builds summary view data for rendering
+- `buildBucketDetailViewModel()`: Builds bucket detail view data for rendering
+- `renderSummaryView()`: Renders the summary view from view-model data
+- `renderBucketView()`: Renders detailed bucket view from view-model data
 - `injectStyles()`: Adds modern CSS styling
 - `showOverlay()`: Creates and displays the modal
 

@@ -403,8 +403,9 @@ const API_ENDPOINTS = {
 };
 
 // === Data Processing ===
-function mergeAPIResponses() { /* ... */ }
-function aggregateBuckets() { /* ... */ }
+function buildMergedInvestmentData() { /* ... */ }
+function buildSummaryViewModel() { /* ... */ }
+function buildBucketDetailViewModel() { /* ... */ }
 
 // === UI Rendering ===
 function renderSummaryView() { /* ... */ }
@@ -431,20 +432,6 @@ function debug(message, data) {
 // Usage
 debug('API Response:', responseData);
 debug('Merged Data:', mergedData);
-```
-
-#### Inspecting Intercepted Data
-
-```javascript
-window.portfolioViewerDebug = {
-    performanceData: [],
-    investibleData: [],
-    summaryData: [],
-    mergedData: []
-};
-
-// Access via console:
-// portfolioViewerDebug.performanceData
 ```
 
 #### Testing Without Live Data
@@ -600,13 +587,13 @@ allIds.forEach(id => {
 
 **Diagnosis:**
 ```javascript
-// Check if styles are injected
-const styleElement = document.getElementById('portfolio-viewer-styles');
-console.log('Styles injected:', !!styleElement);
+// Check if the trigger button is present
+const button = document.querySelector('.gpv-trigger-btn');
+console.log('Trigger button present:', !!button);
 
-// Check for CSS conflicts
-const button = document.getElementById('portfolio-viewer-button');
-console.log('Button computed styles:', window.getComputedStyle(button));
+// Check if the overlay is present after opening
+const overlay = document.querySelector('.gpv-overlay');
+console.log('Overlay present:', !!overlay);
 ```
 
 **Solutions:**
@@ -634,15 +621,17 @@ console.log('Button computed styles:', window.getComputedStyle(button));
 
 ### Q: Can I modify the bucket naming convention?
 
-Yes, modify the `extractBucket()` function:
+Yes, update the bucket derivation logic inside `buildMergedInvestmentData()`:
 
 ```javascript
-function extractBucket(goalName) {
-    // Original: "BucketName - Goal Description"
-    // New: "Goal Description (BucketName)"
-    const match = goalName.match(/\(([^)]+)\)$/);
-    return match ? match[1] : 'Uncategorized';
-}
+// Current behavior (first word):
+const goalName = invest.goalName || summary.goalName || '';
+const firstWord = goalName.trim().split(' ')[0];
+const goalBucket = firstWord && firstWord.length > 0 ? firstWord : 'Uncategorized';
+
+// Example alternative (bucket in parentheses):
+// const match = goalName.match(/\\(([^)]+)\\)$/);
+// const goalBucket = match ? match[1] : 'Uncategorized';
 ```
 
 ### Q: How do I add a new calculated field?
