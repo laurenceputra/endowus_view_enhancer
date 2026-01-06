@@ -392,6 +392,16 @@ The `bucketViewModel` contains:
 4. Test functionality
 5. Check browser console for errors
 
+### Version Bump Checklist
+
+When shipping a release, update every version touchpoint to keep them aligned:
+
+1. **Userscript metadata**: `tampermonkey/goal_portfolio_viewer.user.js` → `// @version`
+2. **Package metadata**: `package.json` → `"version"`
+3. **Changelog**: `tampermonkey/README.md` → add a new entry under `## Changelog`
+
+If any of these are missed, Tampermonkey auto-updates or release notes can drift from the actual code.
+
 **Key Sections to Modify:**
 
 ```javascript
