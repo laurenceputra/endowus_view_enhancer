@@ -235,14 +235,21 @@ are computed in view-model helpers to keep the DOM rendering layer thin and test
 
 ### Performance Window Derivation
 
-Performance windows (1D, 7D, 6M, QTD, YTD, 1Y) are derived from a mix of API values and local calculations:
+The current UI only surfaces windows that are directly available from the API returns table:
 
-1. **Returns table** values are used when available (6M, 1Y, YTD).
-2. **Time-weighted return windows** are read from `returnsTable.twr.*` using the `*Value` fields:
-   - 1M (`oneMonthValue`), 6M (`sixMonthValue`), YTD (`ytdValue`), 1Y (`oneYearValue`), 3Y (`threeYearValue`).
-   - When multiple goals are combined, window returns are weighted by net investment across goals.
-   - Goals without a TWR value for a window are excluded from that window’s aggregate.
-3. **Nearest available date** is chosen when exact window start dates fall on non-trading days.
+- 1M (`oneMonthValue`)
+- 6M (`sixMonthValue`)
+- YTD (`ytdValue`)
+- 1Y (`oneYearValue`)
+- 3Y (`threeYearValue`)
+
+These values are mapped by `mapReturnsTableToWindowReturns()` and aggregated by
+`calculateWeightedWindowReturns()` when multiple goals are combined. Goals without a
+TWR value for a window are excluded from that window’s aggregate.
+
+**Note:** The codebase includes helper functions like `getWindowStartDate()` and
+`calculateReturnFromTimeSeries()` that can support date-derived windows, but the
+current implementation does not compute 1D, 7D, or QTD windows.
 
 ### Sequential Fetch Queue + Cache
 
