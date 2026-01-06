@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.3.2
+// @version      2.3.3
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -213,13 +213,17 @@
             .sort((a, b) => a.date.getTime() - b.date.getTime());
     }
 
-    function getLatestTimeSeriesPoint(timeSeriesData) {
-        const normalized = normalizeTimeSeriesData(timeSeriesData);
+    function getLatestTimeSeriesPoint(timeSeriesData, isNormalized = false) {
+        const normalized = isNormalized
+            ? (Array.isArray(timeSeriesData) ? timeSeriesData : [])
+            : normalizeTimeSeriesData(timeSeriesData);
         return normalized.length ? normalized[normalized.length - 1] : null;
     }
 
-    function findNearestPointOnOrBefore(timeSeriesData, targetDate) {
-        const normalized = normalizeTimeSeriesData(timeSeriesData);
+    function findNearestPointOnOrBefore(timeSeriesData, targetDate, isNormalized = false) {
+        const normalized = isNormalized
+            ? (Array.isArray(timeSeriesData) ? timeSeriesData : [])
+            : normalizeTimeSeriesData(timeSeriesData);
         if (!normalized.length) {
             return null;
         }
@@ -250,8 +254,11 @@
         return null;
     }
 
-    function getWindowStartDate(windowKey, timeSeriesData, performanceDates) {
-        const latestPoint = getLatestTimeSeriesPoint(timeSeriesData);
+    function getWindowStartDate(windowKey, timeSeriesData, performanceDates, isNormalized = false) {
+        const normalized = isNormalized
+            ? (Array.isArray(timeSeriesData) ? timeSeriesData : [])
+            : normalizeTimeSeriesData(timeSeriesData);
+        const latestPoint = getLatestTimeSeriesPoint(normalized, true);
         if (!latestPoint) {
             return null;
         }
@@ -287,8 +294,9 @@
         if (!startDate) {
             return null;
         }
-        const startPoint = findNearestPointOnOrBefore(timeSeriesData, startDate);
-        const endPoint = getLatestTimeSeriesPoint(timeSeriesData);
+        const normalized = normalizeTimeSeriesData(timeSeriesData);
+        const startPoint = findNearestPointOnOrBefore(normalized, startDate, true);
+        const endPoint = getLatestTimeSeriesPoint(normalized, true);
         if (!startPoint || !endPoint) {
             return null;
         }
@@ -340,13 +348,15 @@
         return mapReturnsTableToWindowReturns(returnsTable);
     }
 
-    function mergeTimeSeriesByDate(timeSeriesCollection) {
+    function mergeTimeSeriesByDate(timeSeriesCollection, seriesAreNormalized = false) {
         const totals = new Map();
         if (!Array.isArray(timeSeriesCollection)) {
             return [];
         }
         timeSeriesCollection.forEach(series => {
-            const normalized = normalizeTimeSeriesData(series);
+            const normalized = seriesAreNormalized
+                ? (Array.isArray(series) ? series : [])
+                : normalizeTimeSeriesData(series);
             normalized.forEach(point => {
                 const existing = totals.get(point.dateString);
                 if (existing) {
@@ -365,9 +375,12 @@
             .map(entry => ({ date: entry.dateString, amount: entry.amount }));
     }
 
-    function getTimeSeriesWindow(timeSeriesData, startDate) {
+    function getTimeSeriesWindow(timeSeriesData, startDate, isNormalized = false) {
+        const normalized = isNormalized
+            ? (Array.isArray(timeSeriesData) ? timeSeriesData : [])
+            : normalizeTimeSeriesData(timeSeriesData);
         if (!startDate) {
-            return normalizeTimeSeriesData(timeSeriesData).map(point => ({
+            return normalized.map(point => ({
                 date: point.dateString,
                 amount: point.amount
             }));
@@ -376,7 +389,7 @@
         if (!isFinite(targetDate?.getTime())) {
             return [];
         }
-        return normalizeTimeSeriesData(timeSeriesData)
+        return normalized
             .filter(point => point.date.getTime() >= targetDate.getTime())
             .map(point => ({ date: point.dateString, amount: point.amount }));
     }
@@ -1151,16 +1164,19 @@
         if (!performanceResponses.length) {
             return null;
         }
-        const mergedSeries = mergeTimeSeriesByDate(
-            performanceResponses.map(response => response?.timeSeries?.data || [])
+        const normalizedSeriesCollection = performanceResponses.map(response =>
+            normalizeTimeSeriesData(response?.timeSeries?.data || [])
         );
+        const mergedSeries = mergeTimeSeriesByDate(normalizedSeriesCollection, true);
+        const normalizedMergedSeries = normalizeTimeSeriesData(mergedSeries);
         const primaryPerformanceDates = performanceResponses[0]?.performanceDates;
         const windowStart = getWindowStartDate(
             PERFORMANCE_CHART_WINDOW,
-            mergedSeries,
-            primaryPerformanceDates
+            normalizedMergedSeries,
+            primaryPerformanceDates,
+            true
         );
-        const windowSeries = getTimeSeriesWindow(mergedSeries, windowStart);
+        const windowSeries = getTimeSeriesWindow(normalizedMergedSeries, windowStart, true);
         const windowReturns = performanceResponses.length === 1
             ? derivePerformanceWindows(
                 performanceResponses[0]?.returnsTable,
@@ -1169,7 +1185,7 @@
             )
             : calculateWeightedWindowReturns(performanceResponses, primaryPerformanceDates);
 
-        const metrics = summarizePerformanceMetrics(performanceResponses, mergedSeries);
+        const metrics = summarizePerformanceMetrics(performanceResponses, normalizedMergedSeries);
 
         return {
             mergedSeries,
@@ -1513,7 +1529,7 @@
         return table;
     }
 
-    function renderGoalTypePerformance(typeSection, goalIds) {
+    function renderGoalTypePerformance(typeSection, goalIds, cleanupCallbacks) {
         const performanceContainer = document.createElement('div');
         performanceContainer.className = 'gpv-performance-container';
 
@@ -1561,7 +1577,10 @@
                 }
                 const initialWidth = chartWrapper.getBoundingClientRect().width;
                 chartWrapper.style.height = `${getChartHeightForWidth(initialWidth)}px`;
-                initializePerformanceChart(chartWrapper, summary.windowSeries);
+                const cleanup = initializePerformanceChart(chartWrapper, summary.windowSeries);
+                if (typeof cleanup === 'function' && Array.isArray(cleanupCallbacks)) {
+                    cleanupCallbacks.push(cleanup);
+                }
             });
         });
     }
@@ -1656,7 +1675,7 @@
         contentDiv.appendChild(summaryContainer);
     }
 
-    function renderBucketView(contentDiv, bucket, mergedInvestmentDataState, projectedInvestmentsState) {
+    function renderBucketView(contentDiv, bucket, mergedInvestmentDataState, projectedInvestmentsState, cleanupCallbacks) {
         contentDiv.innerHTML = '';
         const bucketObj = mergedInvestmentDataState[bucket];
         if (!bucketObj) return;
@@ -1732,7 +1751,8 @@
 
             renderGoalTypePerformance(
                 typeSection,
-                group.goals.map(goal => goal.goalId).filter(Boolean)
+                group.goals.map(goal => goal.goalId).filter(Boolean),
+                cleanupCallbacks
             );
 
             // Add projected investment input section as sibling after performance container
@@ -2736,7 +2756,17 @@
 
     function showOverlay() {
         let old = document.getElementById('gpv-overlay');
-        if (old) old.remove();
+        if (old) {
+            if (Array.isArray(old.gpvCleanupCallbacks)) {
+                old.gpvCleanupCallbacks.forEach(callback => {
+                    if (typeof callback === 'function') {
+                        callback();
+                    }
+                });
+                old.gpvCleanupCallbacks.length = 0;
+            }
+            old.remove();
+        }
 
         const data = buildMergedInvestmentData(
             apiData.performance,
@@ -2756,6 +2786,9 @@
 
         const container = document.createElement('div');
         container.className = 'gpv-container';
+        const cleanupCallbacks = [];
+        container.gpvCleanupCallbacks = cleanupCallbacks;
+        overlay.gpvCleanupCallbacks = cleanupCallbacks;
 
         const header = document.createElement('div');
         header.className = 'gpv-header';
@@ -2766,7 +2799,30 @@
         const closeBtn = document.createElement('button');
         closeBtn.className = 'gpv-close-btn';
         closeBtn.innerHTML = '✕';
-        closeBtn.onclick = () => overlay.remove();
+        function teardownOverlay() {
+            if (!overlay.isConnected) {
+                return;
+            }
+            if (!Array.isArray(cleanupCallbacks)) {
+                return;
+            }
+            cleanupCallbacks.forEach(callback => {
+                if (typeof callback === 'function') {
+                    callback();
+                }
+            });
+            cleanupCallbacks.length = 0;
+        }
+
+        function closeOverlay() {
+            if (!overlay.isConnected) {
+                return;
+            }
+            teardownOverlay();
+            overlay.remove();
+        }
+
+        closeBtn.onclick = closeOverlay;
         
         header.appendChild(title);
         header.appendChild(closeBtn);
@@ -2806,7 +2862,7 @@
             if (value === 'SUMMARY') {
                 renderSummaryView(contentDiv, data, onBucketSelect);
             } else {
-                renderBucketView(contentDiv, value, data, projectedInvestments);
+                renderBucketView(contentDiv, value, data, projectedInvestments, cleanupCallbacks);
             }
         }
 
@@ -2829,7 +2885,7 @@
         // Close overlay when clicking outside the container
         overlay.onclick = (e) => {
             if (e.target === overlay) {
-                overlay.remove();
+                closeOverlay();
             }
         };
         
@@ -2885,9 +2941,13 @@
     }
     
     function startUrlMonitoring() {
-        // Check immediately
+        if (window.__gpvUrlMonitorCleanup) {
+            window.__gpvUrlMonitorCleanup();
+        }
+
+        lastUrl = window.location.href;
         updateButtonVisibility();
-        
+
         // Debounce function to limit how often handleUrlChange can be called
         let urlCheckTimeout = null;
         const debouncedUrlCheck = () => {
@@ -2896,35 +2956,59 @@
             }
             urlCheckTimeout = setTimeout(handleUrlChange, 100);
         };
-        
-        // Use MutationObserver to detect URL changes in the SPA
-        // This serves as a fallback for navigation patterns not caught by History API
-        const observer = new MutationObserver(debouncedUrlCheck);
-        
-        // Observe changes to the entire document
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-        
+
         // Listen to popstate event for browser back/forward navigation
         window.addEventListener('popstate', handleUrlChange);
-        
+
         // Override pushState to detect programmatic navigation
         const originalPushState = history.pushState;
         history.pushState = function(...args) {
-            originalPushState.apply(this, args);
+            const result = originalPushState.apply(this, args);
             handleUrlChange();
+            return result;
         };
-        
+
         // Override replaceState to detect programmatic navigation
         const originalReplaceState = history.replaceState;
         history.replaceState = function(...args) {
-            originalReplaceState.apply(this, args);
+            const result = originalReplaceState.apply(this, args);
             handleUrlChange();
+            return result;
         };
-        
-        console.log('[Goal Portfolio Viewer] URL monitoring started with MutationObserver');
+
+        const intervalId = window.setInterval(handleUrlChange, 500);
+
+        const appRoot = document.querySelector('#root')
+            || document.querySelector('#app')
+            || document.querySelector('main');
+        let observer = null;
+
+        if (appRoot) {
+            // Use MutationObserver as a fallback for navigation patterns not caught by History API
+            observer = new MutationObserver(debouncedUrlCheck);
+            observer.observe(appRoot, {
+                childList: true,
+                subtree: true
+            });
+        }
+
+        window.__gpvUrlMonitorCleanup = () => {
+            window.removeEventListener('popstate', handleUrlChange);
+            history.pushState = originalPushState;
+            history.replaceState = originalReplaceState;
+            window.clearInterval(intervalId);
+            if (observer) {
+                observer.disconnect();
+                observer = null;
+            }
+            if (urlCheckTimeout) {
+                clearTimeout(urlCheckTimeout);
+                urlCheckTimeout = null;
+            }
+            window.__gpvUrlMonitorCleanup = null;
+        };
+
+        console.log('[Goal Portfolio Viewer] URL monitoring started with History API hooks');
     }
     
     function init() {
