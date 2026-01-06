@@ -139,7 +139,7 @@ combined, percentage metrics are weighted by each goal’s net investment amount
 
 ### Data Merging Logic
 
-The script combines data from three API endpoints:
+The script combines data from three API endpoints into a bucket map used by the UI:
 
 1. **Performance Data** (`/v1/goals/performance`)
    - Cumulative returns
@@ -156,52 +156,71 @@ The script combines data from three API endpoints:
    - Goal descriptions
    - Goal IDs
 
-**Merge Algorithm:**
+**Merge Algorithm (current implementation):**
 
 ```javascript
-function mergeAPIResponses() {
-    const merged = {};
-    
-    // Start with performance data as base
-    performanceData.forEach(goal => {
-        merged[goal.id] = {
-            id: goal.id,
-            cumulativeReturn: goal.cumulativeReturn,
-            growthPercentage: goal.growthPercentage
+function buildMergedInvestmentData(performanceData, investibleData, summaryData) {
+    if (!performanceData || !investibleData || !summaryData) {
+        return null;
+    }
+
+    const investibleMap = {};
+    investibleData.forEach(item => investibleMap[item.goalId] = item);
+
+    const summaryMap = {};
+    summaryData.forEach(item => summaryMap[item.goalId] = item);
+
+    const bucketMap = {};
+
+    performanceData.forEach(perf => {
+        const invest = investibleMap[perf.goalId] || {};
+        const summary = summaryMap[perf.goalId] || {};
+        const goalName = invest.goalName || summary.goalName || '';
+        const firstWord = goalName.trim().split(' ')[0];
+        const goalBucket = firstWord && firstWord.length > 0 ? firstWord : 'Uncategorized';
+
+        const goalObj = {
+            goalId: perf.goalId,
+            goalName,
+            goalBucket,
+            goalType: invest.investmentGoalType || summary.investmentGoalType || '',
+            totalInvestmentAmount: invest.totalInvestmentAmount?.display?.amount || null,
+            totalCumulativeReturn: perf.totalCumulativeReturn?.amount || null,
+            simpleRateOfReturnPercent: perf.simpleRateOfReturnPercent || null
         };
-    });
-    
-    // Add investment details
-    investibleData.forEach(goal => {
-        if (merged[goal.id]) {
-            merged[goal.id].investment = goal.investment;
-            merged[goal.id].goalType = goal.goalType;
+
+        if (!bucketMap[goalBucket]) {
+            bucketMap[goalBucket] = { total: 0 };
+        }
+
+        if (!bucketMap[goalBucket][goalObj.goalType]) {
+            bucketMap[goalBucket][goalObj.goalType] = {
+                totalInvestmentAmount: 0,
+                totalCumulativeReturn: 0,
+                goals: []
+            };
+        }
+
+        bucketMap[goalBucket][goalObj.goalType].goals.push(goalObj);
+
+        if (typeof goalObj.totalInvestmentAmount === 'number') {
+            bucketMap[goalBucket][goalObj.goalType].totalInvestmentAmount += goalObj.totalInvestmentAmount;
+            bucketMap[goalBucket].total += goalObj.totalInvestmentAmount;
+        }
+
+        if (typeof goalObj.totalCumulativeReturn === 'number') {
+            bucketMap[goalBucket][goalObj.goalType].totalCumulativeReturn += goalObj.totalCumulativeReturn;
         }
     });
-    
-    // Add goal names and extract buckets
-    summaryData.forEach(goal => {
-        if (merged[goal.id]) {
-            merged[goal.id].name = goal.name;
-            merged[goal.id].bucket = extractBucket(goal.name);
-        }
-    });
-    
-    return Object.values(merged);
+
+    return bucketMap;
 }
 ```
 
 ### Bucket Extraction
 
-Goals are grouped by extracting the bucket name from the goal title:
-
-```javascript
-function extractBucket(goalName) {
-    // Format: "BucketName - Goal Description"
-    const parts = goalName.split(' - ');
-    return parts[0] || 'Uncategorized';
-}
-```
+Buckets are derived from the first word in the goal name. This matches the
+goal naming convention used in the UI: `"BucketName - Goal Description"`.
 
 **Examples:**
 - `"Retirement - Core Portfolio"` → Bucket: `"Retirement"`
@@ -210,51 +229,9 @@ function extractBucket(goalName) {
 
 ### Aggregation Calculations
 
-#### Bucket-Level Aggregation
-
-```javascript
-function aggregateBucket(goals) {
-    return {
-        totalInvestment: goals.reduce((sum, g) => sum + g.investment, 0),
-        totalReturn: goals.reduce((sum, g) => sum + g.cumulativeReturn, 0),
-        growthPercentage: (totalReturn / totalInvestment) * 100,
-        goalsByType: groupByGoalType(goals)
-    };
-}
-```
-
-#### Goal Type Aggregation
-
-```javascript
-function groupByGoalType(goals) {
-    const types = {};
-    
-    goals.forEach(goal => {
-        const type = goal.goalType;
-        if (!types[type]) {
-            types[type] = {
-                goals: [],
-                totalInvestment: 0,
-                totalReturn: 0
-            };
-        }
-        
-        types[type].goals.push(goal);
-        types[type].totalInvestment += goal.investment;
-        types[type].totalReturn += goal.cumulativeReturn;
-    });
-    
-    return types;
-}
-```
-
-#### Percentage Calculations
-
-```javascript
-function calculatePercentageOfType(goal, typeTotal) {
-    return (goal.investment / typeTotal.totalInvestment) * 100;
-}
-```
+Bucket totals and per-goal-type totals are aggregated while building the bucket map
+(`buildMergedInvestmentData`). UI-specific calculations (returns, percentages, diffs)
+are computed in view-model helpers to keep the DOM rendering layer thin and testable.
 
 ### Performance Window Derivation
 
@@ -349,66 +326,39 @@ function getReturnColor(value) {
 
 ### Rendering Functions
 
+The UI renders DOM elements directly. To keep DOM rendering thin, the script builds
+plain view-model objects and passes them into the renderer functions.
+
 #### Summary View Rendering
 
 ```javascript
-function renderSummaryView(data) {
-    const buckets = groupByBucket(data);
-    
-    let html = '<div class="summary-container">';
-    
-    for (const [bucketName, bucketData] of Object.entries(buckets)) {
-        html += renderBucketCard(bucketName, bucketData);
-    }
-    
-    html += '</div>';
-    return html;
-}
+const summaryViewModel = buildSummaryViewModel(bucketMap);
+renderSummaryView(contentDiv, summaryViewModel, onBucketSelect);
 ```
+
+The `summaryViewModel` contains:
+- bucket names
+- totals/returns/growth display strings
+- per-goal-type rows with display names
 
 #### Detail View Rendering
 
 ```javascript
-function renderBucketView(bucketName, goals) {
-    const byType = groupByGoalType(goals);
-    
-    let html = '<div class="detail-container">';
-    html += `<h2>${bucketName}</h2>`;
-    
-    for (const [type, typeData] of Object.entries(byType)) {
-        html += renderGoalTable(type, typeData);
-    }
-    
-    html += '</div>';
-    return html;
-}
+const goalIds = collectGoalIds(bucketMap[bucketName]);
+const goalTargetById = buildGoalTargetById(goalIds, getGoalTargetPercentage);
+const bucketViewModel = buildBucketDetailViewModel(
+    bucketName,
+    bucketMap,
+    projectedInvestments,
+    goalTargetById
+);
+renderBucketView(contentDiv, bucketViewModel, bucketMap, projectedInvestments, cleanupCallbacks);
 ```
 
-#### Table Generation
-
-```javascript
-function renderGoalTable(goalType, data) {
-    return `
-        <div class="goal-type-section">
-            <h3>${goalType}</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Goal</th>
-                        <th>Investment</th>
-                        <th>% of ${goalType}</th>
-                        <th>Return</th>
-                        <th>Growth %</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${data.goals.map(g => renderGoalRow(g, data.totalInvestment)).join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
-}
-```
+The `bucketViewModel` contains:
+- bucket totals and growth display strings
+- per-goal-type sections (with projected investment inputs)
+- per-goal rows (targets, diffs, return classes)
 
 ---
 

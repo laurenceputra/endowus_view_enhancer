@@ -235,6 +235,10 @@ Contributions are welcome! To contribute:
 
 ## Changelog
 
+### Version 2.4.0
+- Refactored UI rendering to use view-model builders for better testability
+- Added unit tests and fixtures for UI view models and calculation helpers
+
 ### Version 2.0.0
 - Initial Tampermonkey release
 - Modern UI with gradient design
