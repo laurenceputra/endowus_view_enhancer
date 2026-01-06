@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.3.3
+// @version      2.4.0
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -80,6 +80,227 @@
         const denom = t - a; // principal (original investment)
         if (!isFinite(a) || !isFinite(t) || denom === 0) return '-';
         return ((a / denom) * 100).toFixed(2) + '%';
+    }
+
+    function getReturnClass(value) {
+        const numericValue = Number(value);
+        if (!isFinite(numericValue)) {
+            return '';
+        }
+        return numericValue >= 0 ? 'positive' : 'negative';
+    }
+
+    function calculatePercentOfType(amount, total) {
+        const numericAmount = Number(amount);
+        const numericTotal = Number(total);
+        if (!isFinite(numericAmount) || !isFinite(numericTotal) || numericTotal <= 0) {
+            return '0.00';
+        }
+        return ((numericAmount / numericTotal) * 100).toFixed(2);
+    }
+
+    function calculateGoalDiff(currentAmount, targetPercent, adjustedTypeTotal) {
+        const numericCurrent = Number(currentAmount);
+        const numericTarget = Number(targetPercent);
+        const numericTotal = Number(adjustedTypeTotal);
+        if (
+            targetPercent === null
+            || targetPercent === undefined
+            || !isFinite(numericCurrent)
+            || !isFinite(numericTarget)
+            || !isFinite(numericTotal)
+            || numericTotal <= 0
+        ) {
+            return { diffAmount: null, diffDisplay: '-', diffClass: '' };
+        }
+        const targetAmount = (numericTarget / 100) * numericTotal;
+        const diffAmount = numericCurrent - targetAmount;
+        const threshold = numericCurrent * 0.05;
+        const diffClass = Math.abs(diffAmount) > threshold ? 'negative' : 'positive';
+        return {
+            diffAmount,
+            diffDisplay: formatMoney(diffAmount),
+            diffClass
+        };
+    }
+
+    function getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType) {
+        if (!projectedInvestmentsState || typeof projectedInvestmentsState !== 'object') {
+            return 0;
+        }
+        const key = getProjectedInvestmentKey(bucket, goalType);
+        const value = projectedInvestmentsState[key];
+        return typeof value === 'number' && isFinite(value) ? value : 0;
+    }
+
+    function buildDiffCellData(currentAmount, targetPercent, adjustedTypeTotal) {
+        const diffInfo = calculateGoalDiff(currentAmount, targetPercent, adjustedTypeTotal);
+        return {
+            diffDisplay: diffInfo.diffDisplay,
+            diffClassName: diffInfo.diffClass ? `gpv-diff-cell ${diffInfo.diffClass}` : 'gpv-diff-cell'
+        };
+    }
+
+    function buildSummaryViewModel(bucketMap) {
+        if (!bucketMap || typeof bucketMap !== 'object') {
+            return { buckets: [] };
+        }
+        const buckets = Object.keys(bucketMap)
+            .sort()
+            .map(bucketName => {
+                const bucketObj = bucketMap[bucketName];
+                if (!bucketObj) {
+                    return null;
+                }
+                const goalTypes = Object.keys(bucketObj).filter(key => key !== 'total');
+                const bucketTotalReturn = goalTypes.reduce((total, goalType) => {
+                    const value = bucketObj[goalType]?.totalCumulativeReturn;
+                    return total + (isFinite(value) ? value : 0);
+                }, 0);
+                const orderedTypes = sortGoalTypes(goalTypes);
+                return {
+                    bucketName,
+                    totalInvestmentAmount: bucketObj.total || 0,
+                    totalReturn: bucketTotalReturn,
+                    totalDisplay: formatMoney(bucketObj.total),
+                    returnDisplay: formatMoney(bucketTotalReturn),
+                    growthDisplay: formatGrowthPercent(bucketTotalReturn, bucketObj.total),
+                    returnClass: getReturnClass(bucketTotalReturn),
+                    goalTypes: orderedTypes
+                        .map(goalType => {
+                            const group = bucketObj[goalType];
+                            if (!group) {
+                                return null;
+                            }
+                            const typeReturn = group.totalCumulativeReturn || 0;
+                            return {
+                                goalType,
+                                displayName: getDisplayGoalType(goalType),
+                                totalInvestmentAmount: group.totalInvestmentAmount || 0,
+                                totalInvestmentDisplay: formatMoney(group.totalInvestmentAmount),
+                                returnAmount: typeReturn,
+                                returnDisplay: formatMoney(typeReturn),
+                                growthDisplay: formatGrowthPercent(typeReturn, group.totalInvestmentAmount),
+                                returnClass: getReturnClass(typeReturn)
+                            };
+                        })
+                        .filter(Boolean)
+                };
+            })
+            .filter(Boolean);
+        return { buckets };
+    }
+
+    function buildBucketDetailViewModel(bucketName, bucketMap, projectedInvestmentsState, goalTargetById) {
+        if (!bucketMap || typeof bucketMap !== 'object' || !bucketName) {
+            return null;
+        }
+        const bucketObj = bucketMap[bucketName];
+        if (!bucketObj) {
+            return null;
+        }
+        const goalTypes = Object.keys(bucketObj).filter(key => key !== 'total');
+        const bucketTotalReturn = goalTypes.reduce((total, goalType) => {
+            const value = bucketObj[goalType]?.totalCumulativeReturn;
+            return total + (isFinite(value) ? value : 0);
+        }, 0);
+        const orderedTypes = sortGoalTypes(goalTypes);
+        const projectedInvestments = projectedInvestmentsState || {};
+        const goalTargets = goalTargetById || {};
+
+        return {
+            bucketName,
+            totalInvestmentAmount: bucketObj.total || 0,
+            totalReturn: bucketTotalReturn,
+            totalDisplay: formatMoney(bucketObj.total),
+            returnDisplay: formatMoney(bucketTotalReturn),
+            growthDisplay: formatGrowthPercent(bucketTotalReturn, bucketObj.total),
+            returnClass: getReturnClass(bucketTotalReturn),
+            goalTypes: orderedTypes
+                .map(goalType => {
+                    const group = bucketObj[goalType];
+                    if (!group) {
+                        return null;
+                    }
+                    const typeReturn = group.totalCumulativeReturn || 0;
+                    const projectedAmount = getProjectedInvestmentValue(projectedInvestments, bucketName, goalType);
+                    const adjustedTotal = (group.totalInvestmentAmount || 0) + projectedAmount;
+                    const goals = Array.isArray(group.goals) ? group.goals : [];
+                    return {
+                        goalType,
+                        displayName: getDisplayGoalType(goalType),
+                        totalInvestmentAmount: group.totalInvestmentAmount || 0,
+                        totalInvestmentDisplay: formatMoney(group.totalInvestmentAmount),
+                        totalReturn: typeReturn,
+                        returnDisplay: formatMoney(typeReturn),
+                        growthDisplay: formatGrowthPercent(typeReturn, group.totalInvestmentAmount),
+                        returnClass: getReturnClass(typeReturn),
+                        projectedAmount,
+                        adjustedTotal,
+                        goals: goals.map(goal => {
+                            const investmentAmount = goal.totalInvestmentAmount || 0;
+                            const percentOfType = calculatePercentOfType(
+                                investmentAmount,
+                                group.totalInvestmentAmount
+                            );
+                            const targetPercent = typeof goalTargets[goal.goalId] === 'number'
+                                ? goalTargets[goal.goalId]
+                                : null;
+                            const diffInfo = calculateGoalDiff(investmentAmount, targetPercent, adjustedTotal);
+                            const returnPercentDisplay = goal.simpleRateOfReturnPercent !== null
+                                && goal.simpleRateOfReturnPercent !== undefined
+                                ? (goal.simpleRateOfReturnPercent * 100).toFixed(2) + '%'
+                                : '-';
+                            const returnValue = goal.totalCumulativeReturn || 0;
+                            return {
+                                goalId: goal.goalId,
+                                goalName: goal.goalName,
+                                investmentAmount,
+                                investmentDisplay: formatMoney(investmentAmount),
+                                percentOfType,
+                                targetPercent,
+                                targetDisplay: targetPercent !== null ? targetPercent.toFixed(2) : '',
+                                diffDisplay: diffInfo.diffDisplay,
+                                diffClass: diffInfo.diffClass,
+                                returnValue,
+                                returnDisplay: formatMoney(goal.totalCumulativeReturn),
+                                returnPercentDisplay,
+                                returnClass: getReturnClass(returnValue)
+                            };
+                        })
+                    };
+                })
+                .filter(Boolean)
+        };
+    }
+
+    function collectGoalIds(bucketObj) {
+        if (!bucketObj || typeof bucketObj !== 'object') {
+            return [];
+        }
+        return Object.keys(bucketObj).filter(key => key !== 'total').reduce((goalIds, goalType) => {
+            const group = bucketObj[goalType];
+            const goals = Array.isArray(group?.goals) ? group.goals : [];
+            goals.forEach(goal => {
+                if (goal?.goalId) {
+                    goalIds.push(goal.goalId);
+                }
+            });
+            return goalIds;
+        }, []);
+    }
+
+    function buildGoalTargetById(goalIds, getTargetFn) {
+        if (!Array.isArray(goalIds) || typeof getTargetFn !== 'function') {
+            return {};
+        }
+        return goalIds.reduce((acc, goalId) => {
+            const value = getTargetFn(goalId);
+            if (typeof value === 'number' && isFinite(value)) {
+                acc[goalId] = value;
+            }
+            return acc;
+        }, {});
     }
 
     /**
@@ -838,8 +1059,7 @@
      * @returns {number} Projected investment amount (0 if not set)
      */
     function getProjectedInvestment(projectedInvestmentsState, bucket, goalType) {
-        const key = getProjectedInvestmentKey(bucket, goalType);
-        return projectedInvestmentsState[key] || 0;
+        return getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType);
     }
 
     /**
@@ -1585,33 +1805,24 @@
         });
     }
     
-    function renderSummaryView(contentDiv, mergedInvestmentDataState, onBucketSelect) {
+    function renderSummaryView(contentDiv, summaryViewModel, onBucketSelect) {
         contentDiv.innerHTML = '';
 
         const summaryContainer = document.createElement('div');
         summaryContainer.className = 'gpv-summary-container';
 
-        Object.keys(mergedInvestmentDataState).sort().forEach(bucket => {
-            const bucketObj = mergedInvestmentDataState[bucket];
-            if (!bucketObj) return;
-
-            let bucketTotalReturn = 0;
-            const goalTypes = Object.keys(bucketObj).filter(k => k !== 'total');
-            goalTypes.forEach(goalType => {
-                bucketTotalReturn += bucketObj[goalType].totalCumulativeReturn || 0;
-            });
-
+        summaryViewModel.buckets.forEach(bucketModel => {
             const bucketCard = document.createElement('div');
             bucketCard.className = 'gpv-bucket-card';
-            bucketCard.dataset.bucket = bucket;
+            bucketCard.dataset.bucket = bucketModel.bucketName;
             bucketCard.setAttribute('role', 'button');
             bucketCard.setAttribute('tabindex', '0');
             if (typeof onBucketSelect === 'function') {
-                bucketCard.addEventListener('click', () => onBucketSelect(bucket));
+                bucketCard.addEventListener('click', () => onBucketSelect(bucketModel.bucketName));
                 bucketCard.addEventListener('keydown', event => {
                     if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
-                        onBucketSelect(bucket);
+                        onBucketSelect(bucketModel.bucketName);
                     }
                 });
             }
@@ -1621,27 +1832,23 @@
             
             const bucketTitle = document.createElement('h2');
             bucketTitle.className = 'gpv-bucket-title';
-            bucketTitle.textContent = bucket;
+            bucketTitle.textContent = bucketModel.bucketName;
             
             const bucketStats = document.createElement('div');
             bucketStats.className = 'gpv-bucket-stats';
             
-            const totalDisplay = formatMoney(bucketObj.total);
-            const returnDisplay = formatMoney(bucketTotalReturn);
-            const growthDisplay = formatGrowthPercent(bucketTotalReturn, bucketObj.total);
-            
             bucketStats.innerHTML = `
                 <div class="gpv-stat">
                     <span class="gpv-stat-label">Total</span>
-                    <span class="gpv-stat-value">${totalDisplay}</span>
+                    <span class="gpv-stat-value">${bucketModel.totalDisplay}</span>
                 </div>
                 <div class="gpv-stat">
                     <span class="gpv-stat-label">Return</span>
-                    <span class="gpv-stat-value ${bucketTotalReturn >= 0 ? 'positive' : 'negative'}">${returnDisplay}</span>
+                    <span class="gpv-stat-value ${bucketModel.returnClass}">${bucketModel.returnDisplay}</span>
                 </div>
                 <div class="gpv-stat">
                     <span class="gpv-stat-label">Growth</span>
-                    <span class="gpv-stat-value ${bucketTotalReturn >= 0 ? 'positive' : 'negative'}">${growthDisplay}</span>
+                    <span class="gpv-stat-value ${bucketModel.returnClass}">${bucketModel.growthDisplay}</span>
                 </div>
             `;
             
@@ -1649,22 +1856,14 @@
             bucketHeader.appendChild(bucketStats);
             bucketCard.appendChild(bucketHeader);
 
-            const orderedTypes = sortGoalTypes(goalTypes);
-            orderedTypes.forEach(goalType => {
-                const group = bucketObj[goalType];
-                if (!group) return;
-                
-                const typeTotalDisplay = formatMoney(group.totalInvestmentAmount);
-                const typeReturnDisplay = formatMoney(group.totalCumulativeReturn);
-                const typeGrowthDisplay = formatGrowthPercent(group.totalCumulativeReturn, group.totalInvestmentAmount);
-                
+            bucketModel.goalTypes.forEach(goalTypeModel => {
                 const typeRow = document.createElement('div');
                 typeRow.className = 'gpv-goal-type-row';
                 typeRow.innerHTML = `
-                    <span class="gpv-goal-type-name">${getDisplayGoalType(goalType)}</span>
-                    <span class="gpv-goal-type-stat">Total: ${typeTotalDisplay}</span>
-                    <span class="gpv-goal-type-stat">Return: ${typeReturnDisplay}</span>
-                    <span class="gpv-goal-type-stat">Growth: ${typeGrowthDisplay}</span>
+                    <span class="gpv-goal-type-name">${goalTypeModel.displayName}</span>
+                    <span class="gpv-goal-type-stat">Total: ${goalTypeModel.totalInvestmentDisplay}</span>
+                    <span class="gpv-goal-type-stat">Return: ${goalTypeModel.returnDisplay}</span>
+                    <span class="gpv-goal-type-stat">Growth: ${goalTypeModel.growthDisplay}</span>
                 `;
                 bucketCard.appendChild(typeRow);
             });
@@ -1675,43 +1874,40 @@
         contentDiv.appendChild(summaryContainer);
     }
 
-    function renderBucketView(contentDiv, bucket, mergedInvestmentDataState, projectedInvestmentsState, cleanupCallbacks) {
+    function renderBucketView(
+        contentDiv,
+        bucketViewModel,
+        mergedInvestmentDataState,
+        projectedInvestmentsState,
+        cleanupCallbacks
+    ) {
         contentDiv.innerHTML = '';
-        const bucketObj = mergedInvestmentDataState[bucket];
-        if (!bucketObj) return;
-
-        let bucketTotalReturn = 0;
-        const goalTypes = Object.keys(bucketObj).filter(k => k !== 'total');
-        goalTypes.forEach(goalType => {
-            bucketTotalReturn += bucketObj[goalType].totalCumulativeReturn || 0;
-        });
+        if (!bucketViewModel) {
+            return;
+        }
 
         const bucketHeader = document.createElement('div');
         bucketHeader.className = 'gpv-detail-header';
         
         const bucketTitle = document.createElement('h2');
         bucketTitle.className = 'gpv-detail-title';
-        bucketTitle.textContent = bucket;
+        bucketTitle.textContent = bucketViewModel.bucketName;
         
         const bucketStats = document.createElement('div');
         bucketStats.className = 'gpv-detail-stats';
         
-        const totalDisplay = formatMoney(bucketObj.total);
-        const returnDisplay = formatMoney(bucketTotalReturn);
-        const growthDisplay = formatGrowthPercent(bucketTotalReturn, bucketObj.total);
-        
         bucketStats.innerHTML = `
             <div class="gpv-stat-item">
                 <span class="gpv-stat-label">Total Investment</span>
-                <span class="gpv-stat-value">${totalDisplay}</span>
+                <span class="gpv-stat-value">${bucketViewModel.totalDisplay}</span>
             </div>
             <div class="gpv-stat-item">
                 <span class="gpv-stat-label">Total Return</span>
-                <span class="gpv-stat-value ${bucketTotalReturn >= 0 ? 'positive' : 'negative'}">${returnDisplay}</span>
+                <span class="gpv-stat-value ${bucketViewModel.returnClass}">${bucketViewModel.returnDisplay}</span>
             </div>
             <div class="gpv-stat-item">
                 <span class="gpv-stat-label">Growth</span>
-                <span class="gpv-stat-value ${bucketTotalReturn >= 0 ? 'positive' : 'negative'}">${growthDisplay}</span>
+                <span class="gpv-stat-value ${bucketViewModel.returnClass}">${bucketViewModel.growthDisplay}</span>
             </div>
         `;
         
@@ -1719,30 +1915,25 @@
         bucketHeader.appendChild(bucketStats);
         contentDiv.appendChild(bucketHeader);
 
-        const orderedTypes = sortGoalTypes(goalTypes);
-        orderedTypes.forEach(goalType => {
-            const group = bucketObj[goalType];
-            if (!group) return;
-
-            const typeReturn = group.totalCumulativeReturn || 0;
-            const typeGrowth = formatGrowthPercent(typeReturn, group.totalInvestmentAmount);
+        bucketViewModel.goalTypes.forEach(goalTypeModel => {
+            const typeGrowth = goalTypeModel.growthDisplay;
             
             const typeSection = document.createElement('div');
             typeSection.className = 'gpv-type-section';
-            typeSection.dataset.bucket = bucket;
-            typeSection.dataset.goalType = goalType;
+            typeSection.dataset.bucket = bucketViewModel.bucketName;
+            typeSection.dataset.goalType = goalTypeModel.goalType;
             
             const typeHeader = document.createElement('div');
             typeHeader.className = 'gpv-type-header';
             
             // Get current projected investment for this goal type
-            const currentProjectedInvestment = getProjectedInvestment(projectedInvestmentsState, bucket, goalType);
+            const currentProjectedInvestment = goalTypeModel.projectedAmount;
             
             typeHeader.innerHTML = `
-                <h3>${getDisplayGoalType(goalType)}</h3>
+                <h3>${goalTypeModel.displayName}</h3>
                 <div class="gpv-type-summary">
-                    <span>Total: ${formatMoney(group.totalInvestmentAmount)}</span>
-                    <span>Return: ${formatMoney(typeReturn)}</span>
+                    <span>Total: ${goalTypeModel.totalInvestmentDisplay}</span>
+                    <span>Return: ${goalTypeModel.returnDisplay}</span>
                     <span>Growth: ${typeGrowth}</span>
                 </div>
             `;
@@ -1751,7 +1942,7 @@
 
             renderGoalTypePerformance(
                 typeSection,
-                group.goals.map(goal => goal.goalId).filter(Boolean),
+                goalTypeModel.goals.map(goal => goal.goalId).filter(Boolean),
                 cleanupCallbacks
             );
 
@@ -1769,8 +1960,8 @@
                     step="100"
                     value="${currentProjectedInvestment > 0 ? currentProjectedInvestment : ''}"
                     placeholder="Enter amount"
-                    data-bucket="${bucket}"
-                    data-goal-type="${goalType}"
+                    data-bucket="${bucketViewModel.bucketName}"
+                    data-goal-type="${goalTypeModel.goalType}"
                 />
             `;
             
@@ -1781,8 +1972,8 @@
             projectedInput.addEventListener('input', function() {
                 handleProjectedInvestmentChange(
                     this,
-                    bucket,
-                    goalType,
+                    bucketViewModel.bucketName,
+                    goalTypeModel.goalType,
                     typeSection,
                     mergedInvestmentDataState,
                     projectedInvestmentsState
@@ -1807,48 +1998,12 @@
 
             const tbody = document.createElement('tbody');
             
-            // Get projected investment for this goal type
-            const projectedAmount = getProjectedInvestment(projectedInvestmentsState, bucket, goalType);
-            // Calculate adjusted total (current + projected)
-            const adjustedTypeTotal = group.totalInvestmentAmount + projectedAmount;
-            
-            group.goals.forEach(item => {
-                const percentOfType = group.totalInvestmentAmount > 0
-                    ? ((item.totalInvestmentAmount || 0) / group.totalInvestmentAmount * 100).toFixed(2)
-                    : '0.00';
-                
-                // Get target percentage for this goal
-                const targetPercent = getGoalTargetPercentage(item.goalId);
-                const targetValue = targetPercent !== null ? targetPercent.toFixed(2) : '';
-                
-                // Calculate difference in dollar amount
-                // Key change: Use adjusted total (including projected investment) for target calculation
-                let diffDisplay = '-';
-                let diffClass = '';
-                if (targetPercent !== null && adjustedTypeTotal > 0) {
-                    // Calculate target amount: (target% of goal type) * (adjusted total including projected)
-                    const targetAmount = (targetPercent / 100) * adjustedTypeTotal;
-                    // Diff = current amount - target amount
-                    const diffAmount = (item.totalInvestmentAmount || 0) - targetAmount;
-                    diffDisplay = formatMoney(diffAmount);
-                    
-                    // Color is red if absolute diff is more than 5% of the goal's investment amount
-                    const threshold = (item.totalInvestmentAmount || 0) * 0.05;
-                    diffClass = Math.abs(diffAmount) > threshold ? 'negative' : 'positive';
-                }
-                    
-                const returnPercent = item.simpleRateOfReturnPercent !== null && item.simpleRateOfReturnPercent !== undefined 
-                    ? (item.simpleRateOfReturnPercent * 100).toFixed(2) + '%' 
-                    : '-';
-                
-                const returnValue = item.totalCumulativeReturn || 0;
-                const returnClass = returnValue >= 0 ? 'positive' : 'negative';
-                
+            goalTypeModel.goals.forEach(goalModel => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="gpv-goal-name">${item.goalName}</td>
-                    <td>${formatMoney(item.totalInvestmentAmount)}</td>
-                    <td>${percentOfType}%</td>
+                    <td class="gpv-goal-name">${goalModel.goalName}</td>
+                    <td>${goalModel.investmentDisplay}</td>
+                    <td>${goalModel.percentOfType}%</td>
                     <td class="gpv-target-cell">
                         <input 
                             type="number" 
@@ -1856,14 +2011,14 @@
                             min="0" 
                             max="100" 
                             step="0.01"
-                            value="${targetValue}"
+                            value="${goalModel.targetDisplay}"
                             placeholder="Set target"
-                            data-goal-id="${item.goalId}"
+                            data-goal-id="${goalModel.goalId}"
                         />
                     </td>
-                    <td class="gpv-diff-cell ${diffClass}">${diffDisplay}</td>
-                    <td class="${returnClass}">${formatMoney(item.totalCumulativeReturn)}</td>
-                    <td class="${returnClass}">${returnPercent}</td>
+                    <td class="gpv-diff-cell ${goalModel.diffClass}">${goalModel.diffDisplay}</td>
+                    <td class="${goalModel.returnClass}">${goalModel.returnDisplay}</td>
+                    <td class="${goalModel.returnClass}">${goalModel.returnPercentDisplay}</td>
                 `;
                 
                 // Add event listener to the target input
@@ -1871,11 +2026,11 @@
                 input.addEventListener('input', function() {
                     handleGoalTargetChange(
                         this,
-                        item.goalId,
-                        item.totalInvestmentAmount,
-                        group.totalInvestmentAmount,
-                        bucket,
-                        goalType,
+                        goalModel.goalId,
+                        goalModel.investmentAmount,
+                        goalTypeModel.totalInvestmentAmount,
+                        bucketViewModel.bucketName,
+                        goalTypeModel.goalType,
                         projectedInvestmentsState
                     );
                 });
@@ -1946,27 +2101,13 @@
         }
         
         // Get projected investment and calculate adjusted total
-        const projectedAmount = getProjectedInvestment(projectedInvestmentsState, bucket, goalType);
+        const projectedAmount = getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType);
         const adjustedTypeTotal = totalTypeAmount + projectedAmount;
         
         // Update difference display in dollar amount
-        if (adjustedTypeTotal > 0) {
-            // Calculate target amount: (target% of goal type) * (adjusted total including projected)
-            const targetAmount = (savedValue / 100) * adjustedTypeTotal;
-            // Diff = current amount - target amount
-            const diffAmount = currentAmount - targetAmount;
-            const diffDisplay = formatMoney(diffAmount);
-            
-            // Color is red if absolute diff is more than 5% of the goal's investment amount
-            const threshold = currentAmount * 0.05;
-            const diffClass = Math.abs(diffAmount) > threshold ? 'negative' : 'positive';
-            
-            diffCell.textContent = diffDisplay;
-            diffCell.className = `gpv-diff-cell ${diffClass}`;
-        } else {
-            diffCell.textContent = '-';
-            diffCell.className = 'gpv-diff-cell';
-        }
+        const diffData = buildDiffCellData(currentAmount, savedValue, adjustedTypeTotal);
+        diffCell.textContent = diffData.diffDisplay;
+        diffCell.className = diffData.diffClassName;
     }
 
     /**
@@ -2027,33 +2168,21 @@
                     if (targetPercent !== null) {
                         // Get the goal's investment amount from the row
                         const cells = row.querySelectorAll('td');
-                        const investmentText = cells[1]?.textContent || '$0';
-                        const currentAmount = parseFloat(investmentText.replace(/[$,]/g, '')) || 0;
-                        
-                        // Get total type amount from bucketObj
                         const bucketObj = mergedInvestmentDataState[bucket];
-                        if (bucketObj && bucketObj[goalType]) {
-                            const totalTypeAmount = bucketObj[goalType].totalInvestmentAmount;
-                            const projectedAmount = getProjectedInvestment(projectedInvestmentsState, bucket, goalType);
-                            const adjustedTypeTotal = totalTypeAmount + projectedAmount;
-                            
-                            if (adjustedTypeTotal > 0) {
-                                // Calculate target amount with adjusted total
-                                const targetAmount = (targetPercent / 100) * adjustedTypeTotal;
-                                const diffAmount = currentAmount - targetAmount;
-                                const diffDisplay = formatMoney(diffAmount);
-                                
-                                // Color is red if absolute diff is more than 5% of the goal's investment amount
-                                const threshold = currentAmount * 0.05;
-                                const diffClass = Math.abs(diffAmount) > threshold ? 'negative' : 'positive';
-                                
-                                diffCell.textContent = diffDisplay;
-                                diffCell.className = `gpv-diff-cell ${diffClass}`;
-                            } else {
-                                diffCell.textContent = '-';
-                                diffCell.className = 'gpv-diff-cell';
-                            }
-                        }
+                        const totalTypeAmount = bucketObj?.[goalType]?.totalInvestmentAmount || 0;
+                        const projectedAmount = getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType);
+                        const adjustedTypeTotal = totalTypeAmount + projectedAmount;
+                        const groupGoals = Array.isArray(bucketObj?.[goalType]?.goals)
+                            ? bucketObj[goalType].goals
+                            : [];
+                        const matchedGoal = groupGoals.find(item => item?.goalId === goalId);
+                        const currentAmount = typeof matchedGoal?.totalInvestmentAmount === 'number'
+                            && isFinite(matchedGoal.totalInvestmentAmount)
+                            ? matchedGoal.totalInvestmentAmount
+                            : 0;
+                        const diffData = buildDiffCellData(currentAmount, targetPercent, adjustedTypeTotal);
+                        diffCell.textContent = diffData.diffDisplay;
+                        diffCell.className = diffData.diffClassName;
                     }
                 }
             });
@@ -2860,10 +2989,26 @@
 
         function renderView(value) {
             if (value === 'SUMMARY') {
-                renderSummaryView(contentDiv, data, onBucketSelect);
-            } else {
-                renderBucketView(contentDiv, value, data, projectedInvestments, cleanupCallbacks);
+                const summaryViewModel = buildSummaryViewModel(data);
+                renderSummaryView(contentDiv, summaryViewModel, onBucketSelect);
+                return;
             }
+            const bucketObj = data[value];
+            const goalIds = collectGoalIds(bucketObj);
+            const goalTargetById = buildGoalTargetById(goalIds, getGoalTargetPercentage);
+            const bucketViewModel = buildBucketDetailViewModel(
+                value,
+                data,
+                projectedInvestments,
+                goalTargetById
+            );
+            renderBucketView(
+                contentDiv,
+                bucketViewModel,
+                data,
+                projectedInvestments,
+                cleanupCallbacks
+            );
         }
 
         function onBucketSelect(bucket) {
@@ -3051,6 +3196,15 @@
             sortGoalTypes,
             formatMoney,
             formatGrowthPercent,
+            getReturnClass,
+            calculatePercentOfType,
+            calculateGoalDiff,
+            getProjectedInvestmentValue,
+            buildDiffCellData,
+            buildSummaryViewModel,
+            buildBucketDetailViewModel,
+            collectGoalIds,
+            buildGoalTargetById,
             buildMergedInvestmentData,
             getPerformanceCacheKey,
             isCacheFresh,

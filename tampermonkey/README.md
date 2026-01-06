@@ -187,9 +187,11 @@ To modify the script for your needs:
 
 ### Key Functions
 
-- `mergeAPIResponses()`: Processes and merges API data
-- `renderSummaryView()`: Renders the summary view
-- `renderBucketView()`: Renders detailed bucket view
+- `buildMergedInvestmentData()`: Merges API data into bucket map
+- `buildSummaryViewModel()`: Builds summary view data for rendering
+- `buildBucketDetailViewModel()`: Builds bucket detail view data for rendering
+- `renderSummaryView()`: Renders the summary view from view-model data
+- `renderBucketView()`: Renders detailed bucket view from view-model data
 - `injectStyles()`: Adds modern CSS styling
 - `showOverlay()`: Creates and displays the modal
 
@@ -234,6 +236,10 @@ Contributions are welcome! To contribute:
 5. Submit a pull request
 
 ## Changelog
+
+### Version 2.4.0
+- Refactored UI rendering to use view-model builders for better testability
+- Added unit tests and fixtures for UI view models and calculation helpers
 
 ### Version 2.0.0
 - Initial Tampermonkey release
