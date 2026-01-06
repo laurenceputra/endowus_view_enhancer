@@ -124,18 +124,6 @@
         };
     }
 
-    function parseMoneyDisplay(value) {
-        if (typeof value !== 'string') {
-            return null;
-        }
-        const sanitized = value.replace(/[$,]/g, '').trim();
-        if (!sanitized) {
-            return null;
-        }
-        const parsed = parseFloat(sanitized);
-        return isFinite(parsed) ? parsed : null;
-    }
-
     function getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType) {
         if (!projectedInvestmentsState || typeof projectedInvestmentsState !== 'object') {
             return 0;
@@ -145,15 +133,12 @@
         return typeof value === 'number' && isFinite(value) ? value : 0;
     }
 
-    function getGoalInvestmentAmount(bucketObj, goalType, goalId) {
-        if (!bucketObj || !goalType || !goalId) {
-            return null;
-        }
-        const group = bucketObj[goalType];
-        const goals = Array.isArray(group?.goals) ? group.goals : [];
-        const goal = goals.find(item => item.goalId === goalId);
-        const amount = goal?.totalInvestmentAmount;
-        return typeof amount === 'number' && isFinite(amount) ? amount : null;
+    function buildDiffCellData(currentAmount, targetPercent, adjustedTypeTotal) {
+        const diffInfo = calculateGoalDiff(currentAmount, targetPercent, adjustedTypeTotal);
+        return {
+            diffDisplay: diffInfo.diffDisplay,
+            diffClassName: diffInfo.diffClass ? `gpv-diff-cell ${diffInfo.diffClass}` : 'gpv-diff-cell'
+        };
     }
 
     function buildSummaryViewModel(bucketMap) {
@@ -2120,11 +2105,9 @@
         const adjustedTypeTotal = totalTypeAmount + projectedAmount;
         
         // Update difference display in dollar amount
-        const diffInfo = calculateGoalDiff(currentAmount, savedValue, adjustedTypeTotal);
-        diffCell.textContent = diffInfo.diffDisplay;
-        diffCell.className = diffInfo.diffClass
-            ? `gpv-diff-cell ${diffInfo.diffClass}`
-            : 'gpv-diff-cell';
+        const diffData = buildDiffCellData(currentAmount, savedValue, adjustedTypeTotal);
+        diffCell.textContent = diffData.diffDisplay;
+        diffCell.className = diffData.diffClassName;
     }
 
     /**
@@ -2189,15 +2172,17 @@
                         const totalTypeAmount = bucketObj?.[goalType]?.totalInvestmentAmount || 0;
                         const projectedAmount = getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType);
                         const adjustedTypeTotal = totalTypeAmount + projectedAmount;
-                        const goalAmount = getGoalInvestmentAmount(bucketObj, goalType, goalId);
-                        const currentAmount = isFinite(goalAmount)
-                            ? goalAmount
-                            : parseMoneyDisplay(cells[1]?.textContent || '$0') || 0;
-                        const diffInfo = calculateGoalDiff(currentAmount, targetPercent, adjustedTypeTotal);
-                        diffCell.textContent = diffInfo.diffDisplay;
-                        diffCell.className = diffInfo.diffClass
-                            ? `gpv-diff-cell ${diffInfo.diffClass}`
-                            : 'gpv-diff-cell';
+                        const groupGoals = Array.isArray(bucketObj?.[goalType]?.goals)
+                            ? bucketObj[goalType].goals
+                            : [];
+                        const matchedGoal = groupGoals.find(item => item?.goalId === goalId);
+                        const currentAmount = typeof matchedGoal?.totalInvestmentAmount === 'number'
+                            && isFinite(matchedGoal.totalInvestmentAmount)
+                            ? matchedGoal.totalInvestmentAmount
+                            : 0;
+                        const diffData = buildDiffCellData(currentAmount, targetPercent, adjustedTypeTotal);
+                        diffCell.textContent = diffData.diffDisplay;
+                        diffCell.className = diffData.diffClassName;
                     }
                 }
             });
@@ -3214,9 +3199,8 @@
             getReturnClass,
             calculatePercentOfType,
             calculateGoalDiff,
-            parseMoneyDisplay,
             getProjectedInvestmentValue,
-            getGoalInvestmentAmount,
+            buildDiffCellData,
             buildSummaryViewModel,
             buildBucketDetailViewModel,
             collectGoalIds,

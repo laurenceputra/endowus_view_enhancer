@@ -6,9 +6,8 @@ const {
     getReturnClass,
     calculatePercentOfType,
     calculateGoalDiff,
-    parseMoneyDisplay,
     getProjectedInvestmentValue,
-    getGoalInvestmentAmount,
+    buildDiffCellData,
     buildSummaryViewModel,
     buildBucketDetailViewModel,
     collectGoalIds,
@@ -47,9 +46,10 @@ describe('format helpers', () => {
         });
     });
 
-    test('should parse money display strings', () => {
-        expect(parseMoneyDisplay('$1,234.50')).toBe(1234.5);
-        expect(parseMoneyDisplay('')).toBeNull();
+    test('should build diff cell data', () => {
+        const diffData = buildDiffCellData(1200, 60, 2500);
+        expect(diffData.diffDisplay).toBe('$-300.00');
+        expect(diffData.diffClassName).toBe('gpv-diff-cell negative');
     });
 });
 
@@ -60,11 +60,10 @@ describe('projected and goal helpers', () => {
         expect(getProjectedInvestmentValue(projected, 'Retirement', 'CASH_MANAGEMENT')).toBe(0);
     });
 
-    test('should get goal investment amount', () => {
-        const bucketMap = createBucketMapFixture();
-        const amount = getGoalInvestmentAmount(bucketMap.Retirement, 'GENERAL_WEALTH_ACCUMULATION', 'g2');
-        expect(amount).toBe(800);
-        expect(getGoalInvestmentAmount(bucketMap.Retirement, 'GENERAL_WEALTH_ACCUMULATION', 'missing')).toBeNull();
+    test('should return default diff cell data on invalid inputs', () => {
+        const diffData = buildDiffCellData(100, null, 0);
+        expect(diffData.diffDisplay).toBe('-');
+        expect(diffData.diffClassName).toBe('gpv-diff-cell');
     });
 });
 
