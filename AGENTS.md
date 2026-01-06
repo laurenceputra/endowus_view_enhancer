@@ -22,49 +22,26 @@ This repo contains a Tampermonkey userscript for goal-based portfolio view enhan
 ## Testing guidance
 - Jest tests should import functions from the userscript.
 - Keep logic functions pure to support unit testing.
+- Jest testing is mandatory for all changes; manual testing checklists are not required.
 
-## Workflow phases
-- Phase 1 (Architecture and planning): an architect outlines the change, identifies risks, and gets a devil's advocate review before implementation.
-- Phase 2 (Implementation): build the planned changes, keeping logic testable and exports stable.
-- Phase 3 (QA): run Jest tests and validate behavior against the plan.
-- Phase 4 (Devil's advocate review): independently review the completed work for quality, maintainability, and safety.
-
-## Workflow checklists
-### Architect (Phase 1)
-- Define the problem, goals, and out-of-scope items.
-- Identify risks and assumptions (e.g., DOM selectors and missing data cases).
-- Ensure logic is designed to be pure and exportable under Node.
-- Note required updates to `TECHNICAL_DESIGN.md` and README references.
-
-### Devil's advocate (pre-implementation)
-- Challenge ambiguous requirements and hidden edge cases.
-- Verify the plan preserves testability and separation of concerns.
-- Check for safety risks (data egress, unsafe string handling, `eval`).
-
-### Implementation (Phase 2)
-- Keep logic above the browser-only block and preserve the IIFE structure.
-- Follow coding conventions (4-space indentation, semicolons, camelCase).
-- Export new logic for Jest tests and keep functions pure.
-- Use `injectStyles()` with `gpv-` class naming for any new UI.
-
-### QA (Phase 3)
-- Run Jest tests for logic changes and validate behavior manually.
-- Confirm behavior matches the Phase 1 plan and documented expectations.
-- Check for console errors or regressions in common flows.
-
-### Devil's advocate (Phase 4)
-- Confirm implementation matches the plan with no unreviewed scope creep.
-- Re-review maintainability, safety, and documentation updates.
+## Development workflow alignment
+- Follow the workflow guidance in `.github/copilot-instructions.md` as the single source of truth.
+- Use the role guides in `.github/agents/` instead of a fixed phase model:
+  - `staff-engineer.md` for architecture, risks, and technical tradeoffs.
+  - `product-manager.md` for requirements framing and scope.
+  - `qa-engineer.md` for testing strategy and verification.
+  - `code-reviewer.md` for final review quality gates.
+- Codex should load the `.github/agents/*.md` files for role-specific guidance whenever relevant.
 
 ## Definition of done
-- Behavior matches the Phase 1 plan and expectations.
+- Behavior matches documented requirements and expectations.
 - New or changed logic has corresponding Jest coverage where applicable.
 - Pure logic remains exportable and browser-only code stays isolated.
 - Documentation updates are applied when behavior changes.
 - Safety requirements are met (no data egress, no `eval`, sanitized strings).
 
 ## Testing and verification
-- Run Jest tests for any logic change.
+- Run Jest tests for any change.
 - If tests are not run, explain why in the PR description.
 
 ## PR checklist
@@ -74,6 +51,7 @@ This repo contains a Tampermonkey userscript for goal-based portfolio view enhan
 
 ## Update pointers
 - If behavior changes, update `TECHNICAL_DESIGN.md` and any related README references.
+- If behavior changes, require a version bump.
 
 ## Safety
 - No data egress.
@@ -84,3 +62,4 @@ This repo contains a Tampermonkey userscript for goal-based portfolio view enhan
 - Review `.github/copilot-instructions.md` before starting work and follow its guidance.
 - Align with any relevant patterns or agent guidance under `.github/agents/`.
 - If guidance conflicts with the existing userscript style, prefer the current codebase conventions.
+- Treat `.github/copilot-instructions.md` as the single source of truth; keep this file minimal and defer to it for detailed guidance.
