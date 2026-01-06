@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.3.2
+// @version      2.3.3
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -1513,7 +1513,7 @@
         return table;
     }
 
-    function renderGoalTypePerformance(typeSection, goalIds) {
+    function renderGoalTypePerformance(typeSection, goalIds, cleanupCallbacks) {
         const performanceContainer = document.createElement('div');
         performanceContainer.className = 'gpv-performance-container';
 
@@ -1561,7 +1561,10 @@
                 }
                 const initialWidth = chartWrapper.getBoundingClientRect().width;
                 chartWrapper.style.height = `${getChartHeightForWidth(initialWidth)}px`;
-                initializePerformanceChart(chartWrapper, summary.windowSeries);
+                const cleanup = initializePerformanceChart(chartWrapper, summary.windowSeries);
+                if (typeof cleanup === 'function' && Array.isArray(cleanupCallbacks)) {
+                    cleanupCallbacks.push(cleanup);
+                }
             });
         });
     }
@@ -1656,7 +1659,7 @@
         contentDiv.appendChild(summaryContainer);
     }
 
-    function renderBucketView(contentDiv, bucket, mergedInvestmentDataState, projectedInvestmentsState) {
+    function renderBucketView(contentDiv, bucket, mergedInvestmentDataState, projectedInvestmentsState, cleanupCallbacks) {
         contentDiv.innerHTML = '';
         const bucketObj = mergedInvestmentDataState[bucket];
         if (!bucketObj) return;
@@ -1732,7 +1735,8 @@
 
             renderGoalTypePerformance(
                 typeSection,
-                group.goals.map(goal => goal.goalId).filter(Boolean)
+                group.goals.map(goal => goal.goalId).filter(Boolean),
+                cleanupCallbacks
             );
 
             // Add projected investment input section as sibling after performance container
@@ -2736,7 +2740,17 @@
 
     function showOverlay() {
         let old = document.getElementById('gpv-overlay');
-        if (old) old.remove();
+        if (old) {
+            if (Array.isArray(old.gpvCleanupCallbacks)) {
+                old.gpvCleanupCallbacks.forEach(callback => {
+                    if (typeof callback === 'function') {
+                        callback();
+                    }
+                });
+                old.gpvCleanupCallbacks.length = 0;
+            }
+            old.remove();
+        }
 
         const data = buildMergedInvestmentData(
             apiData.performance,
@@ -2756,6 +2770,9 @@
 
         const container = document.createElement('div');
         container.className = 'gpv-container';
+        const cleanupCallbacks = [];
+        container.gpvCleanupCallbacks = cleanupCallbacks;
+        overlay.gpvCleanupCallbacks = cleanupCallbacks;
 
         const header = document.createElement('div');
         header.className = 'gpv-header';
@@ -2766,7 +2783,30 @@
         const closeBtn = document.createElement('button');
         closeBtn.className = 'gpv-close-btn';
         closeBtn.innerHTML = '✕';
-        closeBtn.onclick = () => overlay.remove();
+        function teardownOverlay() {
+            if (!overlay.isConnected) {
+                return;
+            }
+            if (!Array.isArray(cleanupCallbacks)) {
+                return;
+            }
+            cleanupCallbacks.forEach(callback => {
+                if (typeof callback === 'function') {
+                    callback();
+                }
+            });
+            cleanupCallbacks.length = 0;
+        }
+
+        function closeOverlay() {
+            if (!overlay.isConnected) {
+                return;
+            }
+            teardownOverlay();
+            overlay.remove();
+        }
+
+        closeBtn.onclick = closeOverlay;
         
         header.appendChild(title);
         header.appendChild(closeBtn);
@@ -2806,7 +2846,7 @@
             if (value === 'SUMMARY') {
                 renderSummaryView(contentDiv, data, onBucketSelect);
             } else {
-                renderBucketView(contentDiv, value, data, projectedInvestments);
+                renderBucketView(contentDiv, value, data, projectedInvestments, cleanupCallbacks);
             }
         }
 
@@ -2829,7 +2869,7 @@
         // Close overlay when clicking outside the container
         overlay.onclick = (e) => {
             if (e.target === overlay) {
-                overlay.remove();
+                closeOverlay();
             }
         };
         
