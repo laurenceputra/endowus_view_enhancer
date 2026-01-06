@@ -394,11 +394,13 @@ The `bucketViewModel` contains:
 
 ### Version Bump Checklist
 
-When shipping a release, update every version touchpoint to keep them aligned:
+Use `npm version <patch|minor|major>` to keep version touchpoints aligned automatically. The `postversion` hook runs
+`scripts/sync-version.js`, which syncs `package.json` to the userscript `// @version` line, and npm updates
+`package-lock.json` in the same step.
 
-1. **Userscript metadata**: `tampermonkey/goal_portfolio_viewer.user.js` → `// @version`
-2. **Package metadata**: `package.json` → `"version"`
-3. **Changelog**: `tampermonkey/README.md` → add a new entry under `## Changelog`
+Then update:
+
+1. **Changelog**: `tampermonkey/README.md` → add a new entry under `## Changelog`
 
 If any of these are missed, Tampermonkey auto-updates or release notes can drift from the actual code.
 
