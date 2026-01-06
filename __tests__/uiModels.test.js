@@ -3,13 +3,6 @@
  */
 
 const {
-    createInitialUiState,
-    reduceUiState,
-    getActiveView,
-    getSelectedBucket,
-    buildBucketSelectOptions,
-    getBucketGoalTypes,
-    calculateBucketTotalReturn,
     getReturnClass,
     calculatePercentOfType,
     calculateGoalDiff,
@@ -25,122 +18,8 @@ const {
 const {
     createBucketMapFixture,
     createProjectedInvestmentFixture,
-    createGoalTargetFixture,
-    createUiStateFixture
+    createGoalTargetFixture
 } = require('./fixtures/uiFixtures');
-
-describe('createInitialUiState', () => {
-    test('should return default UI state', () => {
-        expect(createInitialUiState()).toEqual({
-            isOpen: false,
-            activeView: 'summary',
-            selectedBucket: null,
-            selectedGoalType: null
-        });
-    });
-
-    test('should apply overrides', () => {
-        expect(createInitialUiState({ isOpen: true, selectedBucket: 'Retirement' })).toEqual({
-            isOpen: true,
-            activeView: 'summary',
-            selectedBucket: 'Retirement',
-            selectedGoalType: null
-        });
-    });
-});
-
-describe('reduceUiState', () => {
-    test('should handle open and close actions', () => {
-        let state = createUiStateFixture();
-        state = reduceUiState(state, { type: 'OPEN_MODAL' });
-        expect(state.isOpen).toBe(true);
-        state = reduceUiState(state, { type: 'CLOSE_MODAL' });
-        expect(state.isOpen).toBe(false);
-    });
-
-    test('should select bucket and set active view', () => {
-        const state = reduceUiState(createUiStateFixture(), { type: 'SELECT_BUCKET', bucket: 'Retirement' });
-        expect(state.selectedBucket).toBe('Retirement');
-        expect(state.activeView).toBe('bucket');
-    });
-
-    test('should ignore invalid view changes', () => {
-        const state = reduceUiState(createUiStateFixture(), { type: 'SELECT_VIEW', view: 'invalid' });
-        expect(state.activeView).toBe('summary');
-    });
-
-    test('should reset to initial state', () => {
-        const state = reduceUiState(createUiStateFixture({ isOpen: true }), { type: 'RESET' });
-        expect(state).toEqual(createInitialUiState());
-    });
-
-    test('should return initial state for invalid input', () => {
-        const state = reduceUiState(null, null);
-        expect(state).toEqual(createInitialUiState());
-    });
-});
-
-describe('getActiveView', () => {
-    test('should default to summary for invalid input', () => {
-        expect(getActiveView(null)).toBe('summary');
-    });
-
-    test('should return bucket for bucket view', () => {
-        expect(getActiveView({ activeView: 'bucket' })).toBe('bucket');
-    });
-});
-
-describe('getSelectedBucket', () => {
-    test('should prefer selected bucket when valid', () => {
-        const bucketMap = createBucketMapFixture();
-        const selected = getSelectedBucket({ selectedBucket: 'Retirement' }, bucketMap);
-        expect(selected).toBe('Retirement');
-    });
-
-    test('should fall back to first sorted bucket', () => {
-        const bucketMap = createBucketMapFixture();
-        const selected = getSelectedBucket({}, bucketMap);
-        expect(selected).toBe('Education');
-    });
-
-    test('should return null when bucket map empty', () => {
-        expect(getSelectedBucket({}, {})).toBeNull();
-    });
-});
-
-describe('buildBucketSelectOptions', () => {
-    test('should build summary and bucket options', () => {
-        const bucketMap = createBucketMapFixture();
-        const options = buildBucketSelectOptions(bucketMap);
-        expect(options[0]).toEqual({
-            value: 'SUMMARY',
-            label: '📊 Summary View',
-            isSummary: true
-        });
-        expect(options[1].label).toBe('📁 Education');
-        expect(options[2].label).toBe('📁 Retirement');
-    });
-
-    test('should return summary option for invalid map', () => {
-        expect(buildBucketSelectOptions(null)).toEqual([
-            { value: 'SUMMARY', label: '📊 Summary View', isSummary: true }
-        ]);
-    });
-});
-
-describe('bucket helpers', () => {
-    test('should return goal types excluding total', () => {
-        const bucketMap = createBucketMapFixture();
-        const goalTypes = getBucketGoalTypes(bucketMap.Retirement);
-        expect(goalTypes).toEqual(['GENERAL_WEALTH_ACCUMULATION', 'CASH_MANAGEMENT']);
-    });
-
-    test('should calculate bucket total return', () => {
-        const bucketMap = createBucketMapFixture();
-        const totalReturn = calculateBucketTotalReturn(bucketMap.Retirement);
-        expect(totalReturn).toBe(150);
-    });
-});
 
 describe('format helpers', () => {
     test('should return correct return class', () => {

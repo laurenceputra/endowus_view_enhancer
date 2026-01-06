@@ -60,19 +60,8 @@ function createGoalTargetFixture() {
     };
 }
 
-function createUiStateFixture(overrides = {}) {
-    return {
-        isOpen: false,
-        activeView: 'summary',
-        selectedBucket: null,
-        selectedGoalType: null,
-        ...overrides
-    };
-}
-
 module.exports = {
     createBucketMapFixture,
     createProjectedInvestmentFixture,
-    createGoalTargetFixture,
-    createUiStateFixture
+    createGoalTargetFixture
 };

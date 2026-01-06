@@ -82,100 +82,6 @@
         return ((a / denom) * 100).toFixed(2) + '%';
     }
 
-    function createInitialUiState(overrides = {}) {
-        return {
-            isOpen: false,
-            activeView: 'summary',
-            selectedBucket: null,
-            selectedGoalType: null,
-            ...overrides
-        };
-    }
-
-    function reduceUiState(state, action) {
-        const currentState = state && typeof state === 'object'
-            ? state
-            : createInitialUiState();
-
-        if (!action || typeof action !== 'object') {
-            return currentState;
-        }
-
-        switch (action.type) {
-            case 'OPEN_MODAL':
-                return { ...currentState, isOpen: true };
-            case 'CLOSE_MODAL':
-                return { ...currentState, isOpen: false };
-            case 'SELECT_BUCKET': {
-                const selectedBucket = action.bucket || action.payload?.bucket || null;
-                return { ...currentState, selectedBucket, activeView: 'bucket' };
-            }
-            case 'SELECT_VIEW': {
-                const view = action.view || action.payload?.view;
-                if (view === 'summary' || view === 'bucket') {
-                    return { ...currentState, activeView: view };
-                }
-                return currentState;
-            }
-            case 'SELECT_GOAL_TYPE': {
-                const selectedGoalType = action.goalType || action.payload?.goalType || null;
-                return { ...currentState, selectedGoalType };
-            }
-            case 'RESET':
-                return createInitialUiState();
-            default:
-                return currentState;
-        }
-    }
-
-    function getActiveView(uiState) {
-        return uiState && uiState.activeView === 'bucket' ? 'bucket' : 'summary';
-    }
-
-    function getSelectedBucket(uiState, bucketMap) {
-        const buckets = bucketMap && typeof bucketMap === 'object'
-            ? Object.keys(bucketMap).sort()
-            : [];
-        if (uiState?.selectedBucket && bucketMap?.[uiState.selectedBucket]) {
-            return uiState.selectedBucket;
-        }
-        return buckets.length ? buckets[0] : null;
-    }
-
-    function buildBucketSelectOptions(bucketMap) {
-        const options = [{
-            value: 'SUMMARY',
-            label: '📊 Summary View',
-            isSummary: true
-        }];
-        if (!bucketMap || typeof bucketMap !== 'object') {
-            return options;
-        }
-        Object.keys(bucketMap).sort().forEach(bucket => {
-            options.push({
-                value: bucket,
-                label: `📁 ${bucket}`,
-                isSummary: false
-            });
-        });
-        return options;
-    }
-
-    function getBucketGoalTypes(bucketObj) {
-        if (!bucketObj || typeof bucketObj !== 'object') {
-            return [];
-        }
-        return Object.keys(bucketObj).filter(key => key !== 'total');
-    }
-
-    function calculateBucketTotalReturn(bucketObj) {
-        return getBucketGoalTypes(bucketObj).reduce((total, goalType) => {
-            const group = bucketObj[goalType];
-            const value = group?.totalCumulativeReturn;
-            return total + (isFinite(value) ? value : 0);
-        }, 0);
-    }
-
     function getReturnClass(value) {
         const numericValue = Number(value);
         if (!isFinite(numericValue)) {
@@ -261,8 +167,11 @@
                 if (!bucketObj) {
                     return null;
                 }
-                const goalTypes = getBucketGoalTypes(bucketObj);
-                const bucketTotalReturn = calculateBucketTotalReturn(bucketObj);
+                const goalTypes = Object.keys(bucketObj).filter(key => key !== 'total');
+                const bucketTotalReturn = goalTypes.reduce((total, goalType) => {
+                    const value = bucketObj[goalType]?.totalCumulativeReturn;
+                    return total + (isFinite(value) ? value : 0);
+                }, 0);
                 const orderedTypes = sortGoalTypes(goalTypes);
                 return {
                     bucketName,
@@ -305,8 +214,12 @@
         if (!bucketObj) {
             return null;
         }
-        const bucketTotalReturn = calculateBucketTotalReturn(bucketObj);
-        const orderedTypes = sortGoalTypes(getBucketGoalTypes(bucketObj));
+        const goalTypes = Object.keys(bucketObj).filter(key => key !== 'total');
+        const bucketTotalReturn = goalTypes.reduce((total, goalType) => {
+            const value = bucketObj[goalType]?.totalCumulativeReturn;
+            return total + (isFinite(value) ? value : 0);
+        }, 0);
+        const orderedTypes = sortGoalTypes(goalTypes);
         const projectedInvestments = projectedInvestmentsState || {};
         const goalTargets = goalTargetById || {};
 
@@ -380,7 +293,7 @@
         if (!bucketObj || typeof bucketObj !== 'object') {
             return [];
         }
-        return getBucketGoalTypes(bucketObj).reduce((goalIds, goalType) => {
+        return Object.keys(bucketObj).filter(key => key !== 'total').reduce((goalIds, goalType) => {
             const group = bucketObj[goalType];
             const goals = Array.isArray(group?.goals) ? group.goals : [];
             goals.forEach(goal => {
@@ -3011,8 +2924,6 @@
         }
         console.log('[Goal Portfolio Viewer] Data merged successfully');
 
-        let uiState = createInitialUiState({ isOpen: true });
-
         const overlay = document.createElement('div');
         overlay.id = 'gpv-overlay';
         overlay.className = 'gpv-overlay';
@@ -3051,7 +2962,6 @@
             if (!overlay.isConnected) {
                 return;
             }
-            uiState = reduceUiState(uiState, { type: 'CLOSE_MODAL' });
             teardownOverlay();
             overlay.remove();
         }
@@ -3072,11 +2982,15 @@
         const select = document.createElement('select');
         select.className = 'gpv-select';
         
-        const selectOptions = buildBucketSelectOptions(data);
-        selectOptions.forEach(option => {
+        const summaryOption = document.createElement('option');
+        summaryOption.value = 'SUMMARY';
+        summaryOption.textContent = '📊 Summary View';
+        select.appendChild(summaryOption);
+
+        Object.keys(data).sort().forEach(bucket => {
             const opt = document.createElement('option');
-            opt.value = option.value;
-            opt.textContent = option.label;
+            opt.value = bucket;
+            opt.textContent = `📁 ${bucket}`;
             select.appendChild(opt);
         });
 
@@ -3090,12 +3004,10 @@
 
         function renderView(value) {
             if (value === 'SUMMARY') {
-                uiState = reduceUiState(uiState, { type: 'SELECT_VIEW', view: 'summary' });
                 const summaryViewModel = buildSummaryViewModel(data);
                 renderSummaryView(contentDiv, summaryViewModel, onBucketSelect);
                 return;
             }
-            uiState = reduceUiState(uiState, { type: 'SELECT_BUCKET', bucket: value });
             const bucketObj = data[value];
             const goalIds = collectGoalIds(bucketObj);
             const goalTargetById = buildGoalTargetById(goalIds, getGoalTargetPercentage);
@@ -3122,7 +3034,6 @@
             renderView(bucket);
         }
 
-        uiState = reduceUiState(uiState, { type: 'OPEN_MODAL' });
         renderView('SUMMARY');
 
         select.onchange = function() {
@@ -3300,13 +3211,6 @@
             sortGoalTypes,
             formatMoney,
             formatGrowthPercent,
-            createInitialUiState,
-            reduceUiState,
-            getActiveView,
-            getSelectedBucket,
-            buildBucketSelectOptions,
-            getBucketGoalTypes,
-            calculateBucketTotalReturn,
             getReturnClass,
             calculatePercentOfType,
             calculateGoalDiff,
