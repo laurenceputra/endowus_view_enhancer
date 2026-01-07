@@ -161,6 +161,11 @@ The script uses monkey patching to intercept API responses from the Endowus plat
 - Disable other extensions that might conflict
 - Try a different browser
 
+### Performance Data Refresh
+- Performance data is cached for up to 7 days
+- Use the “Clear cache & refresh” button in the performance section to refresh data
+- Refresh is available once every 24 hours
+
 ### Script Not Running
 - Verify script is installed correctly in Tampermonkey
 - Check that the match pattern includes the platform URL (https://app.sg.endowus.com/)

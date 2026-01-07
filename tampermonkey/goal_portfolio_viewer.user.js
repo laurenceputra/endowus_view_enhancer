@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.4.0
+// @version      2.5.0
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -399,6 +399,16 @@
             return false;
         }
         return nowMs - fetchedTime < maxAge;
+    }
+
+    function isCacheRefreshAllowed(fetchedAt, minAgeMs, nowMs = Date.now()) {
+        const minAge = Number(minAgeMs);
+        const fetchedTime = Number(fetchedAt);
+        const nowTime = Number(nowMs);
+        if (!isFinite(minAge) || minAge <= 0 || !isFinite(fetchedTime) || !isFinite(nowTime)) {
+            return false;
+        }
+        return nowTime - fetchedTime >= minAge;
     }
 
     function formatPercentage(value) {
@@ -828,6 +838,7 @@
     const PERFORMANCE_ENDPOINT = 'https://bff.prod.silver.endowus.com/v1/performance';
     const REQUEST_DELAY_MS = 500;
     const PERFORMANCE_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+    const PERFORMANCE_CACHE_REFRESH_MIN_AGE_MS = 24 * 60 * 60 * 1000;
     const PERFORMANCE_CHART_WINDOW = PERFORMANCE_WINDOWS.oneYear.key;
 
     // Non-persistent storage for projected investments (resets on reload)
@@ -1288,7 +1299,12 @@
             if (!stored) {
                 return null;
             }
-            return JSON.parse(stored);
+            const parsed = JSON.parse(stored);
+            if (!parsed || !isCacheFresh(parsed.fetchedAt, PERFORMANCE_CACHE_MAX_AGE_MS)) {
+                GM_deleteValue(key);
+                return null;
+            }
+            return parsed;
         } catch (error) {
             console.error('[Goal Portfolio Viewer] Error reading performance cache:', error);
             return null;
@@ -1311,9 +1327,6 @@
     function getCachedPerformanceResponse(goalId) {
         const cached = readPerformanceCache(goalId);
         if (!cached) {
-            return null;
-        }
-        if (!isCacheFresh(cached.fetchedAt, PERFORMANCE_CACHE_MAX_AGE_MS)) {
             return null;
         }
         return cached.response || null;
@@ -1413,6 +1426,37 @@
             windowReturns,
             metrics
         };
+    }
+
+    function getLatestPerformanceCacheTimestamp(goalIds) {
+        if (!Array.isArray(goalIds)) {
+            return null;
+        }
+        let latestFetchedAt = null;
+        goalIds.forEach(goalId => {
+            const cached = readPerformanceCache(goalId);
+            const fetchedAt = cached?.fetchedAt;
+            if (typeof fetchedAt === 'number' && isFinite(fetchedAt)) {
+                if (latestFetchedAt === null || fetchedAt > latestFetchedAt) {
+                    latestFetchedAt = fetchedAt;
+                }
+            }
+        });
+        return latestFetchedAt;
+    }
+
+    function clearPerformanceCache(goalIds) {
+        if (!Array.isArray(goalIds)) {
+            return;
+        }
+        goalIds.forEach(goalId => {
+            if (!goalId) {
+                return;
+            }
+            const key = getPerformanceCacheKey(goalId);
+            GM_deleteValue(key);
+            delete goalPerformanceData[goalId];
+        });
     }
 
     // ============================================
@@ -1760,24 +1804,27 @@
 
         typeSection.appendChild(performanceContainer);
 
-        ensurePerformanceData(goalIds).then(performanceMap => {
-            if (!performanceContainer.isConnected) {
-                return;
-            }
-            const responses = goalIds
-                .map(goalId => performanceMap[goalId])
-                .filter(Boolean);
-            const summary = buildGoalTypePerformanceSummary(responses);
+        const refreshFootnote = document.createElement('div');
+        refreshFootnote.className = 'gpv-performance-cache-note';
+        refreshFootnote.textContent = 'Performance data is cached for 7 days. You can refresh it once every 24 hours.';
 
-            performanceContainer.innerHTML = '';
-            if (!summary) {
-                const emptyState = document.createElement('div');
-                emptyState.className = 'gpv-performance-loading';
-                emptyState.textContent = 'Performance data unavailable.';
-                performanceContainer.appendChild(emptyState);
-                return;
-            }
+        const refreshButton = document.createElement('button');
+        refreshButton.className = 'gpv-performance-refresh-btn';
+        refreshButton.type = 'button';
 
+        function setRefreshButtonState(latestFetchedAt) {
+            const canRefresh = isCacheRefreshAllowed(
+                latestFetchedAt,
+                PERFORMANCE_CACHE_REFRESH_MIN_AGE_MS
+            );
+            refreshButton.disabled = !canRefresh;
+            refreshButton.textContent = canRefresh ? 'Clear cache & refresh' : 'Refresh available after 24 hours';
+            refreshButton.title = canRefresh
+                ? 'Clear cached performance data and fetch the latest values.'
+                : 'Performance data can be refreshed once every 24 hours.';
+        }
+
+        function renderPerformanceSummary(summary) {
             const windowGrid = buildPerformanceWindowGrid(summary.windowReturns);
             const chartWrapper = document.createElement('div');
             chartWrapper.className = 'gpv-performance-chart-wrapper';
@@ -1791,6 +1838,12 @@
             performanceContainer.appendChild(windowGrid);
             performanceContainer.appendChild(detailRow);
 
+            const footerRow = document.createElement('div');
+            footerRow.className = 'gpv-performance-footer-row';
+            footerRow.appendChild(refreshFootnote);
+            footerRow.appendChild(refreshButton);
+            performanceContainer.appendChild(footerRow);
+
             requestAnimationFrame(() => {
                 if (!chartWrapper.isConnected) {
                     return;
@@ -1802,7 +1855,48 @@
                     cleanupCallbacks.push(cleanup);
                 }
             });
+        }
+
+        function loadPerformanceData() {
+            ensurePerformanceData(goalIds).then(performanceMap => {
+                if (!performanceContainer.isConnected) {
+                    return;
+                }
+                const responses = goalIds
+                    .map(goalId => performanceMap[goalId])
+                    .filter(Boolean);
+                const summary = buildGoalTypePerformanceSummary(responses);
+
+                performanceContainer.innerHTML = '';
+                if (!summary) {
+                    const emptyState = document.createElement('div');
+                    emptyState.className = 'gpv-performance-loading';
+                    emptyState.textContent = 'Performance data unavailable.';
+                    performanceContainer.appendChild(emptyState);
+                    return;
+                }
+
+                renderPerformanceSummary(summary);
+                const latestFetchedAt = getLatestPerformanceCacheTimestamp(goalIds);
+                setRefreshButtonState(latestFetchedAt);
+            });
+        }
+
+        refreshButton.addEventListener('click', () => {
+            const latestFetchedAt = getLatestPerformanceCacheTimestamp(goalIds);
+            if (!isCacheRefreshAllowed(latestFetchedAt, PERFORMANCE_CACHE_REFRESH_MIN_AGE_MS)) {
+                setRefreshButtonState(latestFetchedAt);
+                return;
+            }
+            refreshButton.disabled = true;
+            refreshButton.textContent = 'Refreshing...';
+            clearPerformanceCache(goalIds);
+            performanceContainer.innerHTML = '';
+            performanceContainer.appendChild(loading);
+            loadPerformanceData();
         });
+
+        loadPerformanceData();
     }
     
     function renderSummaryView(contentDiv, summaryViewModel, onBucketSelect) {
@@ -2718,6 +2812,46 @@
                 align-items: stretch;
             }
 
+            .gpv-performance-footer-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                flex-wrap: wrap;
+            }
+
+            .gpv-performance-cache-note {
+                font-size: 12px;
+                color: #64748b;
+                font-weight: 500;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            }
+
+            .gpv-performance-refresh-btn {
+                background: #ffffff;
+                border: 1px solid #cbd5f5;
+                color: #4c1d95;
+                font-size: 12px;
+                font-weight: 700;
+                padding: 6px 12px;
+                border-radius: 999px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            }
+
+            .gpv-performance-refresh-btn:hover:not(:disabled) {
+                border-color: #a78bfa;
+                color: #5b21b6;
+                box-shadow: 0 2px 6px rgba(76, 29, 149, 0.18);
+            }
+
+            .gpv-performance-refresh-btn:disabled {
+                cursor: not-allowed;
+                opacity: 0.6;
+                box-shadow: none;
+            }
+
             .gpv-performance-loading {
                 font-size: 14px;
                 font-weight: 600;
@@ -3208,6 +3342,7 @@
             buildMergedInvestmentData,
             getPerformanceCacheKey,
             isCacheFresh,
+            isCacheRefreshAllowed,
             formatPercentage,
             getWindowStartDate,
             calculateReturnFromTimeSeries,
