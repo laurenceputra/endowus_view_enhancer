@@ -16,6 +16,7 @@ const {
     buildMergedInvestmentData,
     getPerformanceCacheKey,
     isCacheFresh,
+    isCacheRefreshAllowed,
     formatPercentage,
     getWindowStartDate,
     calculateReturnFromTimeSeries,
@@ -261,6 +262,26 @@ describe('isCacheFresh', () => {
         expect(isCacheFresh(Infinity, 1000, 2000)).toBe(false);
         expect(isCacheFresh(1000, Infinity, 2000)).toBe(false);
         expect(isCacheFresh(1000, 1000, Infinity)).toBe(false);
+    });
+});
+
+describe('isCacheRefreshAllowed', () => {
+    test('should allow refresh when cache is older than min age', () => {
+        const now = 1_000_000;
+        const fetchedAt = now - 10_000;
+        expect(isCacheRefreshAllowed(fetchedAt, 5000, now)).toBe(true);
+    });
+
+    test('should block refresh when cache is newer than min age', () => {
+        const now = 1_000_000;
+        const fetchedAt = now - 1000;
+        expect(isCacheRefreshAllowed(fetchedAt, 5000, now)).toBe(false);
+    });
+
+    test('should return false for invalid inputs', () => {
+        expect(isCacheRefreshAllowed('invalid', 1000, 2000)).toBe(false);
+        expect(isCacheRefreshAllowed(1000, 'invalid', 2000)).toBe(false);
+        expect(isCacheRefreshAllowed(1000, 1000, NaN)).toBe(false);
     });
 });
 

@@ -257,7 +257,8 @@ Performance requests are executed sequentially with a configurable delay to avoi
 
 - **Queue**: runs `fetch` per goal ID with a delay between calls.
 - **Cache**: Tampermonkey storage keyed by `gpv_performance_<goalId>`.
-- **TTL**: 7 days; cached responses are reused if still fresh.
+- **TTL**: 7 days; cached responses are reused if still fresh and purged once stale.
+- **Refresh policy**: the UI exposes a “Clear cache & refresh” action once cached data is at least 24 hours old.
 
 ### Money Formatting
 
