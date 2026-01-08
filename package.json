@@ -1,6 +1,6 @@
 {
   "name": "goal-portfolio-viewer",
-  "version": "2.6.3",
+  "version": "2.6.0",
   "description": "View and organize your investment portfolio by buckets with a modern interface",
   "main": "tampermonkey/goal_portfolio_viewer.user.js",
   "scripts": {

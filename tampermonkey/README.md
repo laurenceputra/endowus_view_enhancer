@@ -244,18 +244,12 @@ Contributions are welcome! To contribute:
 
 ## Changelog
 
-### Version 2.6.3
-- Fixed goal name header alignment with table content
-
-### Version 2.6.2
-- Simplified fixed toggle rows for a cleaner detail table
-
-### Version 2.6.1
-- Refined fixed toggle styling and header layout for clearer target allocation visibility
-
 ### Version 2.6.0
 - Added per-goal fixed toggles to lock target percentages to current goal allocations
 - Displayed remaining unassigned target percentage per goal type in bucket detail view
+- Refined fixed toggle styling and header layout for clearer target allocation visibility
+- Simplified fixed toggle rows for a cleaner detail table
+- Fixed goal name header alignment with table content
 
 ### Version 2.4.0
 - Refactored UI rendering to use view-model builders for better testability
