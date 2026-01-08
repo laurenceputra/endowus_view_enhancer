@@ -133,6 +133,10 @@
         };
     }
 
+    // ============================================
+    // Allocation Model Helpers
+    // ============================================
+
     function calculateFixedTargetPercent(currentAmount, adjustedTypeTotal) {
         const numericCurrent = Number(currentAmount);
         const numericTotal = Number(adjustedTypeTotal);
@@ -203,6 +207,33 @@
             goalModels,
             remainingTargetPercent,
             remainingTargetDisplay: `${remainingTargetPercent.toFixed(2)}%`
+        };
+    }
+
+    function computeGoalTypeViewState(
+        goals,
+        totalTypeAmount,
+        adjustedTotal,
+        goalTargets,
+        goalFixed
+    ) {
+        const allocationModel = buildGoalTypeAllocationModel(
+            goals,
+            totalTypeAmount,
+            adjustedTotal,
+            goalTargets,
+            goalFixed
+        );
+        const goalModelsById = allocationModel.goalModels.reduce((acc, goal) => {
+            if (goal?.goalId) {
+                acc[goal.goalId] = goal;
+            }
+            return acc;
+        }, {});
+        return {
+            ...allocationModel,
+            goalModelsById,
+            adjustedTotal
         };
     }
 
@@ -1068,6 +1099,67 @@
     // ============================================
     // Storage Management
     // ============================================
+
+    const GoalTargetStore = {
+        getTarget(goalId) {
+            try {
+                const key = getGoalTargetKey(goalId);
+                const value = GM_getValue(key, null);
+                return value !== null ? parseFloat(value) : null;
+            } catch (e) {
+                console.error('[Goal Portfolio Viewer] Error loading goal target percentage:', e);
+                return null;
+            }
+        },
+        setTarget(goalId, percentage) {
+            try {
+                const key = getGoalTargetKey(goalId);
+                const validPercentage = Math.max(0, Math.min(100, parseFloat(percentage)));
+                GM_setValue(key, validPercentage);
+                console.log(`[Goal Portfolio Viewer] Saved goal target percentage for ${goalId}: ${validPercentage}%`);
+                return validPercentage;
+            } catch (e) {
+                console.error('[Goal Portfolio Viewer] Error saving goal target percentage:', e);
+                return Math.max(0, Math.min(100, parseFloat(percentage)));
+            }
+        },
+        clearTarget(goalId) {
+            try {
+                const key = getGoalTargetKey(goalId);
+                GM_deleteValue(key);
+                console.log(`[Goal Portfolio Viewer] Deleted goal target percentage for ${goalId}`);
+            } catch (e) {
+                console.error('[Goal Portfolio Viewer] Error deleting goal target percentage:', e);
+            }
+        },
+        getFixed(goalId) {
+            try {
+                const key = getGoalFixedKey(goalId);
+                return GM_getValue(key, false) === true;
+            } catch (e) {
+                console.error('[Goal Portfolio Viewer] Error loading goal fixed state:', e);
+                return false;
+            }
+        },
+        setFixed(goalId, isFixed) {
+            try {
+                const key = getGoalFixedKey(goalId);
+                GM_setValue(key, isFixed === true);
+                console.log(`[Goal Portfolio Viewer] Saved goal fixed state for ${goalId}: ${isFixed === true}`);
+            } catch (e) {
+                console.error('[Goal Portfolio Viewer] Error saving goal fixed state:', e);
+            }
+        },
+        clearFixed(goalId) {
+            try {
+                const key = getGoalFixedKey(goalId);
+                GM_deleteValue(key);
+                console.log(`[Goal Portfolio Viewer] Deleted goal fixed state for ${goalId}`);
+            } catch (e) {
+                console.error('[Goal Portfolio Viewer] Error deleting goal fixed state:', e);
+            }
+        }
+    };
     
     /**
      * Load previously intercepted API data from Tampermonkey storage
@@ -1101,14 +1193,7 @@
      * @returns {number|null} Target percentage or null if not set
      */
     function getGoalTargetPercentage(goalId) {
-        try {
-            const key = getGoalTargetKey(goalId);
-            const value = GM_getValue(key, null);
-            return value !== null ? parseFloat(value) : null;
-        } catch (e) {
-            console.error('[Goal Portfolio Viewer] Error loading goal target percentage:', e);
-            return null;
-        }
+        return GoalTargetStore.getTarget(goalId);
     }
 
     /**
@@ -1118,16 +1203,7 @@
      * @returns {number} The actual value stored (after clamping)
      */
     function setGoalTargetPercentage(goalId, percentage) {
-        try {
-            const key = getGoalTargetKey(goalId);
-            const validPercentage = Math.max(0, Math.min(100, parseFloat(percentage)));
-            GM_setValue(key, validPercentage);
-            console.log(`[Goal Portfolio Viewer] Saved goal target percentage for ${goalId}: ${validPercentage}%`);
-            return validPercentage;
-        } catch (e) {
-            console.error('[Goal Portfolio Viewer] Error saving goal target percentage:', e);
-            return Math.max(0, Math.min(100, parseFloat(percentage)));
-        }
+        return GoalTargetStore.setTarget(goalId, percentage);
     }
 
     /**
@@ -1135,13 +1211,7 @@
      * @param {string} goalId - Goal ID
      */
     function deleteGoalTargetPercentage(goalId) {
-        try {
-            const key = getGoalTargetKey(goalId);
-            GM_deleteValue(key);
-            console.log(`[Goal Portfolio Viewer] Deleted goal target percentage for ${goalId}`);
-        } catch (e) {
-            console.error('[Goal Portfolio Viewer] Error deleting goal target percentage:', e);
-        }
+        GoalTargetStore.clearTarget(goalId);
     }
 
     /**
@@ -1150,13 +1220,7 @@
      * @returns {boolean} Fixed state (false if not set)
      */
     function getGoalFixedFlag(goalId) {
-        try {
-            const key = getGoalFixedKey(goalId);
-            return GM_getValue(key, false) === true;
-        } catch (e) {
-            console.error('[Goal Portfolio Viewer] Error loading goal fixed state:', e);
-            return false;
-        }
+        return GoalTargetStore.getFixed(goalId);
     }
 
     /**
@@ -1165,13 +1229,7 @@
      * @param {boolean} isFixed - Fixed flag
      */
     function setGoalFixedFlag(goalId, isFixed) {
-        try {
-            const key = getGoalFixedKey(goalId);
-            GM_setValue(key, isFixed === true);
-            console.log(`[Goal Portfolio Viewer] Saved goal fixed state for ${goalId}: ${isFixed === true}`);
-        } catch (e) {
-            console.error('[Goal Portfolio Viewer] Error saving goal fixed state:', e);
-        }
+        GoalTargetStore.setFixed(goalId, isFixed);
     }
 
     /**
@@ -1179,13 +1237,7 @@
      * @param {string} goalId - Goal ID
      */
     function deleteGoalFixedFlag(goalId) {
-        try {
-            const key = getGoalFixedKey(goalId);
-            GM_deleteValue(key);
-            console.log(`[Goal Portfolio Viewer] Deleted goal fixed state for ${goalId}`);
-        } catch (e) {
-            console.error('[Goal Portfolio Viewer] Error deleting goal fixed state:', e);
-        }
+        GoalTargetStore.clearFixed(goalId);
     }
 
     /**
@@ -2313,24 +2365,13 @@
         const totalTypeAmount = group.totalInvestmentAmount || 0;
         const projectedAmount = getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType);
         const adjustedTotal = totalTypeAmount + projectedAmount;
-        const allocationModel = buildGoalTypeAllocationModel(
+        return computeGoalTypeViewState(
             goals,
             totalTypeAmount,
             adjustedTotal,
             goalTargets,
             goalFixed
         );
-        const goalModelsById = allocationModel.goalModels.reduce((acc, goal) => {
-            if (goal?.goalId) {
-                acc[goal.goalId] = goal;
-            }
-            return acc;
-        }, {});
-        return {
-            ...allocationModel,
-            adjustedTotal,
-            goalModelsById
-        };
     }
 
     function refreshGoalTypeSection(
