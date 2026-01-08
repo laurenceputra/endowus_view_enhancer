@@ -250,6 +250,7 @@ Contributions are welcome! To contribute:
 - Refined fixed toggle styling and header layout for clearer target allocation visibility
 - Simplified fixed toggle rows for a cleaner detail table
 - Fixed goal name header alignment with table content
+- Centralized goal type allocation calculations to reduce duplicated logic
 
 ### Version 2.4.0
 - Refactored UI rendering to use view-model builders for better testability

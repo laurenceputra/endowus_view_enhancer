@@ -157,6 +157,55 @@
         return isFinite(remaining) ? remaining : 100;
     }
 
+    function buildGoalTypeAllocationModel(goals, totalTypeAmount, adjustedTotal, goalTargets, goalFixed) {
+        const safeGoals = Array.isArray(goals) ? goals : [];
+        const safeTargets = goalTargets || {};
+        const safeFixed = goalFixed || {};
+        const goalModels = safeGoals.map(goal => {
+            const investmentAmount = goal.totalInvestmentAmount || 0;
+            const percentOfType = calculatePercentOfType(
+                investmentAmount,
+                totalTypeAmount
+            );
+            const isFixed = safeFixed[goal.goalId] === true;
+            const targetPercent = isFixed
+                ? calculateFixedTargetPercent(investmentAmount, adjustedTotal)
+                : (typeof safeTargets[goal.goalId] === 'number'
+                    ? safeTargets[goal.goalId]
+                    : null);
+            const diffInfo = calculateGoalDiff(investmentAmount, targetPercent, adjustedTotal);
+            const returnPercentDisplay = goal.simpleRateOfReturnPercent !== null
+                && goal.simpleRateOfReturnPercent !== undefined
+                ? (goal.simpleRateOfReturnPercent * 100).toFixed(2) + '%'
+                : '-';
+            const returnValue = goal.totalCumulativeReturn || 0;
+            return {
+                goalId: goal.goalId,
+                goalName: goal.goalName,
+                investmentAmount,
+                investmentDisplay: formatMoney(investmentAmount),
+                percentOfType,
+                isFixed,
+                targetPercent,
+                targetDisplay: targetPercent !== null ? targetPercent.toFixed(2) : '',
+                diffDisplay: diffInfo.diffDisplay,
+                diffClass: diffInfo.diffClass,
+                returnValue,
+                returnDisplay: formatMoney(goal.totalCumulativeReturn),
+                returnPercentDisplay,
+                returnClass: getReturnClass(returnValue)
+            };
+        });
+        const remainingTargetPercent = calculateRemainingTargetPercent(
+            goalModels.map(goal => goal.targetPercent)
+        );
+        return {
+            goalModels,
+            remainingTargetPercent,
+            remainingTargetDisplay: `${remainingTargetPercent.toFixed(2)}%`
+        };
+    }
+
     function getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType) {
         if (!projectedInvestmentsState || typeof projectedInvestmentsState !== 'object') {
             return 0;
@@ -266,43 +315,12 @@
                     const projectedAmount = getProjectedInvestmentValue(projectedInvestments, bucketName, goalType);
                     const adjustedTotal = (group.totalInvestmentAmount || 0) + projectedAmount;
                     const goals = Array.isArray(group.goals) ? group.goals : [];
-                    const goalModels = goals.map(goal => {
-                        const investmentAmount = goal.totalInvestmentAmount || 0;
-                        const percentOfType = calculatePercentOfType(
-                            investmentAmount,
-                            group.totalInvestmentAmount
-                        );
-                        const isFixed = goalFixed[goal.goalId] === true;
-                        const targetPercent = isFixed
-                            ? calculateFixedTargetPercent(investmentAmount, adjustedTotal)
-                            : (typeof goalTargets[goal.goalId] === 'number'
-                                ? goalTargets[goal.goalId]
-                                : null);
-                        const diffInfo = calculateGoalDiff(investmentAmount, targetPercent, adjustedTotal);
-                        const returnPercentDisplay = goal.simpleRateOfReturnPercent !== null
-                            && goal.simpleRateOfReturnPercent !== undefined
-                            ? (goal.simpleRateOfReturnPercent * 100).toFixed(2) + '%'
-                            : '-';
-                        const returnValue = goal.totalCumulativeReturn || 0;
-                        return {
-                            goalId: goal.goalId,
-                            goalName: goal.goalName,
-                            investmentAmount,
-                            investmentDisplay: formatMoney(investmentAmount),
-                            percentOfType,
-                            isFixed,
-                            targetPercent,
-                            targetDisplay: targetPercent !== null ? targetPercent.toFixed(2) : '',
-                            diffDisplay: diffInfo.diffDisplay,
-                            diffClass: diffInfo.diffClass,
-                            returnValue,
-                            returnDisplay: formatMoney(goal.totalCumulativeReturn),
-                            returnPercentDisplay,
-                            returnClass: getReturnClass(returnValue)
-                        };
-                    });
-                    const remainingTargetPercent = calculateRemainingTargetPercent(
-                        goalModels.map(goal => goal.targetPercent)
+                    const allocationModel = buildGoalTypeAllocationModel(
+                        goals,
+                        group.totalInvestmentAmount || 0,
+                        adjustedTotal,
+                        goalTargets,
+                        goalFixed
                     );
                     return {
                         goalType,
@@ -315,9 +333,9 @@
                         returnClass: getReturnClass(typeReturn),
                         projectedAmount,
                         adjustedTotal,
-                        remainingTargetPercent,
-                        remainingTargetDisplay: `${remainingTargetPercent.toFixed(2)}%`,
-                        goals: goalModels
+                        remainingTargetPercent: allocationModel.remainingTargetPercent,
+                        remainingTargetDisplay: allocationModel.remainingTargetDisplay,
+                        goals: allocationModel.goalModels
                     };
                 })
                 .filter(Boolean)
@@ -2260,8 +2278,6 @@
                     handleGoalFixedToggle(
                         this,
                         goalModel.goalId,
-                        goalModel.investmentAmount,
-                        goalTypeModel.totalInvestmentAmount,
                         bucketViewModel.bucketName,
                         goalTypeModel.goalType,
                         typeSection,
@@ -2279,54 +2295,90 @@
         });
     }
 
-    function getGoalCurrentAmount(bucketObj, goalType, goalId) {
-        const groupGoals = Array.isArray(bucketObj?.[goalType]?.goals)
-            ? bucketObj[goalType].goals
-            : [];
-        const matchedGoal = groupGoals.find(item => item?.goalId === goalId);
-        const currentAmount = matchedGoal?.totalInvestmentAmount;
-        return typeof currentAmount === 'number' && isFinite(currentAmount) ? currentAmount : 0;
-    }
-
-    function getEffectiveTargetPercent(goalId, isFixed, currentAmount, adjustedTypeTotal) {
-        if (isFixed) {
-            return calculateFixedTargetPercent(currentAmount, adjustedTypeTotal);
-        }
-        return getGoalTargetPercentage(goalId);
-    }
-
-    function updateRemainingTargetDisplay(
-        typeSection,
+    function buildGoalTypeAllocationSnapshot(
         bucket,
         goalType,
         mergedInvestmentDataState,
         projectedInvestmentsState
     ) {
-        const remainingTarget = typeSection.querySelector('.gpv-remaining-target');
-        if (!remainingTarget) {
+        const bucketObj = mergedInvestmentDataState[bucket];
+        const group = bucketObj?.[goalType];
+        if (!group) {
+            return null;
+        }
+        const goals = Array.isArray(group.goals) ? group.goals : [];
+        const goalIds = goals.map(goal => goal.goalId).filter(Boolean);
+        const goalTargets = buildGoalTargetById(goalIds, getGoalTargetPercentage);
+        const goalFixed = buildGoalFixedById(goalIds, getGoalFixedFlag);
+        const totalTypeAmount = group.totalInvestmentAmount || 0;
+        const projectedAmount = getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType);
+        const adjustedTotal = totalTypeAmount + projectedAmount;
+        const allocationModel = buildGoalTypeAllocationModel(
+            goals,
+            totalTypeAmount,
+            adjustedTotal,
+            goalTargets,
+            goalFixed
+        );
+        const goalModelsById = allocationModel.goalModels.reduce((acc, goal) => {
+            if (goal?.goalId) {
+                acc[goal.goalId] = goal;
+            }
+            return acc;
+        }, {});
+        return {
+            ...allocationModel,
+            adjustedTotal,
+            goalModelsById
+        };
+    }
+
+    function refreshGoalTypeSection(
+        typeSection,
+        bucket,
+        goalType,
+        mergedInvestmentDataState,
+        projectedInvestmentsState,
+        options = {}
+    ) {
+        const snapshot = buildGoalTypeAllocationSnapshot(
+            bucket,
+            goalType,
+            mergedInvestmentDataState,
+            projectedInvestmentsState
+        );
+        if (!snapshot) {
             return;
         }
-        const bucketObj = mergedInvestmentDataState[bucket];
-        const totalTypeAmount = bucketObj?.[goalType]?.totalInvestmentAmount || 0;
-        const projectedAmount = getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType);
-        const adjustedTypeTotal = totalTypeAmount + projectedAmount;
+        const remainingTarget = typeSection.querySelector('.gpv-remaining-target');
+        if (remainingTarget) {
+            remainingTarget.textContent = `Remaining: ${snapshot.remainingTargetDisplay}`;
+        }
         const rows = typeSection.querySelectorAll('.gpv-goal-table tbody tr');
-        const targetPercents = [];
+        const forceTargetRefresh = options.forceTargetRefresh === true;
         rows.forEach(row => {
             const targetInput = row.querySelector('.gpv-target-input');
+            const diffCell = row.querySelector('.gpv-diff-cell');
             if (!targetInput) {
                 return;
             }
             const goalId = targetInput.dataset.goalId;
-            const isFixed = targetInput.dataset.fixed === 'true';
-            const currentAmount = getGoalCurrentAmount(bucketObj, goalType, goalId);
-            const targetPercent = getEffectiveTargetPercent(goalId, isFixed, currentAmount, adjustedTypeTotal);
-            if (typeof targetPercent === 'number' && isFinite(targetPercent)) {
-                targetPercents.push(targetPercent);
+            const goalModel = snapshot.goalModelsById[goalId];
+            if (!goalModel) {
+                return;
+            }
+            targetInput.dataset.fixed = goalModel.isFixed ? 'true' : 'false';
+            targetInput.disabled = goalModel.isFixed;
+            if (goalModel.isFixed || forceTargetRefresh) {
+                targetInput.value = goalModel.targetDisplay;
+            }
+            if (diffCell) {
+                diffCell.textContent = goalModel.diffDisplay;
+                diffCell.className = goalModel.diffClass
+                    ? `gpv-diff-cell ${goalModel.diffClass}`
+                    : 'gpv-diff-cell';
             }
         });
-        const remainingPercent = calculateRemainingTargetPercent(targetPercents);
-        remainingTarget.textContent = `Remaining: ${remainingPercent.toFixed(2)}%`;
     }
 
     /**
@@ -2363,7 +2415,7 @@
             deleteGoalTargetPercentage(goalId);
             diffCell.textContent = '-';
             diffCell.className = 'gpv-diff-cell';
-            updateRemainingTargetDisplay(
+            refreshGoalTypeSection(
                 typeSection,
                 bucket,
                 goalType,
@@ -2408,7 +2460,7 @@
         diffCell.textContent = diffData.diffDisplay;
         diffCell.className = diffData.diffClassName;
 
-        updateRemainingTargetDisplay(
+        refreshGoalTypeSection(
             typeSection,
             bucket,
             goalType,
@@ -2420,47 +2472,27 @@
     function handleGoalFixedToggle(
         input,
         goalId,
-        currentAmount,
-        totalTypeAmount,
         bucket,
         goalType,
         typeSection,
         mergedInvestmentDataState,
         projectedInvestmentsState
     ) {
-        const row = input.closest('tr');
-        const targetInput = row.querySelector('.gpv-target-input');
-        const diffCell = row.querySelector('.gpv-diff-cell');
         const isFixed = input.checked === true;
-        const projectedAmount = getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType);
-        const adjustedTypeTotal = totalTypeAmount + projectedAmount;
 
         if (isFixed) {
             setGoalFixedFlag(goalId, true);
-            const fixedTarget = calculateFixedTargetPercent(currentAmount, adjustedTypeTotal);
-            targetInput.disabled = true;
-            targetInput.dataset.fixed = 'true';
-            targetInput.value = fixedTarget !== null ? fixedTarget.toFixed(2) : '';
-            const diffData = buildDiffCellData(currentAmount, fixedTarget, adjustedTypeTotal);
-            diffCell.textContent = diffData.diffDisplay;
-            diffCell.className = diffData.diffClassName;
         } else {
             deleteGoalFixedFlag(goalId);
-            targetInput.disabled = false;
-            targetInput.dataset.fixed = 'false';
-            const savedTarget = getGoalTargetPercentage(goalId);
-            targetInput.value = savedTarget !== null ? savedTarget.toFixed(2) : '';
-            const diffData = buildDiffCellData(currentAmount, savedTarget, adjustedTypeTotal);
-            diffCell.textContent = diffData.diffDisplay;
-            diffCell.className = diffData.diffClassName;
         }
 
-        updateRemainingTargetDisplay(
+        refreshGoalTypeSection(
             typeSection,
             bucket,
             goalType,
             mergedInvestmentDataState,
-            projectedInvestmentsState
+            projectedInvestmentsState,
+            { forceTargetRefresh: true }
         );
     }
 
@@ -2510,43 +2542,14 @@
         // Recalculate all diffs in this goal type section
         const tbody = typeSection.querySelector('.gpv-goal-table tbody');
         if (tbody) {
-            const rows = tbody.querySelectorAll('tr');
-            rows.forEach(row => {
-                const targetInput = row.querySelector('.gpv-target-input');
-                const diffCell = row.querySelector('.gpv-diff-cell');
-                const fixedToggle = row.querySelector('.gpv-fixed-toggle-input');
-                
-                if (targetInput && diffCell) {
-                    const goalId = targetInput.dataset.goalId;
-                    const bucketObj = mergedInvestmentDataState[bucket];
-                    const totalTypeAmount = bucketObj?.[goalType]?.totalInvestmentAmount || 0;
-                    const projectedAmount = getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType);
-                    const adjustedTypeTotal = totalTypeAmount + projectedAmount;
-                    const currentAmount = getGoalCurrentAmount(bucketObj, goalType, goalId);
-                    const isFixed = fixedToggle?.checked === true;
-                    const targetPercent = getEffectiveTargetPercent(
-                        goalId,
-                        isFixed,
-                        currentAmount,
-                        adjustedTypeTotal
-                    );
-                    if (isFixed) {
-                        targetInput.value = targetPercent !== null ? targetPercent.toFixed(2) : '';
-                    }
-                    const diffData = buildDiffCellData(currentAmount, targetPercent, adjustedTypeTotal);
-                    diffCell.textContent = diffData.diffDisplay;
-                    diffCell.className = diffData.diffClassName;
-                }
-            });
+            refreshGoalTypeSection(
+                typeSection,
+                bucket,
+                goalType,
+                mergedInvestmentDataState,
+                projectedInvestmentsState
+            );
         }
-
-        updateRemainingTargetDisplay(
-            typeSection,
-            bucket,
-            goalType,
-            mergedInvestmentDataState,
-            projectedInvestmentsState
-        );
     }
 
     // ============================================
@@ -3675,6 +3678,7 @@
             calculateGoalDiff,
             calculateFixedTargetPercent,
             calculateRemainingTargetPercent,
+            buildGoalTypeAllocationModel,
             getProjectedInvestmentValue,
             buildDiffCellData,
             buildSummaryViewModel,
