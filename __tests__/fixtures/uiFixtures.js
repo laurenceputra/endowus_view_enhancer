@@ -60,8 +60,15 @@ function createGoalTargetFixture() {
     };
 }
 
+function createGoalFixedFixture() {
+    return {
+        g1: true
+    };
+}
+
 module.exports = {
     createBucketMapFixture,
     createProjectedInvestmentFixture,
-    createGoalTargetFixture
+    createGoalTargetFixture,
+    createGoalFixedFixture
 };

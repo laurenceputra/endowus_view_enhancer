@@ -354,11 +354,13 @@ The `summaryViewModel` contains:
 ```javascript
 const goalIds = collectGoalIds(bucketMap[bucketName]);
 const goalTargetById = buildGoalTargetById(goalIds, getGoalTargetPercentage);
+const goalFixedById = buildGoalFixedById(goalIds, getGoalFixedFlag);
 const bucketViewModel = buildBucketDetailViewModel(
     bucketName,
     bucketMap,
     projectedInvestments,
-    goalTargetById
+    goalTargetById,
+    goalFixedById
 );
 renderBucketView(contentDiv, bucketViewModel, bucketMap, projectedInvestments, cleanupCallbacks);
 ```
@@ -366,7 +368,7 @@ renderBucketView(contentDiv, bucketViewModel, bucketMap, projectedInvestments, c
 The `bucketViewModel` contains:
 - bucket totals and growth display strings
 - per-goal-type sections (with projected investment inputs)
-- per-goal rows (targets, diffs, return classes)
+- per-goal rows (fixed toggles, targets, remaining target %, diffs, return classes)
 
 ---
 

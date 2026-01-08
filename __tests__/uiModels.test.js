@@ -6,18 +6,22 @@ const {
     getReturnClass,
     calculatePercentOfType,
     calculateGoalDiff,
+    calculateFixedTargetPercent,
+    calculateRemainingTargetPercent,
     getProjectedInvestmentValue,
     buildDiffCellData,
     buildSummaryViewModel,
     buildBucketDetailViewModel,
     collectGoalIds,
-    buildGoalTargetById
+    buildGoalTargetById,
+    buildGoalFixedById
 } = require('../tampermonkey/goal_portfolio_viewer.user.js');
 
 const {
     createBucketMapFixture,
     createProjectedInvestmentFixture,
-    createGoalTargetFixture
+    createGoalTargetFixture,
+    createGoalFixedFixture
 } = require('./fixtures/uiFixtures');
 
 describe('format helpers', () => {
@@ -50,6 +54,16 @@ describe('format helpers', () => {
         const diffData = buildDiffCellData(1200, 60, 2500);
         expect(diffData.diffDisplay).toBe('$-300.00');
         expect(diffData.diffClassName).toBe('gpv-diff-cell negative');
+    });
+
+    test('should calculate fixed target percent', () => {
+        expect(calculateFixedTargetPercent(500, 2000)).toBe(25);
+        expect(calculateFixedTargetPercent(500, 0)).toBeNull();
+    });
+
+    test('should calculate remaining target percent', () => {
+        expect(calculateRemainingTargetPercent([60, 25])).toBe(15);
+        expect(calculateRemainingTargetPercent([100, 10])).toBe(-10);
     });
 });
 
@@ -84,15 +98,18 @@ describe('view model builders', () => {
         const bucketMap = createBucketMapFixture();
         const projected = createProjectedInvestmentFixture();
         const targets = createGoalTargetFixture();
-        const viewModel = buildBucketDetailViewModel('Retirement', bucketMap, projected, targets);
+        const fixed = createGoalFixedFixture();
+        const viewModel = buildBucketDetailViewModel('Retirement', bucketMap, projected, targets, fixed);
         expect(viewModel.bucketName).toBe('Retirement');
         const goalTypeModel = viewModel.goalTypes[0];
         expect(goalTypeModel.projectedAmount).toBe(500);
         expect(goalTypeModel.adjustedTotal).toBe(2500);
+        expect(goalTypeModel.remainingTargetDisplay).toBe('12.00%');
         const firstGoal = goalTypeModel.goals[0];
         expect(firstGoal.percentOfType).toBe('60.00');
-        expect(firstGoal.diffDisplay).toBe('$-300.00');
-        expect(firstGoal.targetDisplay).toBe('60.00');
+        expect(firstGoal.diffDisplay).toBe('$0.00');
+        expect(firstGoal.targetDisplay).toBe('48.00');
+        expect(firstGoal.isFixed).toBe(true);
     });
 
     test('should return null for missing bucket', () => {
@@ -111,5 +128,10 @@ describe('collectGoalIds and buildGoalTargetById', () => {
     test('should build goal target map with getter', () => {
         const map = buildGoalTargetById(['a', 'b'], id => (id === 'a' ? 20 : null));
         expect(map).toEqual({ a: 20 });
+    });
+
+    test('should build goal fixed map with getter', () => {
+        const map = buildGoalFixedById(['a', 'b'], id => id === 'b');
+        expect(map).toEqual({ b: true });
     });
 });

@@ -104,6 +104,8 @@ The script will automatically group all goals starting with the same bucket name
 - See detailed information about each goal within that bucket
 - View individual goal performance metrics
 - Compare goals within the same bucket
+- Use per-goal fixed toggles to lock a goal's amount and auto-sync its target %
+- Track remaining unassigned target % for each goal type
 
 ### Data Displayed
 
@@ -241,6 +243,14 @@ Contributions are welcome! To contribute:
 5. Submit a pull request
 
 ## Changelog
+
+### Version 2.6.0
+- Added per-goal fixed toggles to lock target percentages to current goal allocations
+- Displayed remaining unassigned target percentage per goal type in bucket detail view
+- Refined fixed toggle styling and header layout for clearer target allocation visibility
+- Simplified fixed toggle rows for a cleaner detail table
+- Fixed goal name header alignment with table content
+- Centralized goal type allocation calculations to reduce duplicated logic
 
 ### Version 2.4.0
 - Refactored UI rendering to use view-model builders for better testability

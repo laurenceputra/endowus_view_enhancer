@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.5.0
+// @version      2.6.0
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -28,6 +28,15 @@
      */
     function getGoalTargetKey(goalId) {
         return `goal_target_pct_${goalId}`;
+    }
+
+    /**
+     * Get storage key for a goal's fixed toggle state
+     * @param {string} goalId - Unique goal identifier
+     * @returns {string} Storage key
+     */
+    function getGoalFixedKey(goalId) {
+        return `goal_fixed_${goalId}`;
     }
 
     /**
@@ -124,6 +133,110 @@
         };
     }
 
+    // ============================================
+    // Allocation Model Helpers
+    // ============================================
+
+    function calculateFixedTargetPercent(currentAmount, adjustedTypeTotal) {
+        const numericCurrent = Number(currentAmount);
+        const numericTotal = Number(adjustedTypeTotal);
+        if (!isFinite(numericCurrent) || !isFinite(numericTotal) || numericTotal <= 0) {
+            return null;
+        }
+        return (numericCurrent / numericTotal) * 100;
+    }
+
+    function calculateRemainingTargetPercent(targetPercents) {
+        if (!Array.isArray(targetPercents)) {
+            return 100;
+        }
+        const sum = targetPercents.reduce((total, targetPercent) => {
+            const numericTarget = Number(targetPercent);
+            if (!isFinite(numericTarget)) {
+                return total;
+            }
+            return total + numericTarget;
+        }, 0);
+        const remaining = 100 - sum;
+        return isFinite(remaining) ? remaining : 100;
+    }
+
+    function buildGoalTypeAllocationModel(goals, totalTypeAmount, adjustedTotal, goalTargets, goalFixed) {
+        const safeGoals = Array.isArray(goals) ? goals : [];
+        const safeTargets = goalTargets || {};
+        const safeFixed = goalFixed || {};
+        const goalModels = safeGoals.map(goal => {
+            const investmentAmount = goal.totalInvestmentAmount || 0;
+            const percentOfType = calculatePercentOfType(
+                investmentAmount,
+                totalTypeAmount
+            );
+            const isFixed = safeFixed[goal.goalId] === true;
+            const targetPercent = isFixed
+                ? calculateFixedTargetPercent(investmentAmount, adjustedTotal)
+                : (typeof safeTargets[goal.goalId] === 'number'
+                    ? safeTargets[goal.goalId]
+                    : null);
+            const diffInfo = calculateGoalDiff(investmentAmount, targetPercent, adjustedTotal);
+            const returnPercentDisplay = goal.simpleRateOfReturnPercent !== null
+                && goal.simpleRateOfReturnPercent !== undefined
+                ? (goal.simpleRateOfReturnPercent * 100).toFixed(2) + '%'
+                : '-';
+            const returnValue = goal.totalCumulativeReturn || 0;
+            return {
+                goalId: goal.goalId,
+                goalName: goal.goalName,
+                investmentAmount,
+                investmentDisplay: formatMoney(investmentAmount),
+                percentOfType,
+                isFixed,
+                targetPercent,
+                targetDisplay: targetPercent !== null ? targetPercent.toFixed(2) : '',
+                diffDisplay: diffInfo.diffDisplay,
+                diffClass: diffInfo.diffClass,
+                returnValue,
+                returnDisplay: formatMoney(goal.totalCumulativeReturn),
+                returnPercentDisplay,
+                returnClass: getReturnClass(returnValue)
+            };
+        });
+        const remainingTargetPercent = calculateRemainingTargetPercent(
+            goalModels.map(goal => goal.targetPercent)
+        );
+        return {
+            goalModels,
+            remainingTargetPercent,
+            remainingTargetDisplay: `${remainingTargetPercent.toFixed(2)}%`
+        };
+    }
+
+    function computeGoalTypeViewState(
+        goals,
+        totalTypeAmount,
+        adjustedTotal,
+        goalTargets,
+        goalFixed
+    ) {
+        const allocationModel = buildGoalTypeAllocationModel(
+            goals,
+            totalTypeAmount,
+            adjustedTotal,
+            goalTargets,
+            goalFixed
+        );
+        const goalModelsById = allocationModel.goalModels.reduce((acc, goal) => {
+            if (goal?.goalId) {
+                acc[goal.goalId] = goal;
+            }
+            return acc;
+        }, {});
+        return {
+            ...allocationModel,
+            goalModelsById,
+            adjustedTotal
+        };
+    }
+
     function getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType) {
         if (!projectedInvestmentsState || typeof projectedInvestmentsState !== 'object') {
             return 0;
@@ -191,7 +304,13 @@
         return { buckets };
     }
 
-    function buildBucketDetailViewModel(bucketName, bucketMap, projectedInvestmentsState, goalTargetById) {
+    function buildBucketDetailViewModel(
+        bucketName,
+        bucketMap,
+        projectedInvestmentsState,
+        goalTargetById,
+        goalFixedById
+    ) {
         if (!bucketMap || typeof bucketMap !== 'object' || !bucketName) {
             return null;
         }
@@ -207,6 +326,7 @@
         const orderedTypes = sortGoalTypes(goalTypes);
         const projectedInvestments = projectedInvestmentsState || {};
         const goalTargets = goalTargetById || {};
+        const goalFixed = goalFixedById || {};
 
         return {
             bucketName,
@@ -226,6 +346,13 @@
                     const projectedAmount = getProjectedInvestmentValue(projectedInvestments, bucketName, goalType);
                     const adjustedTotal = (group.totalInvestmentAmount || 0) + projectedAmount;
                     const goals = Array.isArray(group.goals) ? group.goals : [];
+                    const allocationModel = buildGoalTypeAllocationModel(
+                        goals,
+                        group.totalInvestmentAmount || 0,
+                        adjustedTotal,
+                        goalTargets,
+                        goalFixed
+                    );
                     return {
                         goalType,
                         displayName: getDisplayGoalType(goalType),
@@ -237,37 +364,9 @@
                         returnClass: getReturnClass(typeReturn),
                         projectedAmount,
                         adjustedTotal,
-                        goals: goals.map(goal => {
-                            const investmentAmount = goal.totalInvestmentAmount || 0;
-                            const percentOfType = calculatePercentOfType(
-                                investmentAmount,
-                                group.totalInvestmentAmount
-                            );
-                            const targetPercent = typeof goalTargets[goal.goalId] === 'number'
-                                ? goalTargets[goal.goalId]
-                                : null;
-                            const diffInfo = calculateGoalDiff(investmentAmount, targetPercent, adjustedTotal);
-                            const returnPercentDisplay = goal.simpleRateOfReturnPercent !== null
-                                && goal.simpleRateOfReturnPercent !== undefined
-                                ? (goal.simpleRateOfReturnPercent * 100).toFixed(2) + '%'
-                                : '-';
-                            const returnValue = goal.totalCumulativeReturn || 0;
-                            return {
-                                goalId: goal.goalId,
-                                goalName: goal.goalName,
-                                investmentAmount,
-                                investmentDisplay: formatMoney(investmentAmount),
-                                percentOfType,
-                                targetPercent,
-                                targetDisplay: targetPercent !== null ? targetPercent.toFixed(2) : '',
-                                diffDisplay: diffInfo.diffDisplay,
-                                diffClass: diffInfo.diffClass,
-                                returnValue,
-                                returnDisplay: formatMoney(goal.totalCumulativeReturn),
-                                returnPercentDisplay,
-                                returnClass: getReturnClass(returnValue)
-                            };
-                        })
+                        remainingTargetPercent: allocationModel.remainingTargetPercent,
+                        remainingTargetDisplay: allocationModel.remainingTargetDisplay,
+                        goals: allocationModel.goalModels
                     };
                 })
                 .filter(Boolean)
@@ -298,6 +397,19 @@
             const value = getTargetFn(goalId);
             if (typeof value === 'number' && isFinite(value)) {
                 acc[goalId] = value;
+            }
+            return acc;
+        }, {});
+    }
+
+    function buildGoalFixedById(goalIds, getFixedFn) {
+        if (!Array.isArray(goalIds) || typeof getFixedFn !== 'function') {
+            return {};
+        }
+        return goalIds.reduce((acc, goalId) => {
+            const value = getFixedFn(goalId);
+            if (value === true) {
+                acc[goalId] = true;
             }
             return acc;
         }, {});
@@ -987,6 +1099,67 @@
     // ============================================
     // Storage Management
     // ============================================
+
+    const GoalTargetStore = {
+        getTarget(goalId) {
+            try {
+                const key = getGoalTargetKey(goalId);
+                const value = GM_getValue(key, null);
+                return value !== null ? parseFloat(value) : null;
+            } catch (e) {
+                console.error('[Goal Portfolio Viewer] Error loading goal target percentage:', e);
+                return null;
+            }
+        },
+        setTarget(goalId, percentage) {
+            try {
+                const key = getGoalTargetKey(goalId);
+                const validPercentage = Math.max(0, Math.min(100, parseFloat(percentage)));
+                GM_setValue(key, validPercentage);
+                console.log(`[Goal Portfolio Viewer] Saved goal target percentage for ${goalId}: ${validPercentage}%`);
+                return validPercentage;
+            } catch (e) {
+                console.error('[Goal Portfolio Viewer] Error saving goal target percentage:', e);
+                return Math.max(0, Math.min(100, parseFloat(percentage)));
+            }
+        },
+        clearTarget(goalId) {
+            try {
+                const key = getGoalTargetKey(goalId);
+                GM_deleteValue(key);
+                console.log(`[Goal Portfolio Viewer] Deleted goal target percentage for ${goalId}`);
+            } catch (e) {
+                console.error('[Goal Portfolio Viewer] Error deleting goal target percentage:', e);
+            }
+        },
+        getFixed(goalId) {
+            try {
+                const key = getGoalFixedKey(goalId);
+                return GM_getValue(key, false) === true;
+            } catch (e) {
+                console.error('[Goal Portfolio Viewer] Error loading goal fixed state:', e);
+                return false;
+            }
+        },
+        setFixed(goalId, isFixed) {
+            try {
+                const key = getGoalFixedKey(goalId);
+                GM_setValue(key, isFixed === true);
+                console.log(`[Goal Portfolio Viewer] Saved goal fixed state for ${goalId}: ${isFixed === true}`);
+            } catch (e) {
+                console.error('[Goal Portfolio Viewer] Error saving goal fixed state:', e);
+            }
+        },
+        clearFixed(goalId) {
+            try {
+                const key = getGoalFixedKey(goalId);
+                GM_deleteValue(key);
+                console.log(`[Goal Portfolio Viewer] Deleted goal fixed state for ${goalId}`);
+            } catch (e) {
+                console.error('[Goal Portfolio Viewer] Error deleting goal fixed state:', e);
+            }
+        }
+    };
     
     /**
      * Load previously intercepted API data from Tampermonkey storage
@@ -1020,14 +1193,7 @@
      * @returns {number|null} Target percentage or null if not set
      */
     function getGoalTargetPercentage(goalId) {
-        try {
-            const key = getGoalTargetKey(goalId);
-            const value = GM_getValue(key, null);
-            return value !== null ? parseFloat(value) : null;
-        } catch (e) {
-            console.error('[Goal Portfolio Viewer] Error loading goal target percentage:', e);
-            return null;
-        }
+        return GoalTargetStore.getTarget(goalId);
     }
 
     /**
@@ -1037,16 +1203,7 @@
      * @returns {number} The actual value stored (after clamping)
      */
     function setGoalTargetPercentage(goalId, percentage) {
-        try {
-            const key = getGoalTargetKey(goalId);
-            const validPercentage = Math.max(0, Math.min(100, parseFloat(percentage)));
-            GM_setValue(key, validPercentage);
-            console.log(`[Goal Portfolio Viewer] Saved goal target percentage for ${goalId}: ${validPercentage}%`);
-            return validPercentage;
-        } catch (e) {
-            console.error('[Goal Portfolio Viewer] Error saving goal target percentage:', e);
-            return Math.max(0, Math.min(100, parseFloat(percentage)));
-        }
+        return GoalTargetStore.setTarget(goalId, percentage);
     }
 
     /**
@@ -1054,13 +1211,33 @@
      * @param {string} goalId - Goal ID
      */
     function deleteGoalTargetPercentage(goalId) {
-        try {
-            const key = getGoalTargetKey(goalId);
-            GM_deleteValue(key);
-            console.log(`[Goal Portfolio Viewer] Deleted goal target percentage for ${goalId}`);
-        } catch (e) {
-            console.error('[Goal Portfolio Viewer] Error deleting goal target percentage:', e);
-        }
+        GoalTargetStore.clearTarget(goalId);
+    }
+
+    /**
+     * Get fixed state for a specific goal
+     * @param {string} goalId - Goal ID
+     * @returns {boolean} Fixed state (false if not set)
+     */
+    function getGoalFixedFlag(goalId) {
+        return GoalTargetStore.getFixed(goalId);
+    }
+
+    /**
+     * Set fixed state for a specific goal
+     * @param {string} goalId - Goal ID
+     * @param {boolean} isFixed - Fixed flag
+     */
+    function setGoalFixedFlag(goalId, isFixed) {
+        GoalTargetStore.setFixed(goalId, isFixed);
+    }
+
+    /**
+     * Delete fixed state for a specific goal
+     * @param {string} goalId - Goal ID
+     */
+    function deleteGoalFixedFlag(goalId) {
+        GoalTargetStore.clearFixed(goalId);
     }
 
     /**
@@ -2079,10 +2256,14 @@
             table.innerHTML = `
                 <thead>
                     <tr>
-                        <th>Goal Name</th>
+                        <th class="gpv-goal-name-header">Goal Name</th>
                         <th>Investment Amount</th>
                         <th>% of Goal Type</th>
-                        <th>Target %</th>
+                        <th class="gpv-fixed-header">Fixed</th>
+                        <th class="gpv-target-header">
+                            <div>Target %</div>
+                            <div class="gpv-remaining-target">Remaining: ${goalTypeModel.remainingTargetDisplay}</div>
+                        </th>
                         <th>Diff</th>
                         <th>Cumulative Return</th>
                         <th>Return %</th>
@@ -2098,6 +2279,17 @@
                     <td class="gpv-goal-name">${goalModel.goalName}</td>
                     <td>${goalModel.investmentDisplay}</td>
                     <td>${goalModel.percentOfType}%</td>
+                    <td class="gpv-fixed-cell">
+                        <label class="gpv-fixed-toggle">
+                            <input 
+                                type="checkbox"
+                                class="gpv-fixed-toggle-input"
+                                data-goal-id="${goalModel.goalId}"
+                                ${goalModel.isFixed ? 'checked' : ''}
+                            />
+                            <span class="gpv-toggle-slider"></span>
+                        </label>
+                    </td>
                     <td class="gpv-target-cell">
                         <input 
                             type="number" 
@@ -2108,6 +2300,8 @@
                             value="${goalModel.targetDisplay}"
                             placeholder="Set target"
                             data-goal-id="${goalModel.goalId}"
+                            data-fixed="${goalModel.isFixed ? 'true' : 'false'}"
+                            ${goalModel.isFixed ? 'disabled' : ''}
                         />
                     </td>
                     <td class="gpv-diff-cell ${goalModel.diffClass}">${goalModel.diffDisplay}</td>
@@ -2125,6 +2319,21 @@
                         goalTypeModel.totalInvestmentAmount,
                         bucketViewModel.bucketName,
                         goalTypeModel.goalType,
+                        typeSection,
+                        mergedInvestmentDataState,
+                        projectedInvestmentsState
+                    );
+                });
+
+                const fixedToggle = tr.querySelector('.gpv-fixed-toggle-input');
+                fixedToggle.addEventListener('change', function() {
+                    handleGoalFixedToggle(
+                        this,
+                        goalModel.goalId,
+                        bucketViewModel.bucketName,
+                        goalTypeModel.goalType,
+                        typeSection,
+                        mergedInvestmentDataState,
                         projectedInvestmentsState
                     );
                 });
@@ -2138,6 +2347,81 @@
         });
     }
 
+    function buildGoalTypeAllocationSnapshot(
+        bucket,
+        goalType,
+        mergedInvestmentDataState,
+        projectedInvestmentsState
+    ) {
+        const bucketObj = mergedInvestmentDataState[bucket];
+        const group = bucketObj?.[goalType];
+        if (!group) {
+            return null;
+        }
+        const goals = Array.isArray(group.goals) ? group.goals : [];
+        const goalIds = goals.map(goal => goal.goalId).filter(Boolean);
+        const goalTargets = buildGoalTargetById(goalIds, getGoalTargetPercentage);
+        const goalFixed = buildGoalFixedById(goalIds, getGoalFixedFlag);
+        const totalTypeAmount = group.totalInvestmentAmount || 0;
+        const projectedAmount = getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType);
+        const adjustedTotal = totalTypeAmount + projectedAmount;
+        return computeGoalTypeViewState(
+            goals,
+            totalTypeAmount,
+            adjustedTotal,
+            goalTargets,
+            goalFixed
+        );
+    }
+
+    function refreshGoalTypeSection(
+        typeSection,
+        bucket,
+        goalType,
+        mergedInvestmentDataState,
+        projectedInvestmentsState,
+        options = {}
+    ) {
+        const snapshot = buildGoalTypeAllocationSnapshot(
+            bucket,
+            goalType,
+            mergedInvestmentDataState,
+            projectedInvestmentsState
+        );
+        if (!snapshot) {
+            return;
+        }
+        const remainingTarget = typeSection.querySelector('.gpv-remaining-target');
+        if (remainingTarget) {
+            remainingTarget.textContent = `Remaining: ${snapshot.remainingTargetDisplay}`;
+        }
+        const rows = typeSection.querySelectorAll('.gpv-goal-table tbody tr');
+        const forceTargetRefresh = options.forceTargetRefresh === true;
+        rows.forEach(row => {
+            const targetInput = row.querySelector('.gpv-target-input');
+            const diffCell = row.querySelector('.gpv-diff-cell');
+            if (!targetInput) {
+                return;
+            }
+            const goalId = targetInput.dataset.goalId;
+            const goalModel = snapshot.goalModelsById[goalId];
+            if (!goalModel) {
+                return;
+            }
+            targetInput.dataset.fixed = goalModel.isFixed ? 'true' : 'false';
+            targetInput.disabled = goalModel.isFixed;
+            if (goalModel.isFixed || forceTargetRefresh) {
+                targetInput.value = goalModel.targetDisplay;
+            }
+            if (diffCell) {
+                diffCell.textContent = goalModel.diffDisplay;
+                diffCell.className = goalModel.diffClass
+                    ? `gpv-diff-cell ${goalModel.diffClass}`
+                    : 'gpv-diff-cell';
+            }
+        });
+    }
+
     /**
      * Handle changes to goal target percentage input
      * @param {HTMLInputElement} input - Input element
@@ -2146,6 +2430,8 @@
      * @param {number} totalTypeAmount - Total investment amount for the goal type
      * @param {string} bucket - Bucket name
      * @param {string} goalType - Goal type
+     * @param {HTMLElement} typeSection - Goal type section container
+     * @param {Object} mergedInvestmentDataState - Current merged data map
      */
     function handleGoalTargetChange(
         input,
@@ -2154,8 +2440,13 @@
         totalTypeAmount,
         bucket,
         goalType,
+        typeSection,
+        mergedInvestmentDataState,
         projectedInvestmentsState
     ) {
+        if (input.dataset.fixed === 'true') {
+            return;
+        }
         const value = input.value;
         const row = input.closest('tr');
         const diffCell = row.querySelector('.gpv-diff-cell');
@@ -2165,6 +2456,13 @@
             deleteGoalTargetPercentage(goalId);
             diffCell.textContent = '-';
             diffCell.className = 'gpv-diff-cell';
+            refreshGoalTypeSection(
+                typeSection,
+                bucket,
+                goalType,
+                mergedInvestmentDataState,
+                projectedInvestmentsState
+            );
             return;
         }
         
@@ -2202,6 +2500,41 @@
         const diffData = buildDiffCellData(currentAmount, savedValue, adjustedTypeTotal);
         diffCell.textContent = diffData.diffDisplay;
         diffCell.className = diffData.diffClassName;
+
+        refreshGoalTypeSection(
+            typeSection,
+            bucket,
+            goalType,
+            mergedInvestmentDataState,
+            projectedInvestmentsState
+        );
+    }
+
+    function handleGoalFixedToggle(
+        input,
+        goalId,
+        bucket,
+        goalType,
+        typeSection,
+        mergedInvestmentDataState,
+        projectedInvestmentsState
+    ) {
+        const isFixed = input.checked === true;
+
+        if (isFixed) {
+            setGoalFixedFlag(goalId, true);
+        } else {
+            deleteGoalFixedFlag(goalId);
+        }
+
+        refreshGoalTypeSection(
+            typeSection,
+            bucket,
+            goalType,
+            mergedInvestmentDataState,
+            projectedInvestmentsState,
+            { forceTargetRefresh: true }
+        );
     }
 
     /**
@@ -2250,36 +2583,13 @@
         // Recalculate all diffs in this goal type section
         const tbody = typeSection.querySelector('.gpv-goal-table tbody');
         if (tbody) {
-            const rows = tbody.querySelectorAll('tr');
-            rows.forEach(row => {
-                const targetInput = row.querySelector('.gpv-target-input');
-                const diffCell = row.querySelector('.gpv-diff-cell');
-                
-                if (targetInput && diffCell) {
-                    const goalId = targetInput.dataset.goalId;
-                    const targetPercent = getGoalTargetPercentage(goalId);
-                    
-                    if (targetPercent !== null) {
-                        // Get the goal's investment amount from the row
-                        const cells = row.querySelectorAll('td');
-                        const bucketObj = mergedInvestmentDataState[bucket];
-                        const totalTypeAmount = bucketObj?.[goalType]?.totalInvestmentAmount || 0;
-                        const projectedAmount = getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType);
-                        const adjustedTypeTotal = totalTypeAmount + projectedAmount;
-                        const groupGoals = Array.isArray(bucketObj?.[goalType]?.goals)
-                            ? bucketObj[goalType].goals
-                            : [];
-                        const matchedGoal = groupGoals.find(item => item?.goalId === goalId);
-                        const currentAmount = typeof matchedGoal?.totalInvestmentAmount === 'number'
-                            && isFinite(matchedGoal.totalInvestmentAmount)
-                            ? matchedGoal.totalInvestmentAmount
-                            : 0;
-                        const diffData = buildDiffCellData(currentAmount, targetPercent, adjustedTypeTotal);
-                        diffCell.textContent = diffData.diffDisplay;
-                        diffCell.className = diffData.diffClassName;
-                    }
-                }
-            });
+            refreshGoalTypeSection(
+                typeSection,
+                bucket,
+                goalType,
+                mergedInvestmentDataState,
+                projectedInvestmentsState
+            );
         }
     }
 
@@ -2619,12 +2929,21 @@
             
             .gpv-table th {
                 padding: 10px 14px;
-                text-align: left;
+                text-align: right;
                 font-weight: 700;
-                font-size: 13px;
+                font-size: 12px;
                 color: #ffffff;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
+                white-space: nowrap;
+            }
+
+            .gpv-table th.gpv-goal-name-header {
+                text-align: left;
+            }
+
+            .gpv-fixed-header {
+                text-align: center;
             }
             
             .gpv-table td {
@@ -2667,7 +2986,69 @@
             .gpv-target-cell {
                 padding: 6px 8px !important;
             }
-            
+
+            .gpv-target-header {
+                text-align: right;
+            }
+
+            .gpv-remaining-target {
+                margin-top: 4px;
+                font-size: 11px;
+                color: #fef3c7;
+                font-weight: 500;
+            }
+
+            .gpv-fixed-cell {
+                text-align: center;
+                white-space: nowrap;
+            }
+
+            .gpv-fixed-toggle {
+                position: relative;
+                display: inline-block;
+                width: 36px;
+                height: 20px;
+                vertical-align: middle;
+            }
+
+            .gpv-fixed-toggle-input {
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+
+            .gpv-toggle-slider {
+                position: absolute;
+                cursor: pointer;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: #9ca3af;
+                transition: 0.2s;
+                border-radius: 999px;
+            }
+
+            .gpv-toggle-slider:before {
+                position: absolute;
+                content: '';
+                height: 14px;
+                width: 14px;
+                left: 3px;
+                bottom: 3px;
+                background-color: #ffffff;
+                transition: 0.2s;
+                border-radius: 50%;
+            }
+
+            .gpv-fixed-toggle-input:checked + .gpv-toggle-slider {
+                background-color: #4f46e5;
+            }
+
+            .gpv-fixed-toggle-input:checked + .gpv-toggle-slider:before {
+                transform: translateX(16px);
+            }
+
             .gpv-target-input {
                 width: 70px;
                 padding: 4px 8px;
@@ -3130,11 +3511,13 @@
             const bucketObj = data[value];
             const goalIds = collectGoalIds(bucketObj);
             const goalTargetById = buildGoalTargetById(goalIds, getGoalTargetPercentage);
+            const goalFixedById = buildGoalFixedById(goalIds, getGoalFixedFlag);
             const bucketViewModel = buildBucketDetailViewModel(
                 value,
                 data,
                 projectedInvestments,
-                goalTargetById
+                goalTargetById,
+                goalFixedById
             );
             renderBucketView(
                 contentDiv,
@@ -3325,6 +3708,7 @@
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = {
             getGoalTargetKey,
+            getGoalFixedKey,
             getProjectedInvestmentKey,
             getDisplayGoalType,
             sortGoalTypes,
@@ -3333,12 +3717,16 @@
             getReturnClass,
             calculatePercentOfType,
             calculateGoalDiff,
+            calculateFixedTargetPercent,
+            calculateRemainingTargetPercent,
+            buildGoalTypeAllocationModel,
             getProjectedInvestmentValue,
             buildDiffCellData,
             buildSummaryViewModel,
             buildBucketDetailViewModel,
             collectGoalIds,
             buildGoalTargetById,
+            buildGoalFixedById,
             buildMergedInvestmentData,
             getPerformanceCacheKey,
             isCacheFresh,
