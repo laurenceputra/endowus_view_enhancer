@@ -244,6 +244,9 @@ Contributions are welcome! To contribute:
 
 ## Changelog
 
+### Version 2.6.2
+- Simplified fixed toggle rows for a cleaner detail table
+
 ### Version 2.6.1
 - Refined fixed toggle styling and header layout for clearer target allocation visibility
 
