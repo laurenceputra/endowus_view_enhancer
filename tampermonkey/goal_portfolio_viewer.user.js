@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.6.0
+// @version      2.6.1
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -2186,10 +2186,10 @@
             table.innerHTML = `
                 <thead>
                     <tr>
-                        <th>Goal Name</th>
+                        <th class="gpv-goal-name-header">Goal Name</th>
                         <th>Investment Amount</th>
                         <th>% of Goal Type</th>
-                        <th>Fixed</th>
+                        <th class="gpv-fixed-header">Fixed</th>
                         <th class="gpv-target-header">
                             <div>Target %</div>
                             <div class="gpv-remaining-target">Remaining: ${goalTypeModel.remainingTargetDisplay}</div>
@@ -2217,8 +2217,9 @@
                                 data-goal-id="${goalModel.goalId}"
                                 ${goalModel.isFixed ? 'checked' : ''}
                             />
-                            <span>Fixed</span>
+                            <span class="gpv-toggle-slider"></span>
                         </label>
+                        <span class="gpv-fixed-text">Fixed</span>
                     </td>
                     <td class="gpv-target-cell">
                         <input 
@@ -2885,12 +2886,21 @@
             
             .gpv-table th {
                 padding: 10px 14px;
-                text-align: left;
+                text-align: right;
                 font-weight: 700;
-                font-size: 13px;
+                font-size: 12px;
                 color: #ffffff;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
+                white-space: nowrap;
+            }
+
+            .gpv-goal-name-header {
+                text-align: left;
+            }
+
+            .gpv-fixed-header {
+                text-align: center;
             }
             
             .gpv-table td {
@@ -2935,13 +2945,13 @@
             }
 
             .gpv-target-header {
-                text-align: center;
+                text-align: right;
             }
 
             .gpv-remaining-target {
                 margin-top: 4px;
-                font-size: 12px;
-                color: #6b7280;
+                font-size: 11px;
+                color: #fef3c7;
                 font-weight: 500;
             }
 
@@ -2951,20 +2961,57 @@
             }
 
             .gpv-fixed-toggle {
-                display: inline-flex;
-                align-items: center;
-                gap: 6px;
-                font-size: 12px;
-                color: #374151;
-                cursor: pointer;
-                user-select: none;
+                position: relative;
+                display: inline-block;
+                width: 36px;
+                height: 20px;
+                vertical-align: middle;
             }
 
             .gpv-fixed-toggle-input {
-                accent-color: #6366f1;
-                width: 14px;
-                height: 14px;
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+
+            .gpv-toggle-slider {
+                position: absolute;
                 cursor: pointer;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: #9ca3af;
+                transition: 0.2s;
+                border-radius: 999px;
+            }
+
+            .gpv-toggle-slider:before {
+                position: absolute;
+                content: '';
+                height: 14px;
+                width: 14px;
+                left: 3px;
+                bottom: 3px;
+                background-color: #ffffff;
+                transition: 0.2s;
+                border-radius: 50%;
+            }
+
+            .gpv-fixed-toggle-input:checked + .gpv-toggle-slider {
+                background-color: #4f46e5;
+            }
+
+            .gpv-fixed-toggle-input:checked + .gpv-toggle-slider:before {
+                transform: translateX(16px);
+            }
+
+            .gpv-fixed-text {
+                margin-left: 6px;
+                font-size: 12px;
+                color: #1f2937;
+                font-weight: 600;
+                vertical-align: middle;
             }
             
             .gpv-target-input {

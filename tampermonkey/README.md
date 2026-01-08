@@ -244,6 +244,9 @@ Contributions are welcome! To contribute:
 
 ## Changelog
 
+### Version 2.6.1
+- Refined fixed toggle styling and header layout for clearer target allocation visibility
+
 ### Version 2.6.0
 - Added per-goal fixed toggles to lock target percentages to current goal allocations
 - Displayed remaining unassigned target percentage per goal type in bucket detail view
