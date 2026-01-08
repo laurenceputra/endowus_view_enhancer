@@ -244,6 +244,9 @@ Contributions are welcome! To contribute:
 
 ## Changelog
 
+### Version 2.6.3
+- Fixed goal name header alignment with table content
+
 ### Version 2.6.2
 - Simplified fixed toggle rows for a cleaner detail table
 
