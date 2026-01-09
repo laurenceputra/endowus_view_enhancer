@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.6.0
+// @version      2.6.1
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -20,6 +20,25 @@
     // ============================================
     // Logic
     // ============================================
+
+    const DEBUG = false;
+
+    function logDebug(message, data) {
+        if (!DEBUG) {
+            return;
+        }
+        if (data && typeof data === 'object') {
+            const sanitized = { ...data };
+            delete sanitized.investment;
+            delete sanitized.totalInvestmentAmount;
+            delete sanitized.totalCumulativeReturn;
+            delete sanitized.netInvestmentAmount;
+            delete sanitized.endingBalanceAmount;
+            console.log(message, sanitized);
+            return;
+        }
+        console.log(message);
+    }
 
     /**
      * Get storage key for a goal's target percentage
@@ -47,6 +66,22 @@
      */
     function getProjectedInvestmentKey(bucket, goalType) {
         return `${bucket}|${goalType}`;
+    }
+
+    function extractBucketName(goalName) {
+        if (!goalName || typeof goalName !== 'string') {
+            return 'Uncategorized';
+        }
+        const trimmed = goalName.trim();
+        if (!trimmed) {
+            return 'Uncategorized';
+        }
+        const separatorIndex = trimmed.indexOf(' - ');
+        if (separatorIndex === -1) {
+            return trimmed;
+        }
+        const bucket = trimmed.substring(0, separatorIndex).trim();
+        return bucket || 'Uncategorized';
     }
 
     function getDisplayGoalType(goalType) {
@@ -79,6 +114,21 @@
         return '-';
     }
 
+    function formatPercentDisplay(value, options = {}) {
+        if (value === null || value === undefined) {
+            return options.fallback ?? '-';
+        }
+        const numericValue = Number(value);
+        if (!isFinite(numericValue)) {
+            return options.fallback ?? '-';
+        }
+        const multiplier = Number(options.multiplier ?? 1);
+        if (!isFinite(multiplier)) {
+            return options.fallback ?? '-';
+        }
+        return `${(numericValue * multiplier).toFixed(2)}%`;
+    }
+
     function formatGrowthPercent(totalReturn, total) {
         // Calculate growth percentage as: return / principal * 100
         // where principal = total - return (original investment)
@@ -103,9 +153,9 @@
         const numericAmount = Number(amount);
         const numericTotal = Number(total);
         if (!isFinite(numericAmount) || !isFinite(numericTotal) || numericTotal <= 0) {
-            return '0.00';
+            return 0;
         }
-        return ((numericAmount / numericTotal) * 100).toFixed(2);
+        return (numericAmount / numericTotal) * 100;
     }
 
     function calculateGoalDiff(currentAmount, targetPercent, adjustedTypeTotal) {
@@ -120,7 +170,7 @@
             || !isFinite(numericTotal)
             || numericTotal <= 0
         ) {
-            return { diffAmount: null, diffDisplay: '-', diffClass: '' };
+            return { diffAmount: null, diffClass: '' };
         }
         const targetAmount = (numericTarget / 100) * numericTotal;
         const diffAmount = numericCurrent - targetAmount;
@@ -128,7 +178,6 @@
         const diffClass = Math.abs(diffAmount) > threshold ? 'negative' : 'positive';
         return {
             diffAmount,
-            diffDisplay: formatMoney(diffAmount),
             diffClass
         };
     }
@@ -178,26 +227,22 @@
                     ? safeTargets[goal.goalId]
                     : null);
             const diffInfo = calculateGoalDiff(investmentAmount, targetPercent, adjustedTotal);
-            const returnPercentDisplay = goal.simpleRateOfReturnPercent !== null
-                && goal.simpleRateOfReturnPercent !== undefined
-                ? (goal.simpleRateOfReturnPercent * 100).toFixed(2) + '%'
-                : '-';
+            const returnPercent = typeof goal.simpleRateOfReturnPercent === 'number'
+                && isFinite(goal.simpleRateOfReturnPercent)
+                ? goal.simpleRateOfReturnPercent
+                : null;
             const returnValue = goal.totalCumulativeReturn || 0;
             return {
                 goalId: goal.goalId,
                 goalName: goal.goalName,
                 investmentAmount,
-                investmentDisplay: formatMoney(investmentAmount),
                 percentOfType,
                 isFixed,
                 targetPercent,
-                targetDisplay: targetPercent !== null ? targetPercent.toFixed(2) : '',
-                diffDisplay: diffInfo.diffDisplay,
+                diffAmount: diffInfo.diffAmount,
                 diffClass: diffInfo.diffClass,
                 returnValue,
-                returnDisplay: formatMoney(goal.totalCumulativeReturn),
-                returnPercentDisplay,
-                returnClass: getReturnClass(returnValue)
+                returnPercent
             };
         });
         const remainingTargetPercent = calculateRemainingTargetPercent(
@@ -205,8 +250,7 @@
         );
         return {
             goalModels,
-            remainingTargetPercent,
-            remainingTargetDisplay: `${remainingTargetPercent.toFixed(2)}%`
+            remainingTargetPercent
         };
     }
 
@@ -248,8 +292,9 @@
 
     function buildDiffCellData(currentAmount, targetPercent, adjustedTypeTotal) {
         const diffInfo = calculateGoalDiff(currentAmount, targetPercent, adjustedTypeTotal);
+        const diffDisplay = diffInfo.diffAmount === null ? '-' : formatMoney(diffInfo.diffAmount);
         return {
-            diffDisplay: diffInfo.diffDisplay,
+            diffDisplay,
             diffClassName: diffInfo.diffClass ? `gpv-diff-cell ${diffInfo.diffClass}` : 'gpv-diff-cell'
         };
     }
@@ -365,8 +410,17 @@
                         projectedAmount,
                         adjustedTotal,
                         remainingTargetPercent: allocationModel.remainingTargetPercent,
-                        remainingTargetDisplay: allocationModel.remainingTargetDisplay,
-                        goals: allocationModel.goalModels
+                        remainingTargetDisplay: formatPercentDisplay(allocationModel.remainingTargetPercent),
+                        goals: allocationModel.goalModels.map(goal => ({
+                            ...goal,
+                            investmentDisplay: formatMoney(goal.investmentAmount),
+                            percentOfTypeDisplay: formatPercentDisplay(goal.percentOfType),
+                            targetDisplay: goal.targetPercent !== null ? goal.targetPercent.toFixed(2) : '',
+                            diffDisplay: goal.diffAmount === null ? '-' : formatMoney(goal.diffAmount),
+                            returnDisplay: formatMoney(goal.returnValue),
+                            returnPercentDisplay: formatPercentDisplay(goal.returnPercent, { multiplier: 100 }),
+                            returnClass: getReturnClass(goal.returnValue)
+                        }))
                     };
                 })
                 .filter(Boolean)
@@ -443,17 +497,15 @@
         performanceData.forEach(perf => {
             const invest = investibleMap[perf.goalId] || {};
             const summary = summaryMap[perf.goalId] || {};
-            const goalName = invest.goalName || summary.goalName || "";
-            // Extract bucket name from first word of goal name
-            // Expected format: "BucketName - Goal Description" (e.g., "Retirement - Core Portfolio")
-            const firstWord = goalName.trim().split(" ")[0];
-            const goalBucket = (firstWord && firstWord.length > 0) ? firstWord : "Uncategorized";
+            const goalName = invest.goalName || summary.goalName || '';
+            // Extract bucket name using "Bucket Name - Goal Description" convention
+            const goalBucket = extractBucketName(goalName);
             
             const goalObj = {
                 goalId: perf.goalId,
                 goalName: goalName,
                 goalBucket: goalBucket,
-                goalType: invest.investmentGoalType || summary.investmentGoalType || "",
+                goalType: invest.investmentGoalType || summary.investmentGoalType || '',
                 totalInvestmentAmount: invest.totalInvestmentAmount?.display?.amount || null,
                 totalCumulativeReturn: perf.totalCumulativeReturn?.amount || null,
                 simpleRateOfReturnPercent: perf.simpleRateOfReturnPercent || null
@@ -688,7 +740,19 @@
     }
 
     function derivePerformanceWindows(returnsTable, performanceDates, timeSeriesData) {
-        return mapReturnsTableToWindowReturns(returnsTable);
+        const mappedReturns = mapReturnsTableToWindowReturns(returnsTable);
+        const windows = {};
+        Object.values(PERFORMANCE_WINDOWS).forEach(window => {
+            const existingValue = mappedReturns[window.key];
+            if (existingValue !== null && existingValue !== undefined) {
+                windows[window.key] = existingValue;
+                return;
+            }
+            const startDate = getWindowStartDate(window.key, timeSeriesData, performanceDates);
+            const fallbackValue = calculateReturnFromTimeSeries(timeSeriesData, startDate);
+            windows[window.key] = fallbackValue;
+        });
+        return windows;
     }
 
     function mergeTimeSeriesByDate(timeSeriesCollection, seriesAreNormalized = false) {
@@ -947,6 +1011,17 @@
     };
 
     const DEBUG_AUTH = false;
+
+    function logAuthDebug(message, data) {
+        if (!DEBUG_AUTH) {
+            return;
+        }
+        if (data && typeof data === 'object') {
+            console.log(message, data);
+            return;
+        }
+        console.log(message);
+    }
     const PERFORMANCE_ENDPOINT = 'https://bff.prod.silver.endowus.com/v1/performance';
     const REQUEST_DELAY_MS = 500;
     const PERFORMANCE_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -987,7 +1062,7 @@
                 const clonedResponse = response.clone();
                 try {
                     const data = await clonedResponse.json();
-                    console.log('[Goal Portfolio Viewer] Intercepted performance data');
+                    logDebug('[Goal Portfolio Viewer] Intercepted performance data');
                     apiData.performance = data;
                     // Store in Tampermonkey storage
                     GM_setValue('api_performance', JSON.stringify(data));
@@ -998,7 +1073,7 @@
                 const clonedResponse = response.clone();
                 try {
                     const data = await clonedResponse.json();
-                    console.log('[Goal Portfolio Viewer] Intercepted investible data');
+                    logDebug('[Goal Portfolio Viewer] Intercepted investible data');
                     apiData.investible = data;
                     // Store in Tampermonkey storage
                     GM_setValue('api_investible', JSON.stringify(data));
@@ -1013,7 +1088,7 @@
                     const data = await clonedResponse.json();
                     // Only store if data is an array (the summary endpoint returns an array of goals)
                     if (Array.isArray(data)) {
-                        console.log('[Goal Portfolio Viewer] Intercepted summary data');
+                        logDebug('[Goal Portfolio Viewer] Intercepted summary data');
                         apiData.summary = data;
                         // Store in Tampermonkey storage
                         GM_setValue('api_summary', JSON.stringify(data));
@@ -1051,7 +1126,7 @@
                 this.addEventListener('load', function() {
                     try {
                         const data = JSON.parse(this.responseText);
-                        console.log('[Goal Portfolio Viewer] Intercepted performance data (XHR)');
+                        logDebug('[Goal Portfolio Viewer] Intercepted performance data (XHR)');
                         apiData.performance = data;
                         // Store in Tampermonkey storage
                         GM_setValue('api_performance', JSON.stringify(data));
@@ -1063,7 +1138,7 @@
                 this.addEventListener('load', function() {
                     try {
                         const data = JSON.parse(this.responseText);
-                        console.log('[Goal Portfolio Viewer] Intercepted investible data (XHR)');
+                        logDebug('[Goal Portfolio Viewer] Intercepted investible data (XHR)');
                         apiData.investible = data;
                         // Store in Tampermonkey storage
                         GM_setValue('api_investible', JSON.stringify(data));
@@ -1079,7 +1154,7 @@
                         const data = JSON.parse(this.responseText);
                         // Only store if data is an array (the summary endpoint returns an array of goals)
                         if (Array.isArray(data)) {
-                            console.log('[Goal Portfolio Viewer] Intercepted summary data (XHR)');
+                            logDebug('[Goal Portfolio Viewer] Intercepted summary data (XHR)');
                             apiData.summary = data;
                             // Store in Tampermonkey storage
                             GM_setValue('api_summary', JSON.stringify(data));
@@ -1094,7 +1169,7 @@
         return originalXHRSend.apply(this, args);
     };
 
-    console.log('[Goal Portfolio Viewer] API interception initialized');
+    logDebug('[Goal Portfolio Viewer] API interception initialized');
 
     // ============================================
     // Storage Management
@@ -1116,7 +1191,7 @@
                 const key = getGoalTargetKey(goalId);
                 const validPercentage = Math.max(0, Math.min(100, parseFloat(percentage)));
                 GM_setValue(key, validPercentage);
-                console.log(`[Goal Portfolio Viewer] Saved goal target percentage for ${goalId}: ${validPercentage}%`);
+                logDebug(`[Goal Portfolio Viewer] Saved goal target percentage for ${goalId}: ${validPercentage}%`);
                 return validPercentage;
             } catch (e) {
                 console.error('[Goal Portfolio Viewer] Error saving goal target percentage:', e);
@@ -1127,7 +1202,7 @@
             try {
                 const key = getGoalTargetKey(goalId);
                 GM_deleteValue(key);
-                console.log(`[Goal Portfolio Viewer] Deleted goal target percentage for ${goalId}`);
+                logDebug(`[Goal Portfolio Viewer] Deleted goal target percentage for ${goalId}`);
             } catch (e) {
                 console.error('[Goal Portfolio Viewer] Error deleting goal target percentage:', e);
             }
@@ -1145,7 +1220,7 @@
             try {
                 const key = getGoalFixedKey(goalId);
                 GM_setValue(key, isFixed === true);
-                console.log(`[Goal Portfolio Viewer] Saved goal fixed state for ${goalId}: ${isFixed === true}`);
+                logDebug(`[Goal Portfolio Viewer] Saved goal fixed state for ${goalId}: ${isFixed === true}`);
             } catch (e) {
                 console.error('[Goal Portfolio Viewer] Error saving goal fixed state:', e);
             }
@@ -1154,7 +1229,7 @@
             try {
                 const key = getGoalFixedKey(goalId);
                 GM_deleteValue(key);
-                console.log(`[Goal Portfolio Viewer] Deleted goal fixed state for ${goalId}`);
+                logDebug(`[Goal Portfolio Viewer] Deleted goal fixed state for ${goalId}`);
             } catch (e) {
                 console.error('[Goal Portfolio Viewer] Error deleting goal fixed state:', e);
             }
@@ -1172,15 +1247,15 @@
             
             if (storedPerformance) {
                 apiDataState.performance = JSON.parse(storedPerformance);
-                console.log('[Goal Portfolio Viewer] Loaded performance data from storage');
+                logDebug('[Goal Portfolio Viewer] Loaded performance data from storage');
             }
             if (storedInvestible) {
                 apiDataState.investible = JSON.parse(storedInvestible);
-                console.log('[Goal Portfolio Viewer] Loaded investible data from storage');
+                logDebug('[Goal Portfolio Viewer] Loaded investible data from storage');
             }
             if (storedSummary) {
                 apiDataState.summary = JSON.parse(storedSummary);
-                console.log('[Goal Portfolio Viewer] Loaded summary data from storage');
+                logDebug('[Goal Portfolio Viewer] Loaded summary data from storage');
             }
         } catch (e) {
             console.error('[Goal Portfolio Viewer] Error loading stored data:', e);
@@ -1260,7 +1335,7 @@
         const key = getProjectedInvestmentKey(bucket, goalType);
         const validAmount = parseFloat(amount) || 0;
         projectedInvestmentsState[key] = validAmount;
-        console.log(`[Goal Portfolio Viewer] Set projected investment for ${bucket}|${goalType}: ${validAmount}`);
+        logDebug(`[Goal Portfolio Viewer] Set projected investment for ${bucket}|${goalType}: ${validAmount}`);
     }
 
     /**
@@ -1271,7 +1346,7 @@
     function clearProjectedInvestment(projectedInvestmentsState, bucket, goalType) {
         const key = getProjectedInvestmentKey(bucket, goalType);
         delete projectedInvestmentsState[key];
-        console.log(`[Goal Portfolio Viewer] Cleared projected investment for ${bucket}|${goalType}`);
+        logDebug(`[Goal Portfolio Viewer] Cleared projected investment for ${bucket}|${goalType}`);
     }
 
     // ============================================
@@ -1357,7 +1432,7 @@
                     name: cookie.name
                 }));
                 // eslint-disable-next-line no-console
-                console.log('[Goal Portfolio Viewer][DEBUG_AUTH] Available GM_cookie entries:', summary);
+                logAuthDebug('[Goal Portfolio Viewer][DEBUG_AUTH] Available GM_cookie entries:', summary);
             })
             .catch(error => {
                 // eslint-disable-next-line no-console
@@ -1430,7 +1505,7 @@
         if (!url || !url.includes('endowus.com')) {
             if (DEBUG_AUTH && url) {
                 // eslint-disable-next-line no-console
-                console.log('[Goal Portfolio Viewer][DEBUG_AUTH] Skipping header extraction for non-endowus.com URL:', url);
+                logAuthDebug('[Goal Portfolio Viewer][DEBUG_AUTH] Skipping header extraction for non-endowus.com URL:', url);
             }
             return;
         }
@@ -2278,7 +2353,7 @@
                 tr.innerHTML = `
                     <td class="gpv-goal-name">${goalModel.goalName}</td>
                     <td>${goalModel.investmentDisplay}</td>
-                    <td>${goalModel.percentOfType}%</td>
+                    <td>${goalModel.percentOfTypeDisplay}</td>
                     <td class="gpv-fixed-cell">
                         <label class="gpv-fixed-toggle">
                             <input 
@@ -2393,7 +2468,7 @@
         }
         const remainingTarget = typeSection.querySelector('.gpv-remaining-target');
         if (remainingTarget) {
-            remainingTarget.textContent = `Remaining: ${snapshot.remainingTargetDisplay}`;
+            remainingTarget.textContent = `Remaining: ${formatPercentDisplay(snapshot.remainingTargetPercent)}`;
         }
         const rows = typeSection.querySelectorAll('.gpv-goal-table tbody tr');
         const forceTargetRefresh = options.forceTargetRefresh === true;
@@ -2411,10 +2486,10 @@
             targetInput.dataset.fixed = goalModel.isFixed ? 'true' : 'false';
             targetInput.disabled = goalModel.isFixed;
             if (goalModel.isFixed || forceTargetRefresh) {
-                targetInput.value = goalModel.targetDisplay;
+                targetInput.value = goalModel.targetPercent !== null ? goalModel.targetPercent.toFixed(2) : '';
             }
             if (diffCell) {
-                diffCell.textContent = goalModel.diffDisplay;
+                diffCell.textContent = goalModel.diffAmount === null ? '-' : formatMoney(goalModel.diffAmount);
                 diffCell.className = goalModel.diffClass
                     ? `gpv-diff-cell ${goalModel.diffClass}`
                     : 'gpv-diff-cell';
@@ -3418,11 +3493,11 @@
             apiData.summary
         );
         if (!data) {
-            console.log('[Goal Portfolio Viewer] Not all API data available yet');
+            logDebug('[Goal Portfolio Viewer] Not all API data available yet');
             alert('Please wait for portfolio data to load, then try again.');
             return;
         }
-        console.log('[Goal Portfolio Viewer] Data merged successfully');
+        logDebug('[Goal Portfolio Viewer] Data merged successfully');
 
         const overlay = document.createElement('div');
         overlay.id = 'gpv-overlay';
@@ -3585,11 +3660,11 @@
             // Show button
             const btn = createButton();
             document.body.appendChild(btn);
-            console.log('[Goal Portfolio Viewer] Button shown on dashboard');
+            logDebug('[Goal Portfolio Viewer] Button shown on dashboard');
         } else if (!shouldShow && buttonExists) {
             // Hide button
             portfolioButton.remove();
-            console.log('[Goal Portfolio Viewer] Button hidden (not on dashboard)');
+            logDebug('[Goal Portfolio Viewer] Button hidden (not on dashboard)');
         }
     }
     
@@ -3597,7 +3672,7 @@
         const currentUrl = window.location.href;
         if (currentUrl !== lastUrl) {
             lastUrl = currentUrl;
-            console.log('[Goal Portfolio Viewer] URL changed to:', currentUrl);
+            logDebug('[Goal Portfolio Viewer] URL changed to:', { url: currentUrl });
             updateButtonVisibility();
         }
     }
@@ -3670,7 +3745,7 @@
             window.__gpvUrlMonitorCleanup = null;
         };
 
-        console.log('[Goal Portfolio Viewer] URL monitoring started with History API hooks');
+        logDebug('[Goal Portfolio Viewer] URL monitoring started with History API hooks');
     }
     
     function init() {

@@ -32,20 +32,19 @@ describe('format helpers', () => {
     });
 
     test('should calculate percent of type', () => {
-        expect(calculatePercentOfType(50, 200)).toBe('25.00');
-        expect(calculatePercentOfType(0, 0)).toBe('0.00');
+        expect(calculatePercentOfType(50, 200)).toBe(25);
+        expect(calculatePercentOfType(0, 0)).toBe(0);
     });
 
     test('should calculate goal diff display', () => {
         const diffInfo = calculateGoalDiff(1200, 60, 2500);
-        expect(diffInfo.diffDisplay).toBe('$-300.00');
         expect(diffInfo.diffClass).toBe('negative');
+        expect(diffInfo.diffAmount).toBe(-300);
     });
 
     test('should handle invalid goal diff inputs', () => {
         expect(calculateGoalDiff(100, null, 200)).toEqual({
             diffAmount: null,
-            diffDisplay: '-',
             diffClass: ''
         });
     });
@@ -106,7 +105,7 @@ describe('view model builders', () => {
         expect(goalTypeModel.adjustedTotal).toBe(2500);
         expect(goalTypeModel.remainingTargetDisplay).toBe('12.00%');
         const firstGoal = goalTypeModel.goals[0];
-        expect(firstGoal.percentOfType).toBe('60.00');
+        expect(firstGoal.percentOfType).toBe(60);
         expect(firstGoal.diffDisplay).toBe('$0.00');
         expect(firstGoal.targetDisplay).toBe('48.00');
         expect(firstGoal.isFixed).toBe(true);
