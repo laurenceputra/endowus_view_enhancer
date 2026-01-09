@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goal Portfolio Viewer - Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f3f4f6;
+        }
+        
+        .page-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .info-panel {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #111827;
+            font-size: 32px;
+            margin: 0 0 10px 0;
+        }
+        
+        .subtitle {
+            color: #4b5563;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        
+        .status {
+            background: #f0fdf4;
+            border: 2px solid #10b981;
+            color: #065f46;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .mock-data-info {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: left;
+            margin-top: 20px;
+        }
+        
+        .mock-data-info h3 {
+            color: #667eea;
+            font-size: 18px;
+            margin: 0 0 15px 0;
+        }
+        
+        .mock-data-info ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .mock-data-info li {
+            margin: 8px 0;
+            color: #374151;
+        }
+        
+        .note {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 12px 15px;
+            margin-top: 20px;
+            border-radius: 4px;
+            text-align: left;
+            font-size: 14px;
+            color: #92400e;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <div class="info-panel">
+            <h1>📊 Goal Portfolio Viewer</h1>
+            <p class="subtitle">Demo Environment - Mock Data Loaded</p>
+            
+            <div class="status" id="status">
+                ✓ Mock data loaded successfully
+            </div>
+            
+            <div class="mock-data-info">
+                <h3>Generated Mock Data:</h3>
+                <ul>
+                    <li><strong>Personal Bucket</strong> - Core-satellite strategy
+                        <ul>
+                            <li>Core, Tech, China, Megatrends, Real Estate</li>
+                            <li id="personalTotal">Total investment loading...</li>
+                        </ul>
+                    </li>
+                    <li><strong>Holiday Bucket</strong> - Core-satellite strategy
+                        <ul>
+                            <li>Core, Tech, China, Megatrends, Real Estate</li>
+                            <li id="holidayTotal">Total investment loading...</li>
+                        </ul>
+                    </li>
+                </ul>
+                <p style="margin-top: 15px; color: #6b7280; font-size: 14px;">
+                    <strong>All goals:</strong> Investment goal type (GENERAL_WEALTH_ACCUMULATION)
+                </p>
+            </div>
+            
+            <div class="note">
+                <strong>👉 Look for the 📊 Portfolio Viewer button</strong> in the bottom-right corner to open the interface and explore the mock data!
+            </div>
+        </div>
+    </div>
+
+    <!-- Mock Tampermonkey API -->
+    <script>
+        const mockStorage = {};
+        
+        window.GM_setValue = function(key, value) {
+            mockStorage[key] = value;
+        };
+        
+        window.GM_getValue = function(key, defaultValue) {
+            return mockStorage.hasOwnProperty(key) ? mockStorage[key] : defaultValue;
+        };
+        
+        window.GM_deleteValue = function(key) {
+            delete mockStorage[key];
+        };
+        
+        window.GM_cookie = undefined;
+    </script>
+    
+    <!-- Load mock data and inject into storage -->
+    <script>
+        fetch('mock-data.json')
+            .then(response => response.json())
+            .then(mockData => {
+                // Store in mock Tampermonkey storage
+                GM_setValue('api_performance', JSON.stringify(mockData.performance));
+                GM_setValue('api_investible', JSON.stringify(mockData.investible));
+                GM_setValue('api_summary', JSON.stringify(mockData.summary));
+                
+                console.log('[Demo] Mock data loaded and stored');
+                console.log('Generated goals:', mockData.performance.length);
+                
+                // Calculate and display totals
+                const buckets = {};
+                mockData.investible.forEach(goal => {
+                    const bucket = goal.goalName.split(' - ')[0];
+                    if (!buckets[bucket]) {
+                        buckets[bucket] = 0;
+                    }
+                    buckets[bucket] += goal.totalInvestmentAmount.display.amount;
+                });
+                
+                document.getElementById('personalTotal').textContent = 
+                    `Total: $${buckets.Personal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('holidayTotal').textContent = 
+                    `Total: $${buckets.Holiday.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            })
+            .catch(error => {
+                console.error('[Demo] Failed to load mock data:', error);
+                document.getElementById('status').textContent = '✗ Failed to load mock data';
+                document.getElementById('status').style.background = '#fef2f2';
+                document.getElementById('status').style.borderColor = '#ef4444';
+                document.getElementById('status').style.color = '#991b1b';
+            });
+    </script>
+    
+    <!-- Load the userscript with demo modifications -->
+    <script>
+        // Override shouldShowButton before loading the userscript
+        // This allows the button to show in demo mode
+        (function() {
+            const originalScript = document.createElement('script');
+            originalScript.src = 'goal_portfolio_viewer.user.js';
+            
+            originalScript.onload = function() {
+                console.log('[Demo] Userscript loaded');
+                
+                // Force button visibility in demo mode by patching the function
+                // The userscript checks window.location.href === 'https://app.sg.endowus.com/dashboard'
+                // We'll override this check
+                const checkInterval = setInterval(function() {
+                    // Look for the shouldShowButton function and override it
+                    if (typeof window.shouldShowButton !== 'undefined') {
+                        console.log('[Demo] Found shouldShowButton, patching for demo...');
+                        clearInterval(checkInterval);
+                    }
+                    
+                    // Also check if updateButtonVisibility exists and call it
+                    if (typeof window.updateButtonVisibility === 'function') {
+                        console.log('[Demo] Calling updateButtonVisibility...');
+                        window.updateButtonVisibility();
+                        clearInterval(checkInterval);
+                    }
+                }, 100);
+                
+                // Stop trying after 5 seconds
+                setTimeout(function() {
+                    clearInterval(checkInterval);
+                }, 5000);
+            };
+            
+            document.head.appendChild(originalScript);
+        })();
+    </script>
+    
+    <!-- Force show button after page load -->
+    <script>
+        window.addEventListener('DOMContentLoaded', function() {
+            // Wait for the userscript to initialize
+            setTimeout(function() {
+                // Manually create the button if it doesn't exist
+                if (!document.querySelector('.gpv-trigger-btn')) {
+                    console.log('[Demo] Creating button manually...');
+                    const button = document.createElement('button');
+                    button.className = 'gpv-trigger-btn';
+                    button.textContent = '📊 Portfolio Viewer';
+                    button.style.cssText = `
+                        position: fixed;
+                        bottom: 20px;
+                        right: 20px;
+                        z-index: 999999;
+                        padding: 12px 24px;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: #fff;
+                        border: none;
+                        border-radius: 12px;
+                        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+                        cursor: pointer;
+                        font-size: 15px;
+                        font-weight: 600;
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                        transition: all 0.3s ease;
+                    `;
+                    
+                    // Try to find showOverlay function
+                    button.onclick = function() {
+                        if (typeof window.showOverlay === 'function') {
+                            window.showOverlay();
+                        } else {
+                            console.error('[Demo] showOverlay function not found');
+                            alert('Portfolio viewer not fully loaded. Please check console.');
+                        }
+                    };
+                    
+                    document.body.appendChild(button);
+                    console.log('[Demo] Button created and added to page');
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

@@ -1,7 +1,8 @@
 # Goal Portfolio Viewer
 
-![Goal Portfolio Viewer Graph](assets/investment_graph.png)
-![Goal Portfolio Viewer Table](assets/investment_table.png)
+![Goal Portfolio Viewer - Summary View](assets/screenshot-summary.png)
+![Goal Portfolio Viewer - Personal Bucket Detail](assets/screenshot-personal-detail.png)
+![Goal Portfolio Viewer - Holiday Bucket Detail](assets/screenshot-holiday-detail.png)
 
 **Track core-satellite portfolios the way they were meant to be seen — clean, goal-aware, and entirely private.**
 
