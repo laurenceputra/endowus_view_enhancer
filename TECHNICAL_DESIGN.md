@@ -176,8 +176,10 @@ function buildMergedInvestmentData(performanceData, investibleData, summaryData)
         const invest = investibleMap[perf.goalId] || {};
         const summary = summaryMap[perf.goalId] || {};
         const goalName = invest.goalName || summary.goalName || '';
-        const firstWord = goalName.trim().split(' ')[0];
-        const goalBucket = firstWord && firstWord.length > 0 ? firstWord : 'Uncategorized';
+        const separatorIndex = goalName.indexOf(' - ');
+        const goalBucket = separatorIndex === -1
+            ? goalName.trim() || 'Uncategorized'
+            : goalName.substring(0, separatorIndex).trim() || 'Uncategorized';
 
         const goalObj = {
             goalId: perf.goalId,
@@ -219,13 +221,14 @@ function buildMergedInvestmentData(performanceData, investibleData, summaryData)
 
 ### Bucket Extraction
 
-Buckets are derived from the first word in the goal name. This matches the
-goal naming convention used in the UI: `"BucketName - Goal Description"`.
+Buckets are derived from the portion of the goal name before the `" - "` separator.
+If no separator exists, the full trimmed goal name is used. Empty or missing names
+fall back to `"Uncategorized"`.
 
 **Examples:**
 - `"Retirement - Core Portfolio"` → Bucket: `"Retirement"`
 - `"Education - University Fund"` → Bucket: `"Education"`
-- `"Emergency Fund"` → Bucket: `"Emergency"`
+- `"Emergency Fund - Cash Buffer"` → Bucket: `"Emergency Fund"`
 
 ### Aggregation Calculations
 
@@ -235,13 +238,9 @@ are computed in view-model helpers to keep the DOM rendering layer thin and test
 
 ### Performance Window Derivation
 
-The current UI only surfaces windows that are directly available from the API returns table:
-
-- 1M (`oneMonthValue`)
-- 6M (`sixMonthValue`)
-- YTD (`ytdValue`)
-- 1Y (`oneYearValue`)
-- 3Y (`threeYearValue`)
+Window returns are sourced from the API returns table when available. If a window
+is missing, the script falls back to deriving the return from time-series data using
+the nearest point on or before the window start date.
 
 These values are mapped by `mapReturnsTableToWindowReturns()` and aggregated by
 `calculateWeightedWindowReturns()` when multiple goals are combined. Goals without a
@@ -519,6 +518,12 @@ element.innerHTML = html;
    - Process all data locally
    - Never send data to external servers
    - Don't log sensitive information
+
+5. **Trusted Rendering**
+   - The UI currently uses `innerHTML` in specific view renderers where data comes
+     from same-origin API responses or user-owned inputs.
+   - If data sources expand beyond trusted inputs, switch to `textContent` or
+     sanitize all dynamic strings before rendering.
 
 ---
 

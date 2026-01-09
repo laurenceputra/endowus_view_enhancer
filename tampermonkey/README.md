@@ -244,6 +244,12 @@ Contributions are welcome! To contribute:
 
 ## Changelog
 
+### Version 2.6.1
+- Derived bucket names using the `"Bucket Name - Goal Description"` separator to preserve multi-word bucket labels
+- Separated numeric allocation calculations from display formatting for easier testing and maintenance
+- Added time-series fallbacks when performance windows are missing from the returns table
+- Gated debug logging behind a dedicated flag to reduce noisy console output
+
 ### Version 2.6.0
 - Added per-goal fixed toggles to lock target percentages to current goal allocations
 - Displayed remaining unassigned target percentage per goal type in bucket detail view

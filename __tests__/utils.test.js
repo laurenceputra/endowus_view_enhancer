@@ -589,6 +589,18 @@ describe('derivePerformanceWindows', () => {
         expect(result.threeYear).toBe(0.3);
         expect(result.ytd).toBe(0.05);
     });
+
+    test('should fall back to time series data when returns table is missing', () => {
+        const timeSeries = [
+            { date: '2023-08-01', amount: 90 },
+            { date: '2024-01-01', amount: 100 },
+            { date: '2024-02-01', amount: 110 },
+            { date: '2024-03-01', amount: 120 }
+        ];
+        const result = derivePerformanceWindows({}, null, timeSeries);
+        expect(result.oneMonth).toBeCloseTo(0.0909, 3);
+        expect(result.sixMonth).toBeCloseTo(0.3333, 3);
+    });
 });
 
 describe('calculateWeightedWindowReturns', () => {
@@ -700,11 +712,11 @@ describe('buildMergedInvestmentData', () => {
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.goals).toHaveLength(1);
     });
 
-    test('should extract bucket from first word of goal name', () => {
+    test('should extract bucket from goal name separator', () => {
         const performanceData = [{ goalId: 'goal1', totalCumulativeReturn: { amount: 50 } }];
         const investibleData = [{
             goalId: 'goal1',
-            goalName: 'Emergency - Fund',
+            goalName: 'Emergency Fund - Cash Buffer',
             investmentGoalType: 'CASH_MANAGEMENT',
             totalInvestmentAmount: { display: { amount: 500 } }
         }];
@@ -712,8 +724,8 @@ describe('buildMergedInvestmentData', () => {
 
         const result = buildMergedInvestmentData(performanceData, investibleData, summaryData);
 
-        expect(result).toHaveProperty('Emergency');
-        expect(result.Emergency.CASH_MANAGEMENT.goals[0].goalBucket).toBe('Emergency');
+        expect(result).toHaveProperty('Emergency Fund');
+        expect(result['Emergency Fund'].CASH_MANAGEMENT.goals[0].goalBucket).toBe('Emergency Fund');
     });
 
     test('should use "Uncategorized" for goals without bucket name', () => {
