@@ -1,7 +1,13 @@
 # Goal Portfolio Viewer
 
-![Goal Portfolio Viewer Graph](assets/investment_graph.png)
-![Goal Portfolio Viewer Table](assets/investment_table.png)
+![Goal Portfolio Viewer - Summary View](https://github.com/user-attachments/assets/52cc80dd-7a47-4a9e-9784-140b0d69159b)
+*Summary view showing Personal and Holiday buckets with total investment, returns, and growth*
+
+![Goal Portfolio Viewer - Personal Bucket Detail](https://github.com/user-attachments/assets/2518a19c-2e0f-4e2c-a059-3446d31088b7)
+*Personal bucket detail view with core-satellite goals: Core, Tech, China, Megatrends, Real Estate*
+
+![Goal Portfolio Viewer - Holiday Bucket Detail](https://github.com/user-attachments/assets/7197f8b3-be7d-44a6-a402-5b974be209a4)
+*Holiday bucket detail view with core-satellite goals and individual performance metrics*
 
 **Track core-satellite portfolios the way they were meant to be seen — clean, goal-aware, and entirely private.**
 
