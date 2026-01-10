@@ -8,6 +8,7 @@ const {
     calculateGoalDiff,
     calculateFixedTargetPercent,
     calculateRemainingTargetPercent,
+    isRemainingTargetAboveThreshold,
     getProjectedInvestmentValue,
     buildDiffCellData,
     buildSummaryViewModel,
@@ -64,6 +65,12 @@ describe('format helpers', () => {
         expect(calculateRemainingTargetPercent([60, 25])).toBe(15);
         expect(calculateRemainingTargetPercent([100, 10])).toBe(-10);
     });
+
+    test('should detect high remaining target percentage', () => {
+        expect(isRemainingTargetAboveThreshold(2)).toBe(false);
+        expect(isRemainingTargetAboveThreshold(2.01)).toBe(true);
+        expect(isRemainingTargetAboveThreshold('invalid')).toBe(false);
+    });
 });
 
 describe('projected and goal helpers', () => {
@@ -104,6 +111,7 @@ describe('view model builders', () => {
         expect(goalTypeModel.projectedAmount).toBe(500);
         expect(goalTypeModel.adjustedTotal).toBe(2500);
         expect(goalTypeModel.remainingTargetDisplay).toBe('12.00%');
+        expect(goalTypeModel.remainingTargetIsHigh).toBe(true);
         const firstGoal = goalTypeModel.goals[0];
         expect(firstGoal.percentOfType).toBe(60);
         expect(firstGoal.diffDisplay).toBe('$0.00');
