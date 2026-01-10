@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.6.1
+// @version      2.6.2
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -22,6 +22,7 @@
     // ============================================
 
     const DEBUG = false;
+    const REMAINING_TARGET_ALERT_THRESHOLD = 2;
 
     function logDebug(message, data) {
         if (!DEBUG) {
@@ -208,6 +209,15 @@
         }, 0);
         const remaining = 100 - sum;
         return isFinite(remaining) ? remaining : 100;
+    }
+
+    function isRemainingTargetAboveThreshold(remainingTargetPercent, threshold = REMAINING_TARGET_ALERT_THRESHOLD) {
+        const numericRemaining = Number(remainingTargetPercent);
+        const numericThreshold = Number(threshold);
+        if (!isFinite(numericRemaining) || !isFinite(numericThreshold)) {
+            return false;
+        }
+        return numericRemaining > numericThreshold;
     }
 
     function buildGoalTypeAllocationModel(goals, totalTypeAmount, adjustedTotal, goalTargets, goalFixed) {
@@ -411,6 +421,7 @@
                         adjustedTotal,
                         remainingTargetPercent: allocationModel.remainingTargetPercent,
                         remainingTargetDisplay: formatPercentDisplay(allocationModel.remainingTargetPercent),
+                        remainingTargetIsHigh: isRemainingTargetAboveThreshold(allocationModel.remainingTargetPercent),
                         goals: allocationModel.goalModels.map(goal => ({
                             ...goal,
                             investmentDisplay: formatMoney(goal.investmentAmount),
@@ -2337,7 +2348,7 @@
                         <th class="gpv-fixed-header">Fixed</th>
                         <th class="gpv-target-header">
                             <div>Target %</div>
-                            <div class="gpv-remaining-target">Remaining: ${goalTypeModel.remainingTargetDisplay}</div>
+                            <div class="gpv-remaining-target ${goalTypeModel.remainingTargetIsHigh ? 'gpv-remaining-alert' : ''}">Remaining: ${goalTypeModel.remainingTargetDisplay}</div>
                         </th>
                         <th>Diff</th>
                         <th>Cumulative Return</th>
@@ -2469,6 +2480,10 @@
         const remainingTarget = typeSection.querySelector('.gpv-remaining-target');
         if (remainingTarget) {
             remainingTarget.textContent = `Remaining: ${formatPercentDisplay(snapshot.remainingTargetPercent)}`;
+            remainingTarget.classList.toggle(
+                'gpv-remaining-alert',
+                isRemainingTargetAboveThreshold(snapshot.remainingTargetPercent)
+            );
         }
         const rows = typeSection.querySelectorAll('.gpv-goal-table tbody tr');
         const forceTargetRefresh = options.forceTargetRefresh === true;
@@ -3071,6 +3086,17 @@
                 font-size: 11px;
                 color: #fef3c7;
                 font-weight: 500;
+            }
+
+            .gpv-remaining-target.gpv-remaining-alert {
+                color: #ffffff;
+                background: #f97316;
+                border-radius: 999px;
+                padding: 2px 6px;
+                font-weight: 700;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
             }
 
             .gpv-fixed-cell {
@@ -3794,6 +3820,7 @@
             calculateGoalDiff,
             calculateFixedTargetPercent,
             calculateRemainingTargetPercent,
+            isRemainingTargetAboveThreshold,
             buildGoalTypeAllocationModel,
             getProjectedInvestmentValue,
             buildDiffCellData,

@@ -105,7 +105,7 @@ The script will automatically group all goals starting with the same bucket name
 - View individual goal performance metrics
 - Compare goals within the same bucket
 - Use per-goal fixed toggles to lock a goal's amount and auto-sync its target %
-- Track remaining unassigned target % for each goal type
+- Track remaining unassigned target % for each goal type, with visual flagging when it exceeds 2%
 
 ### Data Displayed
 
@@ -243,6 +243,9 @@ Contributions are welcome! To contribute:
 5. Submit a pull request
 
 ## Changelog
+
+### Version 2.6.2
+- Highlight remaining target percentages above 2% in the bucket detail view
 
 ### Version 2.6.1
 - Derived bucket names using the `"Bucket Name - Goal Description"` separator to preserve multi-word bucket labels
