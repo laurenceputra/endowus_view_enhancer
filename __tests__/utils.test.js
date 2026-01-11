@@ -12,7 +12,7 @@ const {
     getDisplayGoalType,
     sortGoalTypes,
     formatMoney,
-    formatGrowthPercent,
+    formatGrowthPercentFromInvestment,
     buildMergedInvestmentData,
     getPerformanceCacheKey,
     isCacheFresh,
@@ -148,48 +148,47 @@ describe('formatMoney', () => {
     });
 });
 
-describe('formatGrowthPercent', () => {
+describe('formatGrowthPercentFromInvestment', () => {
     test('should calculate growth percentage correctly for positive returns', () => {
-        // Investment: 100, Return: 10, Total: 110
+        // Investment: 100, Return: 10
         // Growth = 10 / 100 * 100 = 10%
-        expect(formatGrowthPercent(10, 110)).toBe('10.00%');
+        expect(formatGrowthPercentFromInvestment(10, 100)).toBe('10.00%');
     });
 
     test('should calculate growth percentage for negative returns', () => {
-        // Investment: 100, Return: -10, Total: 90
+        // Investment: 100, Return: -10
         // Growth = -10 / 100 * 100 = -10%
-        expect(formatGrowthPercent(-10, 90)).toBe('-10.00%');
+        expect(formatGrowthPercentFromInvestment(-10, 100)).toBe('-10.00%');
     });
 
     test('should handle zero return', () => {
-        expect(formatGrowthPercent(0, 100)).toBe('0.00%');
+        expect(formatGrowthPercentFromInvestment(0, 100)).toBe('0.00%');
     });
 
     test('should return dash for zero denominator', () => {
-        // If total - return = 0, denominator is 0
-        expect(formatGrowthPercent(100, 100)).toBe('-');
+        expect(formatGrowthPercentFromInvestment(100, 0)).toBe('-');
     });
 
     test('should return dash for invalid inputs', () => {
-        expect(formatGrowthPercent(NaN, 100)).toBe('-');
-        expect(formatGrowthPercent(10, NaN)).toBe('-');
-        expect(formatGrowthPercent(Infinity, 100)).toBe('-');
+        expect(formatGrowthPercentFromInvestment(NaN, 100)).toBe('-');
+        expect(formatGrowthPercentFromInvestment(10, NaN)).toBe('-');
+        expect(formatGrowthPercentFromInvestment(Infinity, 100)).toBe('-');
     });
 
     test('should handle string inputs that are convertible', () => {
-        expect(formatGrowthPercent('10', '110')).toBe('10.00%');
+        expect(formatGrowthPercentFromInvestment('10', '100')).toBe('10.00%');
     });
 
     test('should handle large percentage gains', () => {
-        // Investment: 100, Return: 200, Total: 300
+        // Investment: 100, Return: 200
         // Growth = 200 / 100 * 100 = 200%
-        expect(formatGrowthPercent(200, 300)).toBe('200.00%');
+        expect(formatGrowthPercentFromInvestment(200, 100)).toBe('200.00%');
     });
 
     test('should handle fractional percentages', () => {
-        // Investment: 100, Return: 0.5, Total: 100.5
+        // Investment: 100, Return: 0.5
         // Growth = 0.5 / 100 * 100 = 0.5%
-        expect(formatGrowthPercent(0.5, 100.5)).toBe('0.50%');
+        expect(formatGrowthPercentFromInvestment(0.5, 100)).toBe('0.50%');
     });
 });
 
@@ -775,6 +774,31 @@ describe('buildMergedInvestmentData', () => {
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.totalInvestmentAmount).toBe(3000);
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.totalCumulativeReturn).toBe(300);
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.goals).toHaveLength(2);
+    });
+
+    test('should normalize investment and return amounts from nested shapes', () => {
+        const performanceData = [
+            { goalId: 'goal1', totalCumulativeReturn: { display: { amount: 75 } } }
+        ];
+
+        const investibleData = [
+            {
+                goalId: 'goal1',
+                goalName: 'Emergency - Buffer',
+                investmentGoalType: 'CASH_MANAGEMENT',
+                totalInvestmentAmount: { amount: 1500 }
+            }
+        ];
+
+        const summaryData = [{ goalId: 'goal1' }];
+
+        const result = buildMergedInvestmentData(performanceData, investibleData, summaryData);
+
+        expect(result.Emergency.total).toBe(1500);
+        expect(result.Emergency.CASH_MANAGEMENT.totalInvestmentAmount).toBe(1500);
+        expect(result.Emergency.CASH_MANAGEMENT.totalCumulativeReturn).toBe(75);
+        expect(result.Emergency.CASH_MANAGEMENT.goals[0].totalInvestmentAmount).toBe(1500);
+        expect(result.Emergency.CASH_MANAGEMENT.goals[0].totalCumulativeReturn).toBe(75);
     });
 
     test('should handle multiple buckets and goal types', () => {

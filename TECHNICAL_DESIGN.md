@@ -348,6 +348,8 @@ The `summaryViewModel` contains:
 - totals/returns/growth display strings
 - per-goal-type rows with display names
 
+Growth percentages are calculated as `cumulativeReturn / totalInvestment * 100` to align with how the platform reports returns.
+
 #### Detail View Rendering
 
 ```javascript

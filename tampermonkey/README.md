@@ -112,7 +112,7 @@ The script will automatically group all goals starting with the same bucket name
 For each bucket/goal, you'll see:
 - **Total Investment Amount**: Your total invested capital
 - **Cumulative Return**: Total profit or loss
-- **Growth %**: Percentage return on investment
+- **Growth %**: Percentage return on investment (cumulative return ÷ total invested)
 - **Goal Breakdown**: Individual goals with their specific metrics
 - **% of Goal Type**: What percentage each goal represents within its type
 
@@ -243,6 +243,10 @@ Contributions are welcome! To contribute:
 5. Submit a pull request
 
 ## Changelog
+
+### Version 2.6.3
+- Corrected growth percentage calculations to use cumulative return over total invested
+- Clarified growth percentage definition in documentation
 
 ### Version 2.6.2
 - Highlight remaining target percentages above 2% in the bucket detail view
