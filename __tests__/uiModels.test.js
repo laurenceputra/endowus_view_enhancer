@@ -11,6 +11,7 @@ const {
     isRemainingTargetAboveThreshold,
     getProjectedInvestmentValue,
     buildDiffCellData,
+    resolveGoalTypeActionTarget,
     buildSummaryViewModel,
     buildBucketDetailViewModel,
     collectGoalIds,
@@ -84,6 +85,35 @@ describe('projected and goal helpers', () => {
         const diffData = buildDiffCellData(100, null, 0);
         expect(diffData.diffDisplay).toBe('-');
         expect(diffData.diffClassName).toBe('gpv-diff-cell');
+    });
+});
+
+describe('resolveGoalTypeActionTarget', () => {
+    test('should resolve target input action', () => {
+        const targetInput = { dataset: { goalId: 'g1' } };
+        const target = {
+            closest: selector => (selector === '.gpv-target-input' ? targetInput : null)
+        };
+        expect(resolveGoalTypeActionTarget(target)).toEqual({
+            type: 'target',
+            element: targetInput
+        });
+    });
+
+    test('should resolve fixed toggle action', () => {
+        const fixedToggle = { dataset: { goalId: 'g2' } };
+        const target = {
+            closest: selector => (selector === '.gpv-fixed-toggle-input' ? fixedToggle : null)
+        };
+        expect(resolveGoalTypeActionTarget(target)).toEqual({
+            type: 'fixed',
+            element: fixedToggle
+        });
+    });
+
+    test('should return null when target is not resolvable', () => {
+        expect(resolveGoalTypeActionTarget(null)).toBeNull();
+        expect(resolveGoalTypeActionTarget({})).toBeNull();
     });
 });
 

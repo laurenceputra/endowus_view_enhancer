@@ -9,7 +9,7 @@ Managing multiple financial goals on the platform can be overwhelming when you h
 ## The Solution
 
 This Tampermonkey script automatically organizes your portfolio into custom buckets, providing instant insights into:
-- Total investment amounts per bucket
+- Ending balance per bucket
 - Cumulative returns and growth percentages
 - Detailed breakdowns by goal type (Investment, Cash, etc.)
 - Individual goal performance within each bucket
@@ -21,7 +21,7 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 ### 🎯 Core Functionality
 - **Portfolio Bucket Organization**: Group your goals by buckets (e.g., "Retirement", "Education", "Emergency")
 - **Real-time Data Interception**: Automatically captures portfolio data using monkey patching techniques
-- **Comprehensive Analytics**: View total investments, cumulative returns, and growth percentages
+- **Comprehensive Analytics**: View ending balances, cumulative returns, and growth percentages
 - **Multi-level Views**: Toggle between summary view and detailed bucket views
 - **Performance Insights**: Per goal-type charts with responsive sizing (including dynamic height), recent return windows, and key metrics
 
@@ -110,9 +110,9 @@ The script will automatically group all goals starting with the same bucket name
 ### Data Displayed
 
 For each bucket/goal, you'll see:
-- **Total Investment Amount**: Your total invested capital
+- **Ending Balance**: Your current balance for the goal/bucket
 - **Cumulative Return**: Total profit or loss
-- **Growth %**: Percentage return on investment
+- **Growth %**: Percentage return on investment (cumulative return ÷ total invested)
 - **Goal Breakdown**: Individual goals with their specific metrics
 - **% of Goal Type**: What percentage each goal represents within its type
 
@@ -133,8 +133,10 @@ The script uses monkey patching to intercept API responses from the Endowus plat
 
 1. **Merging**: Combines data from all three endpoints based on goal IDs
 2. **Bucket Extraction**: Parses goal names to determine bucket grouping
-3. **Aggregation**: Calculates totals, returns, and percentages for each bucket
+3. **Aggregation**: Calculates ending balances, returns, and percentages for each bucket
 4. **Rendering**: Displays data in an organized, visually appealing format
+
+**Note:** The investible API field `totalInvestmentAmount` is misnamed and represents ending balance. The script maps it internally to avoid confusing it with principal invested.
 
 ### Modern UI Components
 
@@ -243,6 +245,10 @@ Contributions are welcome! To contribute:
 5. Submit a pull request
 
 ## Changelog
+
+### Version 2.6.3
+- Corrected growth percentage calculations to use cumulative return over total invested
+- Clarified growth percentage definition in documentation
 
 ### Version 2.6.2
 - Highlight remaining target percentages above 2% in the bucket detail view

@@ -100,7 +100,7 @@ All files |     100 |    94.73 |     100 |     100 |
    - Formats numbers as currency strings
    - Tests: positive, negative, zero, decimals, invalid inputs, large numbers
 
-6. **`formatGrowthPercent(totalReturn, total)`**
+6. **`formatGrowthPercentFromEndingBalance(totalReturn, endingBalance)`**
    - Calculates and formats growth percentage
    - Tests: positive/negative returns, zero, division by zero, invalid inputs
 

@@ -186,7 +186,8 @@ function buildMergedInvestmentData(performanceData, investibleData, summaryData)
             goalName,
             goalBucket,
             goalType: invest.investmentGoalType || summary.investmentGoalType || '',
-            totalInvestmentAmount: invest.totalInvestmentAmount?.display?.amount || null,
+            // Note: investible API `totalInvestmentAmount` is misnamed and represents ending balance.
+            endingBalanceAmount: invest.totalInvestmentAmount?.display?.amount || null,
             totalCumulativeReturn: perf.totalCumulativeReturn?.amount || null,
             simpleRateOfReturnPercent: perf.simpleRateOfReturnPercent || null
         };
@@ -197,7 +198,7 @@ function buildMergedInvestmentData(performanceData, investibleData, summaryData)
 
         if (!bucketMap[goalBucket][goalObj.goalType]) {
             bucketMap[goalBucket][goalObj.goalType] = {
-                totalInvestmentAmount: 0,
+                endingBalanceAmount: 0,
                 totalCumulativeReturn: 0,
                 goals: []
             };
@@ -205,9 +206,9 @@ function buildMergedInvestmentData(performanceData, investibleData, summaryData)
 
         bucketMap[goalBucket][goalObj.goalType].goals.push(goalObj);
 
-        if (typeof goalObj.totalInvestmentAmount === 'number') {
-            bucketMap[goalBucket][goalObj.goalType].totalInvestmentAmount += goalObj.totalInvestmentAmount;
-            bucketMap[goalBucket].total += goalObj.totalInvestmentAmount;
+        if (typeof goalObj.endingBalanceAmount === 'number') {
+            bucketMap[goalBucket][goalObj.goalType].endingBalanceAmount += goalObj.endingBalanceAmount;
+            bucketMap[goalBucket].endingBalanceTotal += goalObj.endingBalanceAmount;
         }
 
         if (typeof goalObj.totalCumulativeReturn === 'number') {
@@ -347,6 +348,8 @@ The `summaryViewModel` contains:
 - bucket names
 - totals/returns/growth display strings
 - per-goal-type rows with display names
+
+Growth percentages are calculated as `cumulativeReturn / (endingBalance - cumulativeReturn) * 100`, because the investible API’s `totalInvestmentAmount` is misnamed and actually represents ending balance.
 
 #### Detail View Rendering
 
