@@ -12,7 +12,7 @@ const {
     getDisplayGoalType,
     sortGoalTypes,
     formatMoney,
-    formatGrowthPercentFromInvestment,
+    formatGrowthPercentFromEndingBalance,
     buildMergedInvestmentData,
     getPerformanceCacheKey,
     isCacheFresh,
@@ -148,47 +148,47 @@ describe('formatMoney', () => {
     });
 });
 
-describe('formatGrowthPercentFromInvestment', () => {
+describe('formatGrowthPercentFromEndingBalance', () => {
     test('should calculate growth percentage correctly for positive returns', () => {
-        // Investment: 100, Return: 10
+        // Principal: 100, Return: 10, Ending Balance: 110
         // Growth = 10 / 100 * 100 = 10%
-        expect(formatGrowthPercentFromInvestment(10, 100)).toBe('10.00%');
+        expect(formatGrowthPercentFromEndingBalance(10, 110)).toBe('10.00%');
     });
 
     test('should calculate growth percentage for negative returns', () => {
-        // Investment: 100, Return: -10
+        // Principal: 100, Return: -10, Ending Balance: 90
         // Growth = -10 / 100 * 100 = -10%
-        expect(formatGrowthPercentFromInvestment(-10, 100)).toBe('-10.00%');
+        expect(formatGrowthPercentFromEndingBalance(-10, 90)).toBe('-10.00%');
     });
 
     test('should handle zero return', () => {
-        expect(formatGrowthPercentFromInvestment(0, 100)).toBe('0.00%');
+        expect(formatGrowthPercentFromEndingBalance(0, 100)).toBe('0.00%');
     });
 
     test('should return dash for zero denominator', () => {
-        expect(formatGrowthPercentFromInvestment(100, 0)).toBe('-');
+        expect(formatGrowthPercentFromEndingBalance(100, 100)).toBe('-');
     });
 
     test('should return dash for invalid inputs', () => {
-        expect(formatGrowthPercentFromInvestment(NaN, 100)).toBe('-');
-        expect(formatGrowthPercentFromInvestment(10, NaN)).toBe('-');
-        expect(formatGrowthPercentFromInvestment(Infinity, 100)).toBe('-');
+        expect(formatGrowthPercentFromEndingBalance(NaN, 100)).toBe('-');
+        expect(formatGrowthPercentFromEndingBalance(10, NaN)).toBe('-');
+        expect(formatGrowthPercentFromEndingBalance(Infinity, 100)).toBe('-');
     });
 
     test('should handle string inputs that are convertible', () => {
-        expect(formatGrowthPercentFromInvestment('10', '100')).toBe('10.00%');
+        expect(formatGrowthPercentFromEndingBalance('10', '110')).toBe('10.00%');
     });
 
     test('should handle large percentage gains', () => {
-        // Investment: 100, Return: 200
+        // Principal: 100, Return: 200, Ending Balance: 300
         // Growth = 200 / 100 * 100 = 200%
-        expect(formatGrowthPercentFromInvestment(200, 100)).toBe('200.00%');
+        expect(formatGrowthPercentFromEndingBalance(200, 300)).toBe('200.00%');
     });
 
     test('should handle fractional percentages', () => {
-        // Investment: 100, Return: 0.5
+        // Principal: 100, Return: 0.5, Ending Balance: 100.5
         // Growth = 0.5 / 100 * 100 = 0.5%
-        expect(formatGrowthPercentFromInvestment(0.5, 100)).toBe('0.50%');
+        expect(formatGrowthPercentFromEndingBalance(0.5, 100.5)).toBe('0.50%');
     });
 });
 
@@ -705,8 +705,8 @@ describe('buildMergedInvestmentData', () => {
         const result = buildMergedInvestmentData(performanceData, investibleData, summaryData);
 
         expect(result).toHaveProperty('Retirement');
-        expect(result.Retirement.total).toBe(1000);
-        expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.totalInvestmentAmount).toBe(1000);
+        expect(result.Retirement.endingBalanceTotal).toBe(1000);
+        expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.endingBalanceAmount).toBe(1000);
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.totalCumulativeReturn).toBe(100);
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.goals).toHaveLength(1);
     });
@@ -770,8 +770,8 @@ describe('buildMergedInvestmentData', () => {
 
         const result = buildMergedInvestmentData(performanceData, investibleData, summaryData);
 
-        expect(result.Retirement.total).toBe(3000);
-        expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.totalInvestmentAmount).toBe(3000);
+        expect(result.Retirement.endingBalanceTotal).toBe(3000);
+        expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.endingBalanceAmount).toBe(3000);
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.totalCumulativeReturn).toBe(300);
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.goals).toHaveLength(2);
     });
@@ -794,10 +794,10 @@ describe('buildMergedInvestmentData', () => {
 
         const result = buildMergedInvestmentData(performanceData, investibleData, summaryData);
 
-        expect(result.Emergency.total).toBe(1500);
-        expect(result.Emergency.CASH_MANAGEMENT.totalInvestmentAmount).toBe(1500);
+        expect(result.Emergency.endingBalanceTotal).toBe(1500);
+        expect(result.Emergency.CASH_MANAGEMENT.endingBalanceAmount).toBe(1500);
         expect(result.Emergency.CASH_MANAGEMENT.totalCumulativeReturn).toBe(75);
-        expect(result.Emergency.CASH_MANAGEMENT.goals[0].totalInvestmentAmount).toBe(1500);
+        expect(result.Emergency.CASH_MANAGEMENT.goals[0].endingBalanceAmount).toBe(1500);
         expect(result.Emergency.CASH_MANAGEMENT.goals[0].totalCumulativeReturn).toBe(75);
     });
 
@@ -844,7 +844,7 @@ describe('buildMergedInvestmentData', () => {
 
         expect(result).toBeDefined();
         expect(result.Test['']).toBeDefined();
-        expect(result.Test[''].goals[0].totalInvestmentAmount).toBeNull();
+        expect(result.Test[''].goals[0].endingBalanceAmount).toBeNull();
         expect(result.Test[''].goals[0].totalCumulativeReturn).toBeNull();
     });
 
@@ -896,8 +896,8 @@ describe('buildMergedInvestmentData', () => {
 
         const result = buildMergedInvestmentData(performanceData, investibleData, summaryData);
 
-        expect(result.Retirement.total).toBe(1000); // Only goal1 counted
-        expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.totalInvestmentAmount).toBe(1000);
+        expect(result.Retirement.endingBalanceTotal).toBe(1000); // Only goal1 counted
+        expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.endingBalanceAmount).toBe(1000);
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.goals).toHaveLength(2); // Both goals present
     });
 });
