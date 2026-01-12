@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.6.4
+// @version      2.6.5
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -543,7 +543,16 @@
             const goalBucket = extractBucketName(goalName);
             // Note: investible API `totalInvestmentAmount` is misnamed and represents ending balance.
             // We map it internally to endingBalanceAmount to avoid confusing it with principal invested.
-            const endingBalanceAmount = extractAmount(invest.totalInvestmentAmount);
+            const performanceEndingBalance = extractAmount(perf.totalInvestmentValue);
+            const pendingProcessingAmount = performanceEndingBalance !== null
+                ? extractAmount(perf.pendingProcessingAmount)
+                : null;
+            let endingBalanceAmount = performanceEndingBalance !== null
+                ? performanceEndingBalance
+                : extractAmount(invest.totalInvestmentAmount);
+            if (Number.isFinite(endingBalanceAmount) && Number.isFinite(pendingProcessingAmount)) {
+                endingBalanceAmount += pendingProcessingAmount;
+            }
             const cumulativeReturn = extractAmount(perf.totalCumulativeReturn);
             const safeEndingBalanceAmount = isFinite(endingBalanceAmount) ? endingBalanceAmount : 0;
             const safeCumulativeReturn = isFinite(cumulativeReturn) ? cumulativeReturn : 0;
