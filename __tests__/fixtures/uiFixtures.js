@@ -1,7 +1,9 @@
 function createBucketMapFixture() {
     return {
         Education: {
-            endingBalanceTotal: 0,
+            _meta: {
+                endingBalanceTotal: 0
+            },
             GENERAL_WEALTH_ACCUMULATION: {
                 endingBalanceAmount: 0,
                 totalCumulativeReturn: 0,
@@ -9,7 +11,9 @@ function createBucketMapFixture() {
             }
         },
         Retirement: {
-            endingBalanceTotal: 3000,
+            _meta: {
+                endingBalanceTotal: 3000
+            },
             GENERAL_WEALTH_ACCUMULATION: {
                 endingBalanceAmount: 2000,
                 totalCumulativeReturn: 200,

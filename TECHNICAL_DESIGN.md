@@ -193,7 +193,11 @@ function buildMergedInvestmentData(performanceData, investibleData, summaryData)
         };
 
         if (!bucketMap[goalBucket]) {
-            bucketMap[goalBucket] = { total: 0 };
+            bucketMap[goalBucket] = {
+                _meta: {
+                    endingBalanceTotal: 0
+                }
+            };
         }
 
         if (!bucketMap[goalBucket][goalObj.goalType]) {
@@ -208,7 +212,7 @@ function buildMergedInvestmentData(performanceData, investibleData, summaryData)
 
         if (typeof goalObj.endingBalanceAmount === 'number') {
             bucketMap[goalBucket][goalObj.goalType].endingBalanceAmount += goalObj.endingBalanceAmount;
-            bucketMap[goalBucket].endingBalanceTotal += goalObj.endingBalanceAmount;
+            bucketMap[goalBucket]._meta.endingBalanceTotal += goalObj.endingBalanceAmount;
         }
 
         if (typeof goalObj.totalCumulativeReturn === 'number') {

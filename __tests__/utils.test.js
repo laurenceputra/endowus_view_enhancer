@@ -705,7 +705,7 @@ describe('buildMergedInvestmentData', () => {
         const result = buildMergedInvestmentData(performanceData, investibleData, summaryData);
 
         expect(result).toHaveProperty('Retirement');
-        expect(result.Retirement.endingBalanceTotal).toBe(1000);
+        expect(result.Retirement._meta.endingBalanceTotal).toBe(1000);
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.endingBalanceAmount).toBe(1000);
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.totalCumulativeReturn).toBe(100);
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.goals).toHaveLength(1);
@@ -770,7 +770,7 @@ describe('buildMergedInvestmentData', () => {
 
         const result = buildMergedInvestmentData(performanceData, investibleData, summaryData);
 
-        expect(result.Retirement.endingBalanceTotal).toBe(3000);
+        expect(result.Retirement._meta.endingBalanceTotal).toBe(3000);
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.endingBalanceAmount).toBe(3000);
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.totalCumulativeReturn).toBe(300);
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.goals).toHaveLength(2);
@@ -794,7 +794,7 @@ describe('buildMergedInvestmentData', () => {
 
         const result = buildMergedInvestmentData(performanceData, investibleData, summaryData);
 
-        expect(result.Emergency.endingBalanceTotal).toBe(1500);
+        expect(result.Emergency._meta.endingBalanceTotal).toBe(1500);
         expect(result.Emergency.CASH_MANAGEMENT.endingBalanceAmount).toBe(1500);
         expect(result.Emergency.CASH_MANAGEMENT.totalCumulativeReturn).toBe(75);
         expect(result.Emergency.CASH_MANAGEMENT.goals[0].endingBalanceAmount).toBe(1500);
@@ -896,7 +896,7 @@ describe('buildMergedInvestmentData', () => {
 
         const result = buildMergedInvestmentData(performanceData, investibleData, summaryData);
 
-        expect(result.Retirement.endingBalanceTotal).toBe(1000); // Only goal1 counted
+        expect(result.Retirement._meta.endingBalanceTotal).toBe(1000); // Only goal1 counted
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.endingBalanceAmount).toBe(1000);
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.goals).toHaveLength(2); // Both goals present
     });
