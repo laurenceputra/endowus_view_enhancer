@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.6.3
+// @version      2.6.4
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -336,21 +336,22 @@
                 if (!bucketObj) {
                     return null;
                 }
-                const goalTypes = Object.keys(bucketObj).filter(key => key !== 'total');
+                const goalTypes = Object.keys(bucketObj).filter(key => key !== '_meta');
                 const bucketTotalReturn = goalTypes.reduce((total, goalType) => {
                     const value = bucketObj[goalType]?.totalCumulativeReturn;
                     return total + (isFinite(value) ? value : 0);
                 }, 0);
                 const orderedTypes = sortGoalTypes(goalTypes);
+                const endingBalanceTotal = bucketObj._meta?.endingBalanceTotal || 0;
                 return {
                     bucketName,
-                    endingBalanceAmount: bucketObj.endingBalanceTotal || 0,
+                    endingBalanceAmount: endingBalanceTotal,
                     totalReturn: bucketTotalReturn,
-                    endingBalanceDisplay: formatMoney(bucketObj.endingBalanceTotal),
+                    endingBalanceDisplay: formatMoney(endingBalanceTotal),
                     returnDisplay: formatMoney(bucketTotalReturn),
                     growthDisplay: formatGrowthPercentFromEndingBalance(
                         bucketTotalReturn,
-                        bucketObj.endingBalanceTotal
+                        endingBalanceTotal
                     ),
                     returnClass: getReturnClass(bucketTotalReturn),
                     goalTypes: orderedTypes
@@ -395,7 +396,7 @@
         if (!bucketObj) {
             return null;
         }
-        const goalTypes = Object.keys(bucketObj).filter(key => key !== 'total');
+        const goalTypes = Object.keys(bucketObj).filter(key => key !== '_meta');
         const bucketTotalReturn = goalTypes.reduce((total, goalType) => {
             const value = bucketObj[goalType]?.totalCumulativeReturn;
             return total + (isFinite(value) ? value : 0);
@@ -404,16 +405,17 @@
         const projectedInvestments = projectedInvestmentsState || {};
         const goalTargets = goalTargetById || {};
         const goalFixed = goalFixedById || {};
+        const endingBalanceTotal = bucketObj._meta?.endingBalanceTotal || 0;
 
         return {
             bucketName,
-            endingBalanceAmount: bucketObj.endingBalanceTotal || 0,
+            endingBalanceAmount: endingBalanceTotal,
             totalReturn: bucketTotalReturn,
-            endingBalanceDisplay: formatMoney(bucketObj.endingBalanceTotal),
+            endingBalanceDisplay: formatMoney(endingBalanceTotal),
             returnDisplay: formatMoney(bucketTotalReturn),
             growthDisplay: formatGrowthPercentFromEndingBalance(
                 bucketTotalReturn,
-                bucketObj.endingBalanceTotal
+                endingBalanceTotal
             ),
             returnClass: getReturnClass(bucketTotalReturn),
             goalTypes: orderedTypes
@@ -470,7 +472,7 @@
         if (!bucketObj || typeof bucketObj !== 'object') {
             return [];
         }
-        return Object.keys(bucketObj).filter(key => key !== 'total').reduce((goalIds, goalType) => {
+        return Object.keys(bucketObj).filter(key => key !== '_meta').reduce((goalIds, goalType) => {
             const group = bucketObj[goalType];
             const goals = Array.isArray(group?.goals) ? group.goals : [];
             goals.forEach(goal => {
@@ -514,7 +516,7 @@
      * @param {Array} investibleData - Investible API data
      * @param {Array} summaryData - Summary API data
      * @returns {Object|null} Bucket map with aggregated data, or null if API data incomplete
-     * Structure: { bucketName: { endingBalanceTotal: number, goalType: { endingBalanceAmount, totalCumulativeReturn, goals: [] } } }
+     * Structure: { bucketName: { _meta: { endingBalanceTotal: number }, goalType: { endingBalanceAmount, totalCumulativeReturn, goals: [] } } }
      */
     function buildMergedInvestmentData(performanceData, investibleData, summaryData) {
         if (!performanceData || !investibleData || !summaryData) {
@@ -558,7 +560,9 @@
 
             if (!bucketMap[goalBucket]) {
                 bucketMap[goalBucket] = {
-                    endingBalanceTotal: 0
+                    _meta: {
+                        endingBalanceTotal: 0
+                    }
                 };
             }
             
@@ -573,7 +577,7 @@
             bucketMap[goalBucket][goalObj.goalType].goals.push(goalObj);
 
             bucketMap[goalBucket][goalObj.goalType].endingBalanceAmount += safeEndingBalanceAmount;
-            bucketMap[goalBucket].endingBalanceTotal += safeEndingBalanceAmount;
+            bucketMap[goalBucket]._meta.endingBalanceTotal += safeEndingBalanceAmount;
             bucketMap[goalBucket][goalObj.goalType].totalCumulativeReturn += safeCumulativeReturn;
         });
 
