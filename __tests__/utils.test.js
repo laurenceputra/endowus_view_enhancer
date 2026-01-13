@@ -516,6 +516,15 @@ describe('calculateReturnFromTimeSeries', () => {
         expect(result).toBeCloseTo(120 / 110 - 1, 6);
     });
 
+    test('should adjust for net investment flows when cumulative data is available', () => {
+        const timeSeries = [
+            { date: '2024-06-01', amount: 100, cumulativeNetInvestmentAmount: 100 },
+            { date: '2024-06-02', amount: 150, cumulativeNetInvestmentAmount: 140 }
+        ];
+        const result = calculateReturnFromTimeSeries(timeSeries, new Date('2024-06-01'));
+        expect(result).toBeCloseTo(0.1, 6);
+    });
+
     test('should return null when start point amount is zero', () => {
         const timeSeries = [
             { date: '2024-06-01', amount: 0 },

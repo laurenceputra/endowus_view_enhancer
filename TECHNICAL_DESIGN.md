@@ -107,6 +107,7 @@ The enhanced performance view retrieves time-series data per goal from the BFF e
 - **Response fields used**:
   - `timeSeries.data[].date`
   - `timeSeries.data[].amount`
+  - `timeSeries.data[].cumulativeNetInvestmentAmount`
   - `returnsTable.*`
   - `performanceDates.*`
   - `totalCumulativeReturnPercent`
@@ -117,6 +118,11 @@ The enhanced performance view retrieves time-series data per goal from the BFF e
 These headers are captured from in-app fetch requests and reused for the sequential performance fetch queue.
 If captured headers are missing, the script falls back to the `webapp-sg-access-token` and `webapp-deviceId` cookies
 and any locally stored `client-id` to build the performance request headers.
+
+Time-series normalization and fallback return calculations intentionally use `Number.isFinite()` (not `isFinite()`)
+to avoid coercing strings, booleans, or empty values into numbers. When deriving window returns from time-series data,
+the script adjusts the ending balance by net contributions using `cumulativeNetInvestmentAmount` when available, so
+redemptions and contributions do not artificially inflate or deflate the fallback return percentage.
 
 ### Performance Metrics Mapping
 
