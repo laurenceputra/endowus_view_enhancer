@@ -13,11 +13,17 @@ const {
     sortGoalTypes,
     formatMoney,
     formatGrowthPercentFromEndingBalance,
+    calculateGoalDiff,
+    calculateFixedTargetPercent,
+    calculateRemainingTargetPercent,
+    isRemainingTargetAboveThreshold,
+    buildGoalTypeAllocationModel,
     buildMergedInvestmentData,
     getPerformanceCacheKey,
     isCacheFresh,
     isCacheRefreshAllowed,
     formatPercentage,
+    isDashboardRoute,
     getWindowStartDate,
     calculateReturnFromTimeSeries,
     mapReturnsTableToWindowReturns,
@@ -189,6 +195,103 @@ describe('formatGrowthPercentFromEndingBalance', () => {
         // Principal: 100, Return: 0.5, Ending Balance: 100.5
         // Growth = 0.5 / 100 * 100 = 0.5%
         expect(formatGrowthPercentFromEndingBalance(0.5, 100.5)).toBe('0.50%');
+    });
+});
+
+describe('calculateGoalDiff', () => {
+    test('should return null diff when target is missing', () => {
+        expect(calculateGoalDiff(1000, null, 2000)).toEqual({ diffAmount: null, diffClass: '' });
+    });
+
+    test('should calculate diff and class when within threshold', () => {
+        const result = calculateGoalDiff(1000, 50, 2000);
+        expect(result.diffAmount).toBe(0);
+        expect(result.diffClass).toBe('positive');
+    });
+
+    test('should mark diff as negative when over threshold', () => {
+        const result = calculateGoalDiff(1000, 80, 2000);
+        expect(result.diffAmount).toBe(-600);
+        expect(result.diffClass).toBe('negative');
+    });
+
+    test('should return null diff for invalid totals', () => {
+        expect(calculateGoalDiff(1000, 10, 0)).toEqual({ diffAmount: null, diffClass: '' });
+    });
+});
+
+describe('calculateFixedTargetPercent', () => {
+    test('should calculate fixed percent of total', () => {
+        expect(calculateFixedTargetPercent(500, 2000)).toBe(25);
+    });
+
+    test('should return null for invalid totals', () => {
+        expect(calculateFixedTargetPercent(100, 0)).toBeNull();
+    });
+});
+
+describe('calculateRemainingTargetPercent', () => {
+    test('should return remaining percent after valid targets', () => {
+        expect(calculateRemainingTargetPercent([20, 30])).toBe(50);
+    });
+
+    test('should ignore invalid target values', () => {
+        expect(calculateRemainingTargetPercent([20, 'x', null])).toBe(80);
+    });
+
+    test('should return 100 for non-array input', () => {
+        expect(calculateRemainingTargetPercent(null)).toBe(100);
+    });
+});
+
+describe('isRemainingTargetAboveThreshold', () => {
+    test('should return true when above threshold', () => {
+        expect(isRemainingTargetAboveThreshold(5, 2)).toBe(true);
+    });
+
+    test('should return false when equal to threshold', () => {
+        expect(isRemainingTargetAboveThreshold(2, 2)).toBe(false);
+    });
+
+    test('should return false for invalid input', () => {
+        expect(isRemainingTargetAboveThreshold('x', 2)).toBe(false);
+    });
+});
+
+describe('buildGoalTypeAllocationModel', () => {
+    test('should calculate goal allocation with fixed targets', () => {
+        const goals = [
+            { goalId: 'g1', goalName: 'Goal 1', endingBalanceAmount: 100, totalCumulativeReturn: 0 },
+            { goalId: 'g2', goalName: 'Goal 2', endingBalanceAmount: 300, totalCumulativeReturn: 0 }
+        ];
+        const goalTargets = {};
+        const goalFixed = { g1: true };
+        const model = buildGoalTypeAllocationModel(goals, 400, 400, goalTargets, goalFixed);
+        const goalOne = model.goalModels.find(goal => goal.goalId === 'g1');
+        expect(goalOne.targetPercent).toBe(25);
+        expect(model.remainingTargetPercent).toBe(75);
+    });
+
+    test('should keep explicit targets when not fixed', () => {
+        const goals = [{ goalId: 'g1', goalName: 'Goal 1', endingBalanceAmount: 200, totalCumulativeReturn: 0 }];
+        const goalTargets = { g1: 40 };
+        const goalFixed = {};
+        const model = buildGoalTypeAllocationModel(goals, 200, 200, goalTargets, goalFixed);
+        expect(model.goalModels[0].targetPercent).toBe(40);
+        expect(model.remainingTargetPercent).toBe(60);
+    });
+});
+
+describe('isDashboardRoute', () => {
+    test('should match dashboard paths with query or hash', () => {
+        expect(isDashboardRoute('https://app.sg.endowus.com/dashboard')).toBe(true);
+        expect(isDashboardRoute('https://app.sg.endowus.com/dashboard/')).toBe(true);
+        expect(isDashboardRoute('https://app.sg.endowus.com/dashboard?x=1')).toBe(true);
+        expect(isDashboardRoute('https://app.sg.endowus.com/dashboard#section')).toBe(true);
+    });
+
+    test('should reject non-dashboard paths', () => {
+        expect(isDashboardRoute('https://app.sg.endowus.com/overview')).toBe(false);
     });
 });
 
@@ -709,6 +812,29 @@ describe('buildMergedInvestmentData', () => {
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.endingBalanceAmount).toBe(1000);
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.totalCumulativeReturn).toBe(100);
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.goals).toHaveLength(1);
+    });
+
+    test('should preserve zero simpleRateOfReturnPercent values', () => {
+        const performanceData = [{
+            goalId: 'goal1',
+            totalCumulativeReturn: { amount: 0 },
+            simpleRateOfReturnPercent: 0
+        }];
+        const investibleData = [{
+            goalId: 'goal1',
+            goalName: 'Retirement - Core Portfolio',
+            investmentGoalType: 'GENERAL_WEALTH_ACCUMULATION',
+            totalInvestmentAmount: { display: { amount: 1000 } }
+        }];
+        const summaryData = [{
+            goalId: 'goal1',
+            goalName: 'Retirement - Core Portfolio',
+            investmentGoalType: 'GENERAL_WEALTH_ACCUMULATION'
+        }];
+
+        const result = buildMergedInvestmentData(performanceData, investibleData, summaryData);
+
+        expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.goals[0].simpleRateOfReturnPercent).toBe(0);
     });
 
     test('should extract bucket from goal name separator', () => {

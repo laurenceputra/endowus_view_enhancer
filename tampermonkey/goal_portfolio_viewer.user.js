@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.6.5
+// @version      2.6.6
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -182,6 +182,18 @@
             diffAmount,
             diffClass
         };
+    }
+
+    function isDashboardRoute(url, originFallback = 'https://app.sg.endowus.com') {
+        if (typeof url !== 'string' || !url) {
+            return false;
+        }
+        try {
+            const target = new URL(url, originFallback);
+            return target.pathname === '/dashboard' || target.pathname === '/dashboard/';
+        } catch (error) {
+            return false;
+        }
     }
 
     // ============================================
@@ -562,7 +574,9 @@
                 goalType: invest.investmentGoalType || summary.investmentGoalType || '',
                 endingBalanceAmount: Number.isFinite(endingBalanceAmount) ? endingBalanceAmount : null,
                 totalCumulativeReturn: Number.isFinite(cumulativeReturn) ? cumulativeReturn : null,
-                simpleRateOfReturnPercent: perf.simpleRateOfReturnPercent || null
+                simpleRateOfReturnPercent: Number.isFinite(perf.simpleRateOfReturnPercent)
+                    ? perf.simpleRateOfReturnPercent
+                    : null
             };
 
             if (!bucketMap[goalBucket]) {
@@ -1542,7 +1556,8 @@
         const cookieValue = getCookieValueByNames(cookieNames);
         const token = gmCookieToken || cookieValue?.value || null;
         const deviceId = getCookieValue('webapp-deviceId');
-        const clientId = localStorage.getItem('client-id') || localStorage.getItem('clientId') || null;
+        // Policy: do not read localStorage for auth-related identifiers.
+        const clientId = null;
 
         return {
             authorization: buildAuthorizationValue(token),
@@ -3724,7 +3739,7 @@
     let lastUrl = window.location.href;
     
     function shouldShowButton() {
-        return window.location.href === 'https://app.sg.endowus.com/dashboard';
+        return isDashboardRoute(window.location.href, window.location.origin);
     }
     
     function createButton() {
@@ -3879,6 +3894,7 @@
             getReturnClass,
             calculatePercentOfType,
             calculateGoalDiff,
+            isDashboardRoute,
             calculateFixedTargetPercent,
             calculateRemainingTargetPercent,
             isRemainingTargetAboveThreshold,
