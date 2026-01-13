@@ -268,6 +268,15 @@ describe('buildGoalTypeAllocationModel', () => {
         expect(model.goalModels.map(goal => goal.goalName)).toEqual(['alpha goal', 'Beta Goal']);
     });
 
+    test('should use goalId as tiebreaker when goal names match', () => {
+        const goals = [
+            { goalId: 'g2', goalName: 'Emergency Fund', endingBalanceAmount: 50, totalCumulativeReturn: 0 },
+            { goalId: 'g1', goalName: 'Emergency Fund', endingBalanceAmount: 50, totalCumulativeReturn: 0 }
+        ];
+        const model = buildGoalTypeAllocationModel(goals, 100, 100, {}, {});
+        expect(model.goalModels.map(goal => goal.goalId)).toEqual(['g1', 'g2']);
+    });
+
     test('should calculate goal allocation with fixed targets', () => {
         const goals = [
             { goalId: 'g1', goalName: 'Goal 1', endingBalanceAmount: 100, totalCumulativeReturn: 0 },

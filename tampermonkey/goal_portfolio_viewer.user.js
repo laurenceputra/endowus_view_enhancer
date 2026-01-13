@@ -3916,6 +3916,7 @@
             buildGoalTypeAllocationModel,
             getProjectedInvestmentValue,
             buildDiffCellData,
+            sortGoalsByName,
             resolveGoalTypeActionTarget,
             buildSummaryViewModel,
             buildBucketDetailViewModel,
