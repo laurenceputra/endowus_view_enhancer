@@ -138,6 +138,10 @@ describe('view model builders', () => {
         const viewModel = buildBucketDetailViewModel('Retirement', bucketMap, projected, targets, fixed);
         expect(viewModel.bucketName).toBe('Retirement');
         const goalTypeModel = viewModel.goalTypes[0];
+        expect(goalTypeModel.goals.map(goal => goal.goalName)).toEqual([
+            'Retirement - Core',
+            'Retirement - Growth'
+        ]);
         expect(goalTypeModel.projectedAmount).toBe(500);
         expect(goalTypeModel.adjustedTotal).toBe(2500);
         expect(goalTypeModel.remainingTargetDisplay).toBe('12.00%');
