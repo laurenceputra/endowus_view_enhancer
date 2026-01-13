@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.6.9
+// @version      2.6.8
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -233,8 +233,23 @@
         return numericRemaining > numericThreshold;
     }
 
-    function buildGoalTypeAllocationModel(goals, totalTypeAmount, adjustedTotal, goalTargets, goalFixed) {
+    function sortGoalsByName(goals) {
         const safeGoals = Array.isArray(goals) ? goals : [];
+        return safeGoals.slice().sort((left, right) => {
+            const leftName = String(left?.goalName || '');
+            const rightName = String(right?.goalName || '');
+            const nameCompare = leftName.localeCompare(rightName, 'en', { sensitivity: 'base' });
+            if (nameCompare !== 0) {
+                return nameCompare;
+            }
+            const leftId = String(left?.goalId || '');
+            const rightId = String(right?.goalId || '');
+            return leftId.localeCompare(rightId, 'en', { sensitivity: 'base' });
+        });
+    }
+
+    function buildGoalTypeAllocationModel(goals, totalTypeAmount, adjustedTotal, goalTargets, goalFixed) {
+        const safeGoals = sortGoalsByName(goals);
         const safeTargets = goalTargets || {};
         const safeFixed = goalFixed || {};
         const goalModels = safeGoals.map(goal => {
@@ -3913,6 +3928,7 @@
             buildGoalTypeAllocationModel,
             getProjectedInvestmentValue,
             buildDiffCellData,
+            sortGoalsByName,
             resolveGoalTypeActionTarget,
             buildSummaryViewModel,
             buildBucketDetailViewModel,

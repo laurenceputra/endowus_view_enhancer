@@ -19,17 +19,17 @@ function createBucketMapFixture() {
                 totalCumulativeReturn: 200,
                 goals: [
                     {
-                        goalId: 'g1',
-                        goalName: 'Retirement - Core',
-                        endingBalanceAmount: 1200,
-                        totalCumulativeReturn: 120,
-                        simpleRateOfReturnPercent: 0.1
-                    },
-                    {
                         goalId: 'g2',
                         goalName: 'Retirement - Growth',
                         endingBalanceAmount: 800,
                         totalCumulativeReturn: 80,
+                        simpleRateOfReturnPercent: 0.1
+                    },
+                    {
+                        goalId: 'g1',
+                        goalName: 'Retirement - Core',
+                        endingBalanceAmount: 1200,
+                        totalCumulativeReturn: 120,
                         simpleRateOfReturnPercent: 0.1
                     }
                 ]

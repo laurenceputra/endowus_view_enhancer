@@ -391,7 +391,7 @@ renderBucketView(contentDiv, bucketViewModel, bucketMap, projectedInvestments, c
 The `bucketViewModel` contains:
 - bucket totals and growth display strings
 - per-goal-type sections (with projected investment inputs)
-- per-goal rows (fixed toggles, targets, remaining target %, diffs, return classes), with remaining target alerts for values above 2%
+- per-goal rows sorted alphabetically by goal name (fixed toggles, targets, remaining target %, diffs, return classes), with remaining target alerts for values above 2%
 
 ---
 
