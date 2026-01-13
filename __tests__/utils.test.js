@@ -259,6 +259,15 @@ describe('isRemainingTargetAboveThreshold', () => {
 });
 
 describe('buildGoalTypeAllocationModel', () => {
+    test('should sort goals alphabetically by name', () => {
+        const goals = [
+            { goalId: 'g2', goalName: 'Beta Goal', endingBalanceAmount: 50, totalCumulativeReturn: 0 },
+            { goalId: 'g1', goalName: 'alpha goal', endingBalanceAmount: 50, totalCumulativeReturn: 0 }
+        ];
+        const model = buildGoalTypeAllocationModel(goals, 100, 100, {}, {});
+        expect(model.goalModels.map(goal => goal.goalName)).toEqual(['alpha goal', 'Beta Goal']);
+    });
+
     test('should calculate goal allocation with fixed targets', () => {
         const goals = [
             { goalId: 'g1', goalName: 'Goal 1', endingBalanceAmount: 100, totalCumulativeReturn: 0 },
