@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.6.4
+// @version      2.6.5
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -119,11 +119,11 @@
             return options.fallback ?? '-';
         }
         const numericValue = Number(value);
-        if (!isFinite(numericValue)) {
+        if (!Number.isFinite(numericValue)) {
             return options.fallback ?? '-';
         }
         const multiplier = Number(options.multiplier ?? 1);
-        if (!isFinite(multiplier)) {
+        if (!Number.isFinite(multiplier)) {
             return options.fallback ?? '-';
         }
         return `${(numericValue * multiplier).toFixed(2)}%`;
@@ -137,7 +137,7 @@
         const numericReturn = Number(totalReturn);
         const numericEndingBalance = Number(endingBalance);
         const principal = numericEndingBalance - numericReturn;
-        if (!isFinite(numericReturn) || !isFinite(numericEndingBalance) || principal <= 0) {
+        if (!Number.isFinite(numericReturn) || !Number.isFinite(numericEndingBalance) || principal <= 0) {
             return '-';
         }
         return ((numericReturn / principal) * 100).toFixed(2) + '%';
@@ -145,7 +145,7 @@
 
     function getReturnClass(value) {
         const numericValue = Number(value);
-        if (!isFinite(numericValue)) {
+        if (!Number.isFinite(numericValue)) {
             return '';
         }
         return numericValue >= 0 ? 'positive' : 'negative';
@@ -154,7 +154,7 @@
     function calculatePercentOfType(amount, total) {
         const numericAmount = Number(amount);
         const numericTotal = Number(total);
-        if (!isFinite(numericAmount) || !isFinite(numericTotal) || numericTotal <= 0) {
+        if (!Number.isFinite(numericAmount) || !Number.isFinite(numericTotal) || numericTotal <= 0) {
             return 0;
         }
         return (numericAmount / numericTotal) * 100;
@@ -167,9 +167,9 @@
         if (
             targetPercent === null
             || targetPercent === undefined
-            || !isFinite(numericCurrent)
-            || !isFinite(numericTarget)
-            || !isFinite(numericTotal)
+            || !Number.isFinite(numericCurrent)
+            || !Number.isFinite(numericTarget)
+            || !Number.isFinite(numericTotal)
             || numericTotal <= 0
         ) {
             return { diffAmount: null, diffClass: '' };
@@ -191,7 +191,7 @@
     function calculateFixedTargetPercent(currentAmount, adjustedTypeTotal) {
         const numericCurrent = Number(currentAmount);
         const numericTotal = Number(adjustedTypeTotal);
-        if (!isFinite(numericCurrent) || !isFinite(numericTotal) || numericTotal <= 0) {
+        if (!Number.isFinite(numericCurrent) || !Number.isFinite(numericTotal) || numericTotal <= 0) {
             return null;
         }
         return (numericCurrent / numericTotal) * 100;
@@ -203,19 +203,19 @@
         }
         const sum = targetPercents.reduce((total, targetPercent) => {
             const numericTarget = Number(targetPercent);
-            if (!isFinite(numericTarget)) {
+            if (!Number.isFinite(numericTarget)) {
                 return total;
             }
             return total + numericTarget;
         }, 0);
         const remaining = 100 - sum;
-        return isFinite(remaining) ? remaining : 100;
+        return Number.isFinite(remaining) ? remaining : 100;
     }
 
     function isRemainingTargetAboveThreshold(remainingTargetPercent, threshold = REMAINING_TARGET_ALERT_THRESHOLD) {
         const numericRemaining = Number(remainingTargetPercent);
         const numericThreshold = Number(threshold);
-        if (!isFinite(numericRemaining) || !isFinite(numericThreshold)) {
+        if (!Number.isFinite(numericRemaining) || !Number.isFinite(numericThreshold)) {
             return false;
         }
         return numericRemaining > numericThreshold;
@@ -239,7 +239,7 @@
                     : null);
             const diffInfo = calculateGoalDiff(endingBalanceAmount, targetPercent, adjustedTotal);
             const returnPercent = typeof goal.simpleRateOfReturnPercent === 'number'
-                && isFinite(goal.simpleRateOfReturnPercent)
+                && Number.isFinite(goal.simpleRateOfReturnPercent)
                 ? goal.simpleRateOfReturnPercent
                 : null;
             const returnValue = goal.totalCumulativeReturn || 0;
@@ -298,7 +298,7 @@
         }
         const key = getProjectedInvestmentKey(bucket, goalType);
         const value = projectedInvestmentsState[key];
-        return typeof value === 'number' && isFinite(value) ? value : 0;
+        return typeof value === 'number' && Number.isFinite(value) ? value : 0;
     }
 
     function buildDiffCellData(currentAmount, targetPercent, adjustedTypeTotal) {
@@ -339,7 +339,7 @@
                 const goalTypes = Object.keys(bucketObj).filter(key => key !== '_meta');
                 const bucketTotalReturn = goalTypes.reduce((total, goalType) => {
                     const value = bucketObj[goalType]?.totalCumulativeReturn;
-                    return total + (isFinite(value) ? value : 0);
+                    return total + (Number.isFinite(value) ? value : 0);
                 }, 0);
                 const orderedTypes = sortGoalTypes(goalTypes);
                 const endingBalanceTotal = bucketObj._meta?.endingBalanceTotal || 0;
@@ -399,7 +399,7 @@
         const goalTypes = Object.keys(bucketObj).filter(key => key !== '_meta');
         const bucketTotalReturn = goalTypes.reduce((total, goalType) => {
             const value = bucketObj[goalType]?.totalCumulativeReturn;
-            return total + (isFinite(value) ? value : 0);
+            return total + (Number.isFinite(value) ? value : 0);
         }, 0);
         const orderedTypes = sortGoalTypes(goalTypes);
         const projectedInvestments = projectedInvestmentsState || {};
@@ -490,7 +490,7 @@
         }
         return goalIds.reduce((acc, goalId) => {
             const value = getTargetFn(goalId);
-            if (typeof value === 'number' && isFinite(value)) {
+            if (typeof value === 'number' && Number.isFinite(value)) {
                 acc[goalId] = value;
             }
             return acc;
@@ -543,18 +543,25 @@
             const goalBucket = extractBucketName(goalName);
             // Note: investible API `totalInvestmentAmount` is misnamed and represents ending balance.
             // We map it internally to endingBalanceAmount to avoid confusing it with principal invested.
-            const endingBalanceAmount = extractAmount(invest.totalInvestmentAmount);
+            const performanceEndingBalance = extractAmount(perf.totalInvestmentValue);
+            const pendingProcessingAmount = extractAmount(perf.pendingProcessingAmount);
+            let endingBalanceAmount = performanceEndingBalance !== null
+                ? performanceEndingBalance
+                : extractAmount(invest.totalInvestmentAmount);
+            if (Number.isFinite(endingBalanceAmount) && Number.isFinite(pendingProcessingAmount)) {
+                endingBalanceAmount += pendingProcessingAmount;
+            }
             const cumulativeReturn = extractAmount(perf.totalCumulativeReturn);
-            const safeEndingBalanceAmount = isFinite(endingBalanceAmount) ? endingBalanceAmount : 0;
-            const safeCumulativeReturn = isFinite(cumulativeReturn) ? cumulativeReturn : 0;
+            const safeEndingBalanceAmount = Number.isFinite(endingBalanceAmount) ? endingBalanceAmount : 0;
+            const safeCumulativeReturn = Number.isFinite(cumulativeReturn) ? cumulativeReturn : 0;
             
             const goalObj = {
                 goalId: perf.goalId,
                 goalName: goalName,
                 goalBucket: goalBucket,
                 goalType: invest.investmentGoalType || summary.investmentGoalType || '',
-                endingBalanceAmount: isFinite(endingBalanceAmount) ? endingBalanceAmount : null,
-                totalCumulativeReturn: isFinite(cumulativeReturn) ? cumulativeReturn : null,
+                endingBalanceAmount: Number.isFinite(endingBalanceAmount) ? endingBalanceAmount : null,
+                totalCumulativeReturn: Number.isFinite(cumulativeReturn) ? cumulativeReturn : null,
                 simpleRateOfReturnPercent: perf.simpleRateOfReturnPercent || null
             };
 
@@ -603,7 +610,7 @@
     function isCacheFresh(fetchedAt, maxAgeMs, nowMs = Date.now()) {
         const fetchedTime = Number(fetchedAt);
         const maxAge = Number(maxAgeMs);
-        if (!isFinite(fetchedTime) || !isFinite(maxAge) || maxAge <= 0) {
+        if (!Number.isFinite(fetchedTime) || !Number.isFinite(maxAge) || maxAge <= 0) {
             return false;
         }
         return nowMs - fetchedTime < maxAge;
@@ -613,7 +620,7 @@
         const minAge = Number(minAgeMs);
         const fetchedTime = Number(fetchedAt);
         const nowTime = Number(nowMs);
-        if (!isFinite(minAge) || minAge <= 0 || !isFinite(fetchedTime) || !isFinite(nowTime)) {
+        if (!Number.isFinite(minAge) || minAge <= 0 || !Number.isFinite(fetchedTime) || !Number.isFinite(nowTime)) {
             return false;
         }
         return nowTime - fetchedTime >= minAge;
@@ -624,7 +631,7 @@
             return '-';
         }
         const numericValue = Number(value);
-        if (!isFinite(numericValue)) {
+        if (!Number.isFinite(numericValue)) {
             return '-';
         }
         const sign = numericValue > 0 ? '+' : '';
@@ -639,7 +646,7 @@
             .map(entry => {
                 const date = new Date(entry?.date);
                 const amount = Number(entry?.amount);
-                if (!isFinite(date?.getTime()) || !isFinite(amount)) {
+                if (!Number.isFinite(date?.getTime()) || !Number.isFinite(amount)) {
                     return null;
                 }
                 return {
@@ -667,7 +674,7 @@
             return null;
         }
         const target = targetDate instanceof Date ? targetDate : new Date(targetDate);
-        if (!isFinite(target?.getTime())) {
+        if (!Number.isFinite(target?.getTime())) {
             return null;
         }
         for (let i = normalized.length - 1; i >= 0; i -= 1) {
@@ -685,7 +692,7 @@
         for (const key of keys) {
             if (performanceDates[key]) {
                 const date = new Date(performanceDates[key]);
-                if (isFinite(date.getTime())) {
+                if (Number.isFinite(date.getTime())) {
                     return date;
                 }
             }
@@ -749,14 +756,14 @@
     }
 
     function extractReturnPercent(value) {
-        if (typeof value === 'number' && isFinite(value)) {
+        if (typeof value === 'number' && Number.isFinite(value)) {
             return value;
         }
         if (value && typeof value === 'object') {
             const possibleKeys = ['returnPercent', 'rateOfReturn', 'return', 'percent'];
             for (const key of possibleKeys) {
                 const candidate = value[key];
-                if (typeof candidate === 'number' && isFinite(candidate)) {
+                if (typeof candidate === 'number' && Number.isFinite(candidate)) {
                     return candidate;
                 }
             }
@@ -837,7 +844,7 @@
             }));
         }
         const targetDate = startDate instanceof Date ? startDate : new Date(startDate);
-        if (!isFinite(targetDate?.getTime())) {
+        if (!Number.isFinite(targetDate?.getTime())) {
             return [];
         }
         return normalized
@@ -846,16 +853,16 @@
     }
 
     function extractAmount(value) {
-        if (typeof value === 'number' && isFinite(value)) {
+        if (typeof value === 'number' && Number.isFinite(value)) {
             return value;
         }
         if (value && typeof value === 'object') {
             const nestedAmount = value.amount;
-            if (typeof nestedAmount === 'number' && isFinite(nestedAmount)) {
+            if (typeof nestedAmount === 'number' && Number.isFinite(nestedAmount)) {
                 return nestedAmount;
             }
             const displayAmount = value.display?.amount;
-            if (typeof displayAmount === 'number' && isFinite(displayAmount)) {
+            if (typeof displayAmount === 'number' && Number.isFinite(displayAmount)) {
                 return displayAmount;
             }
         }
@@ -871,7 +878,7 @@
         values.forEach((value, index) => {
             const numericValue = Number(value);
             const weight = Number(weights[index]);
-            if (isFinite(numericValue) && isFinite(weight) && weight > 0) {
+            if (Number.isFinite(numericValue) && Number.isFinite(weight) && weight > 0) {
                 total += numericValue * weight;
                 totalWeight += weight;
             }
@@ -898,7 +905,7 @@
             const netInvestmentValue = extractAmount(
                 response?.gainOrLossTable?.netInvestment?.allTimeValue
             ) ?? extractAmount(response?.netInvestmentAmount ?? response?.netInvestment);
-            const weight = isFinite(netInvestmentValue) && netInvestmentValue > 0 ? netInvestmentValue : null;
+            const weight = Number.isFinite(netInvestmentValue) && netInvestmentValue > 0 ? netInvestmentValue : null;
 
             if (!weight) {
                 return;
@@ -906,7 +913,7 @@
 
             windowKeys.forEach(windowKey => {
                 const mappedValue = mappedReturns[windowKey];
-                if (typeof mappedValue === 'number' && isFinite(mappedValue)) {
+                if (typeof mappedValue === 'number' && Number.isFinite(mappedValue)) {
                     valuesByWindow[windowKey].push(mappedValue);
                     weightsByWindow[windowKey].push(weight);
                 }
@@ -951,26 +958,26 @@
                 response?.endingBalanceAmount ?? response?.totalBalanceAmount ?? response?.marketValueAmount
             );
 
-            if (isFinite(totalReturnValue)) {
+            if (Number.isFinite(totalReturnValue)) {
                 totalReturnSeen = true;
                 totalReturnAmount += totalReturnValue;
             }
-            if (isFinite(accessFeeValue) || isFinite(trailerFeeValue)) {
+            if (Number.isFinite(accessFeeValue) || Number.isFinite(trailerFeeValue)) {
                 netFeesSeen = true;
-                netFeesAmount += (isFinite(accessFeeValue) ? accessFeeValue : 0)
-                    - (isFinite(trailerFeeValue) ? trailerFeeValue : 0);
+                netFeesAmount += (Number.isFinite(accessFeeValue) ? accessFeeValue : 0)
+                    - (Number.isFinite(trailerFeeValue) ? trailerFeeValue : 0);
             }
-            if (isFinite(netInvestmentValue)) {
+            if (Number.isFinite(netInvestmentValue)) {
                 netInvestmentSeen = true;
                 netInvestmentAmount += netInvestmentValue;
             }
-            if (isFinite(endingBalanceValue)) {
+            if (Number.isFinite(endingBalanceValue)) {
                 endingBalanceSeen = true;
                 endingBalanceAmount += endingBalanceValue;
             }
 
-            const netWeight = isFinite(netInvestmentValue) ? netInvestmentValue : 0;
-            if (isFinite(netWeight) && netWeight > 0) {
+            const netWeight = Number.isFinite(netInvestmentValue) ? netInvestmentValue : 0;
+            if (Number.isFinite(netWeight) && netWeight > 0) {
                 netInvestments.push(netWeight);
                 totalReturns.push(response?.totalCumulativeReturnPercent);
                 simpleReturns.push(response?.simpleRateOfReturnPercent ?? response?.simpleReturnPercent);
@@ -987,7 +994,7 @@
 
         if (endingBalanceAmount === 0 && Array.isArray(mergedTimeSeries) && mergedTimeSeries.length) {
             const latest = mergedTimeSeries[mergedTimeSeries.length - 1];
-            if (isFinite(latest?.amount)) {
+            if (Number.isFinite(latest?.amount)) {
                 endingBalanceAmount = latest.amount;
                 endingBalanceSeen = true;
             }
@@ -1732,7 +1739,7 @@
         goalIds.forEach(goalId => {
             const cached = readPerformanceCache(goalId);
             const fetchedAt = cached?.fetchedAt;
-            if (typeof fetchedAt === 'number' && isFinite(fetchedAt)) {
+            if (typeof fetchedAt === 'number' && Number.isFinite(fetchedAt)) {
                 if (latestFetchedAt === null || fetchedAt > latestFetchedAt) {
                     latestFetchedAt = fetchedAt;
                 }
@@ -1878,7 +1885,7 @@
             return svg;
         }
 
-        const amounts = series.map(point => Number(point.amount)).filter(val => isFinite(val));
+        const amounts = series.map(point => Number(point.amount)).filter(val => Number.isFinite(val));
         if (amounts.length < 2) {
             return svg;
         }
@@ -1958,7 +1965,7 @@
 
         const formatDateLabel = dateString => {
             const date = new Date(dateString);
-            if (!isFinite(date.getTime())) {
+            if (!Number.isFinite(date.getTime())) {
                 return dateString;
             }
             return date.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' });

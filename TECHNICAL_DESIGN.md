@@ -131,7 +131,7 @@ combined, percentage metrics are weighted by each goal’s net investment amount
 | Gain / Loss | `totalCumulativeReturnAmount` | Summed across goals. |
 | Net Fees | `gainOrLossTable.accessFeeCharged.allTimeValue.amount` − `gainOrLossTable.trailerFeeRebates.allTimeValue.amount` | Summed across goals. |
 | Net Investment | `gainOrLossTable.netInvestment.allTimeValue.amount` → `netInvestmentAmount` → `netInvestment` | Summed; falls back to earliest time-series amount when missing. |
-| Ending Balance | `endingBalanceAmount` → `totalBalanceAmount` → `marketValueAmount` | Summed; falls back to latest time-series amount when missing. |
+| Ending Balance | `totalInvestmentValue` + `pendingProcessingAmount` → `endingBalanceAmount` → `totalBalanceAmount` → `marketValueAmount` | Summed; uses performance totals (including pending processing) when available, then falls back to latest time-series amount when missing. |
 
 ---
 
@@ -181,14 +181,27 @@ function buildMergedInvestmentData(performanceData, investibleData, summaryData)
             ? goalName.trim() || 'Uncategorized'
             : goalName.substring(0, separatorIndex).trim() || 'Uncategorized';
 
+        const performanceEndingBalance = extractAmount(perf.totalInvestmentValue);
+        const pendingProcessingAmount = extractAmount(perf.pendingProcessingAmount);
+        let endingBalanceAmount = performanceEndingBalance !== null
+            ? performanceEndingBalance
+            : extractAmount(invest.totalInvestmentAmount);
+        if (Number.isFinite(endingBalanceAmount) && Number.isFinite(pendingProcessingAmount)) {
+            endingBalanceAmount += pendingProcessingAmount;
+        }
+        const cumulativeReturn = extractAmount(perf.totalCumulativeReturn);
+        const safeEndingBalanceAmount = Number.isFinite(endingBalanceAmount) ? endingBalanceAmount : 0;
+        const safeCumulativeReturn = Number.isFinite(cumulativeReturn) ? cumulativeReturn : 0;
+
         const goalObj = {
             goalId: perf.goalId,
             goalName,
             goalBucket,
             goalType: invest.investmentGoalType || summary.investmentGoalType || '',
             // Note: investible API `totalInvestmentAmount` is misnamed and represents ending balance.
-            endingBalanceAmount: invest.totalInvestmentAmount?.display?.amount || null,
-            totalCumulativeReturn: perf.totalCumulativeReturn?.amount || null,
+            // When available, use performance total investment value plus pending processing amount.
+            endingBalanceAmount: Number.isFinite(endingBalanceAmount) ? endingBalanceAmount : null,
+            totalCumulativeReturn: Number.isFinite(cumulativeReturn) ? cumulativeReturn : null,
             simpleRateOfReturnPercent: perf.simpleRateOfReturnPercent || null
         };
 
@@ -210,14 +223,9 @@ function buildMergedInvestmentData(performanceData, investibleData, summaryData)
 
         bucketMap[goalBucket][goalObj.goalType].goals.push(goalObj);
 
-        if (typeof goalObj.endingBalanceAmount === 'number') {
-            bucketMap[goalBucket][goalObj.goalType].endingBalanceAmount += goalObj.endingBalanceAmount;
-            bucketMap[goalBucket]._meta.endingBalanceTotal += goalObj.endingBalanceAmount;
-        }
-
-        if (typeof goalObj.totalCumulativeReturn === 'number') {
-            bucketMap[goalBucket][goalObj.goalType].totalCumulativeReturn += goalObj.totalCumulativeReturn;
-        }
+        bucketMap[goalBucket][goalObj.goalType].endingBalanceAmount += safeEndingBalanceAmount;
+        bucketMap[goalBucket]._meta.endingBalanceTotal += safeEndingBalanceAmount;
+        bucketMap[goalBucket][goalObj.goalType].totalCumulativeReturn += safeCumulativeReturn;
     });
 
     return bucketMap;
@@ -353,7 +361,7 @@ The `summaryViewModel` contains:
 - totals/returns/growth display strings
 - per-goal-type rows with display names
 
-Growth percentages are calculated as `cumulativeReturn / (endingBalance - cumulativeReturn) * 100`, because the investible API’s `totalInvestmentAmount` is misnamed and actually represents ending balance.
+Growth percentages are calculated as `cumulativeReturn / (endingBalance - cumulativeReturn) * 100`, because ending balance is derived from performance totals (including pending processing amounts when available) or the investible API’s `totalInvestmentAmount`, which is misnamed and actually represents ending balance.
 
 #### Detail View Rendering
 

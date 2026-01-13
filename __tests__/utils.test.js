@@ -801,6 +801,73 @@ describe('buildMergedInvestmentData', () => {
         expect(result.Emergency.CASH_MANAGEMENT.goals[0].totalCumulativeReturn).toBe(75);
     });
 
+    test('should add pending processing amount to performance total investment value', () => {
+        const performanceData = [
+            {
+                goalId: 'goal1',
+                totalInvestmentValue: { amount: 124038.45 },
+                pendingProcessingAmount: { amount: 6396.52 },
+                totalCumulativeReturn: { amount: 563.58 }
+            }
+        ];
+
+        const investibleData = [
+            {
+                goalId: 'goal1',
+                goalName: 'Retirement - Portfolio',
+                investmentGoalType: 'GENERAL_WEALTH_ACCUMULATION',
+                totalInvestmentAmount: { display: { amount: 100000 } }
+            }
+        ];
+
+        const summaryData = [
+            {
+                goalId: 'goal1',
+                goalName: 'Retirement - Portfolio',
+                investmentGoalType: 'GENERAL_WEALTH_ACCUMULATION'
+            }
+        ];
+
+        const result = buildMergedInvestmentData(performanceData, investibleData, summaryData);
+
+        expect(result.Retirement._meta.endingBalanceTotal).toBeCloseTo(130434.97, 2);
+        expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.endingBalanceAmount).toBeCloseTo(130434.97, 2);
+        expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.goals[0].endingBalanceAmount).toBeCloseTo(130434.97, 2);
+    });
+
+    test('should ignore missing pending processing amount when performance total investment value exists', () => {
+        const performanceData = [
+            {
+                goalId: 'goal1',
+                totalInvestmentValue: { amount: 124038.45 },
+                totalCumulativeReturn: { amount: 563.58 }
+            }
+        ];
+
+        const investibleData = [
+            {
+                goalId: 'goal1',
+                goalName: 'Retirement - Portfolio',
+                investmentGoalType: 'GENERAL_WEALTH_ACCUMULATION',
+                totalInvestmentAmount: { display: { amount: 100000 } }
+            }
+        ];
+
+        const summaryData = [
+            {
+                goalId: 'goal1',
+                goalName: 'Retirement - Portfolio',
+                investmentGoalType: 'GENERAL_WEALTH_ACCUMULATION'
+            }
+        ];
+
+        const result = buildMergedInvestmentData(performanceData, investibleData, summaryData);
+
+        expect(result.Retirement._meta.endingBalanceTotal).toBeCloseTo(124038.45, 2);
+        expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.endingBalanceAmount).toBeCloseTo(124038.45, 2);
+        expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.goals[0].endingBalanceAmount).toBeCloseTo(124038.45, 2);
+    });
+
     test('should handle multiple buckets and goal types', () => {
         const performanceData = [
             { goalId: 'goal1', totalCumulativeReturn: { amount: 100 } },
