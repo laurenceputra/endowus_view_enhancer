@@ -544,9 +544,7 @@
             // Note: investible API `totalInvestmentAmount` is misnamed and represents ending balance.
             // We map it internally to endingBalanceAmount to avoid confusing it with principal invested.
             const performanceEndingBalance = extractAmount(perf.totalInvestmentValue);
-            const pendingProcessingAmount = performanceEndingBalance !== null
-                ? extractAmount(perf.pendingProcessingAmount)
-                : null;
+            const pendingProcessingAmount = extractAmount(perf.pendingProcessingAmount);
             let endingBalanceAmount = performanceEndingBalance !== null
                 ? performanceEndingBalance
                 : extractAmount(invest.totalInvestmentAmount);
