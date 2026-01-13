@@ -552,16 +552,16 @@
                 endingBalanceAmount += pendingProcessingAmount;
             }
             const cumulativeReturn = extractAmount(perf.totalCumulativeReturn);
-            const safeEndingBalanceAmount = isFinite(endingBalanceAmount) ? endingBalanceAmount : 0;
-            const safeCumulativeReturn = isFinite(cumulativeReturn) ? cumulativeReturn : 0;
+            const safeEndingBalanceAmount = Number.isFinite(endingBalanceAmount) ? endingBalanceAmount : 0;
+            const safeCumulativeReturn = Number.isFinite(cumulativeReturn) ? cumulativeReturn : 0;
             
             const goalObj = {
                 goalId: perf.goalId,
                 goalName: goalName,
                 goalBucket: goalBucket,
                 goalType: invest.investmentGoalType || summary.investmentGoalType || '',
-                endingBalanceAmount: isFinite(endingBalanceAmount) ? endingBalanceAmount : null,
-                totalCumulativeReturn: isFinite(cumulativeReturn) ? cumulativeReturn : null,
+                endingBalanceAmount: Number.isFinite(endingBalanceAmount) ? endingBalanceAmount : null,
+                totalCumulativeReturn: Number.isFinite(cumulativeReturn) ? cumulativeReturn : null,
                 simpleRateOfReturnPercent: perf.simpleRateOfReturnPercent || null
             };
 
