@@ -246,6 +246,9 @@ Contributions are welcome! To contribute:
 
 ## Changelog
 
+### Version 2.6.7
+- Sort goals alphabetically within each goal type in the bucket detail view
+
 ### Version 2.6.3
 - Corrected growth percentage calculations to use cumulative return over total invested
 - Clarified growth percentage definition in documentation
