@@ -51,7 +51,7 @@ This repo contains a Tampermonkey userscript for goal-based portfolio view enhan
 
 ## Update pointers
 - If behavior changes, update `TECHNICAL_DESIGN.md` and any related README references.
-- If behavior changes, require a version bump.
+- If behavior changes, require a version bump, in the tampermonkey/goal_portfolio_viewer.user.js, package.json, package-lock.json. There should only be 1 version bump per PR.
 
 ## Safety
 - No data egress.
