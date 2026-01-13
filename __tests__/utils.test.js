@@ -586,6 +586,24 @@ describe('calculateReturnFromTimeSeries', () => {
         expect(result).toBeCloseTo(-80 / -100 - 1, 6);
     });
 
+    test('should ignore entries with null amounts', () => {
+        const timeSeries = [
+            { date: '2024-06-01', amount: null },
+            { date: '2024-06-02', amount: 100 }
+        ];
+        const result = calculateReturnFromTimeSeries(timeSeries, new Date('2024-06-01'));
+        expect(result).toBeNull();
+    });
+
+    test('should treat null cumulative net investment as missing', () => {
+        const timeSeries = [
+            { date: '2024-06-01', amount: 100, cumulativeNetInvestmentAmount: null },
+            { date: '2024-06-02', amount: 120, cumulativeNetInvestmentAmount: 110 }
+        ];
+        const result = calculateReturnFromTimeSeries(timeSeries, new Date('2024-06-01'));
+        expect(result).toBeCloseTo(120 / 100 - 1, 6);
+    });
+
     test('should return null for null startDate', () => {
         const timeSeries = [
             { date: '2024-06-01', amount: 100 },

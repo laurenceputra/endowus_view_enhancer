@@ -124,7 +124,8 @@ to avoid coercing strings, booleans, or empty values into numbers. When deriving
 the script adjusts the ending balance by net contributions using `cumulativeNetInvestmentAmount` when available, so
 redemptions and contributions do not artificially inflate or deflate the fallback return percentage. Negative or
 zero adjusted end balances are treated as valid (yielding negative returns), while zero start balances still return
-`null` to avoid division-by-zero errors.
+`null` to avoid division-by-zero errors. Time-series normalization treats `null` amounts and net investment values as
+missing data (rather than converting them to zero) to avoid mixing unavailable values into calculations.
 
 ### Performance Metrics Mapping
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.6.8
+// @version      2.6.9
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -659,8 +659,10 @@
         return timeSeriesData
             .map(entry => {
                 const date = new Date(entry?.date);
-                const amount = Number(entry?.amount);
-                const cumulativeNetInvestmentAmount = Number(entry?.cumulativeNetInvestmentAmount);
+                const amount = entry?.amount != null ? Number(entry.amount) : NaN;
+                const cumulativeNetInvestmentAmount = entry?.cumulativeNetInvestmentAmount != null
+                    ? Number(entry.cumulativeNetInvestmentAmount)
+                    : NaN;
                 if (!Number.isFinite(date?.getTime()) || !Number.isFinite(amount)) {
                     return null;
                 }
