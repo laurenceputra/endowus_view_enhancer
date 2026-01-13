@@ -525,6 +525,33 @@ describe('calculateReturnFromTimeSeries', () => {
         expect(result).toBeCloseTo(0.1, 6);
     });
 
+    test('should return -100% when adjusted end amount is zero', () => {
+        const timeSeries = [
+            { date: '2024-06-01', amount: 100, cumulativeNetInvestmentAmount: 100 },
+            { date: '2024-06-02', amount: 100, cumulativeNetInvestmentAmount: 200 }
+        ];
+        const result = calculateReturnFromTimeSeries(timeSeries, new Date('2024-06-01'));
+        expect(result).toBeCloseTo(-1, 6);
+    });
+
+    test('should allow negative adjusted end amounts for heavy losses', () => {
+        const timeSeries = [
+            { date: '2024-06-01', amount: 100, cumulativeNetInvestmentAmount: 100 },
+            { date: '2024-06-02', amount: 50, cumulativeNetInvestmentAmount: 200 }
+        ];
+        const result = calculateReturnFromTimeSeries(timeSeries, new Date('2024-06-01'));
+        expect(result).toBeCloseTo(-1.5, 6);
+    });
+
+    test('should account for redemptions when cumulative net investment decreases', () => {
+        const timeSeries = [
+            { date: '2024-06-01', amount: 120, cumulativeNetInvestmentAmount: 200 },
+            { date: '2024-06-02', amount: 80, cumulativeNetInvestmentAmount: 150 }
+        ];
+        const result = calculateReturnFromTimeSeries(timeSeries, new Date('2024-06-01'));
+        expect(result).toBeCloseTo(130 / 120 - 1, 6);
+    });
+
     test('should return null when start point amount is zero', () => {
         const timeSeries = [
             { date: '2024-06-01', amount: 0 },
@@ -534,20 +561,29 @@ describe('calculateReturnFromTimeSeries', () => {
         expect(result).toBeNull();
     });
 
-    test('should return null when end point amount is zero or negative', () => {
+    test('should allow zero or negative end point amounts', () => {
         const timeSeries = [
             { date: '2024-06-01', amount: 100 },
             { date: '2024-06-02', amount: 0 }
         ];
         const result = calculateReturnFromTimeSeries(timeSeries, new Date('2024-06-01'));
-        expect(result).toBeNull();
+        expect(result).toBeCloseTo(-1, 6);
 
         const timeSeriesNegative = [
             { date: '2024-06-01', amount: 100 },
             { date: '2024-06-02', amount: -50 }
         ];
         const resultNegative = calculateReturnFromTimeSeries(timeSeriesNegative, new Date('2024-06-01'));
-        expect(resultNegative).toBeNull();
+        expect(resultNegative).toBeCloseTo(-1.5, 6);
+    });
+
+    test('should allow negative start amounts when non-zero', () => {
+        const timeSeries = [
+            { date: '2024-06-01', amount: -100 },
+            { date: '2024-06-02', amount: -80 }
+        ];
+        const result = calculateReturnFromTimeSeries(timeSeries, new Date('2024-06-01'));
+        expect(result).toBeCloseTo(-80 / -100 - 1, 6);
     });
 
     test('should return null for null startDate', () => {

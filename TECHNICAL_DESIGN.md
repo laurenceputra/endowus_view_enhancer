@@ -122,7 +122,9 @@ and any locally stored `client-id` to build the performance request headers.
 Time-series normalization and fallback return calculations intentionally use `Number.isFinite()` (not `isFinite()`)
 to avoid coercing strings, booleans, or empty values into numbers. When deriving window returns from time-series data,
 the script adjusts the ending balance by net contributions using `cumulativeNetInvestmentAmount` when available, so
-redemptions and contributions do not artificially inflate or deflate the fallback return percentage.
+redemptions and contributions do not artificially inflate or deflate the fallback return percentage. Negative or
+zero adjusted end balances are treated as valid (yielding negative returns), while zero start balances still return
+`null` to avoid division-by-zero errors.
 
 ### Performance Metrics Mapping
 
