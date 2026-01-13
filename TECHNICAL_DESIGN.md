@@ -181,6 +181,18 @@ function buildMergedInvestmentData(performanceData, investibleData, summaryData)
             ? goalName.trim() || 'Uncategorized'
             : goalName.substring(0, separatorIndex).trim() || 'Uncategorized';
 
+        const performanceEndingBalance = extractAmount(perf.totalInvestmentValue);
+        const pendingProcessingAmount = extractAmount(perf.pendingProcessingAmount);
+        let endingBalanceAmount = performanceEndingBalance !== null
+            ? performanceEndingBalance
+            : extractAmount(invest.totalInvestmentAmount);
+        if (Number.isFinite(endingBalanceAmount) && Number.isFinite(pendingProcessingAmount)) {
+            endingBalanceAmount += pendingProcessingAmount;
+        }
+        const cumulativeReturn = extractAmount(perf.totalCumulativeReturn);
+        const safeEndingBalanceAmount = isFinite(endingBalanceAmount) ? endingBalanceAmount : 0;
+        const safeCumulativeReturn = isFinite(cumulativeReturn) ? cumulativeReturn : 0;
+
         const goalObj = {
             goalId: perf.goalId,
             goalName,
@@ -188,10 +200,8 @@ function buildMergedInvestmentData(performanceData, investibleData, summaryData)
             goalType: invest.investmentGoalType || summary.investmentGoalType || '',
             // Note: investible API `totalInvestmentAmount` is misnamed and represents ending balance.
             // When available, use performance total investment value plus pending processing amount.
-            endingBalanceAmount: perf.totalInvestmentValue?.amount !== undefined
-                ? perf.totalInvestmentValue.amount + (perf.pendingProcessingAmount?.amount || 0)
-                : invest.totalInvestmentAmount?.display?.amount || null,
-            totalCumulativeReturn: perf.totalCumulativeReturn?.amount || null,
+            endingBalanceAmount: isFinite(endingBalanceAmount) ? endingBalanceAmount : null,
+            totalCumulativeReturn: isFinite(cumulativeReturn) ? cumulativeReturn : null,
             simpleRateOfReturnPercent: perf.simpleRateOfReturnPercent || null
         };
 
@@ -213,14 +223,9 @@ function buildMergedInvestmentData(performanceData, investibleData, summaryData)
 
         bucketMap[goalBucket][goalObj.goalType].goals.push(goalObj);
 
-        if (typeof goalObj.endingBalanceAmount === 'number') {
-            bucketMap[goalBucket][goalObj.goalType].endingBalanceAmount += goalObj.endingBalanceAmount;
-            bucketMap[goalBucket]._meta.endingBalanceTotal += goalObj.endingBalanceAmount;
-        }
-
-        if (typeof goalObj.totalCumulativeReturn === 'number') {
-            bucketMap[goalBucket][goalObj.goalType].totalCumulativeReturn += goalObj.totalCumulativeReturn;
-        }
+        bucketMap[goalBucket][goalObj.goalType].endingBalanceAmount += safeEndingBalanceAmount;
+        bucketMap[goalBucket]._meta.endingBalanceTotal += safeEndingBalanceAmount;
+        bucketMap[goalBucket][goalObj.goalType].totalCumulativeReturn += safeCumulativeReturn;
     });
 
     return bucketMap;
