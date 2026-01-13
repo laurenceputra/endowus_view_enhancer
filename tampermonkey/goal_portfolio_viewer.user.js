@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.6.7
+// @version      2.6.8
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -674,14 +674,20 @@
         return timeSeriesData
             .map(entry => {
                 const date = new Date(entry?.date);
-                const amount = Number(entry?.amount);
+                const amount = entry?.amount != null ? Number(entry.amount) : NaN;
+                const cumulativeNetInvestmentAmount = entry?.cumulativeNetInvestmentAmount != null
+                    ? Number(entry.cumulativeNetInvestmentAmount)
+                    : NaN;
                 if (!Number.isFinite(date?.getTime()) || !Number.isFinite(amount)) {
                     return null;
                 }
                 return {
                     date,
                     dateString: entry.date,
-                    amount
+                    amount,
+                    cumulativeNetInvestmentAmount: Number.isFinite(cumulativeNetInvestmentAmount)
+                        ? cumulativeNetInvestmentAmount
+                        : null
                 };
             })
             .filter(Boolean)
@@ -775,13 +781,19 @@
         if (!startPoint || !endPoint) {
             return null;
         }
-        if (startPoint.amount === 0) {
+        if (!Number.isFinite(startPoint.amount) || startPoint.amount === 0) {
             return null;
         }
-        if (endPoint.amount <= 0) {
+        const startNetInvestment = startPoint.cumulativeNetInvestmentAmount;
+        const endNetInvestment = endPoint.cumulativeNetInvestmentAmount;
+        let adjustedEndAmount = endPoint.amount;
+        if (Number.isFinite(startNetInvestment) && Number.isFinite(endNetInvestment)) {
+            adjustedEndAmount = endPoint.amount - (endNetInvestment - startNetInvestment);
+        }
+        if (!Number.isFinite(adjustedEndAmount)) {
             return null;
         }
-        return (endPoint.amount / startPoint.amount) - 1;
+        return (adjustedEndAmount / startPoint.amount) - 1;
     }
 
     function extractReturnPercent(value) {
