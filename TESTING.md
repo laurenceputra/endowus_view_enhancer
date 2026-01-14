@@ -38,7 +38,9 @@ The project uses a unique pattern to enable testing without code duplication:
 
 ## Running Tests
 
-### Install Dependencies
+### Install Dependencies (Node 20.x)
+
+Run tests on Node 20.x to match CI and avoid environment drift.
 
 ```bash
 npm install
@@ -55,6 +57,9 @@ npm run test:watch
 
 # Run tests with coverage report
 npm run test:coverage
+
+# Run layered coverage (userscript vs overall)
+npm run coverage:layers
 ```
 
 ### Test Output

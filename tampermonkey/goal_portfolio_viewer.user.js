@@ -1118,6 +1118,59 @@
         investible: null,
         summary: null
     };
+    const ENDPOINT_HANDLERS = {
+        performance: data => {
+            apiData.performance = data;
+            GM_setValue('api_performance', JSON.stringify(data));
+            logDebug('[Goal Portfolio Viewer] Intercepted performance data');
+        },
+        investible: data => {
+            apiData.investible = data;
+            GM_setValue('api_investible', JSON.stringify(data));
+            logDebug('[Goal Portfolio Viewer] Intercepted investible data');
+        },
+        summary: data => {
+            if (!Array.isArray(data)) {
+                return;
+            }
+            apiData.summary = data;
+            GM_setValue('api_summary', JSON.stringify(data));
+            logDebug('[Goal Portfolio Viewer] Intercepted summary data');
+        }
+    };
+
+    function detectEndpointKey(url) {
+        if (typeof url !== 'string') {
+            return null;
+        }
+        if (url.includes('/v1/goals/performance')) {
+            return 'performance';
+        }
+        if (url.includes('/v2/goals/investible')) {
+            return 'investible';
+        }
+        if (url.match(/\/v1\/goals(?:[?#]|$)/)) {
+            return 'summary';
+        }
+        return null;
+    }
+
+    async function handleInterceptedResponse(url, readData) {
+        const endpointKey = detectEndpointKey(url);
+        if (!endpointKey) {
+            return;
+        }
+        const handler = ENDPOINT_HANDLERS[endpointKey];
+        if (typeof handler !== 'function') {
+            return;
+        }
+        try {
+            const data = await readData();
+            handler(data);
+        } catch (error) {
+            console.error('[Goal Portfolio Viewer] Error parsing API response:', error);
+        }
+    }
 
     function logAuthDebug(message, data) {
         if (!DEBUG_AUTH) {
@@ -1162,50 +1215,7 @@
         extractAuthHeaders(args[0], args[1]);
         const response = await originalFetch.apply(this, args);
         const url = args[0];
-        
-        if (typeof url === 'string') {
-            // Check more specific patterns first to avoid false matches
-            if (url.includes('/v1/goals/performance')) {
-                const clonedResponse = response.clone();
-                try {
-                    const data = await clonedResponse.json();
-                    logDebug('[Goal Portfolio Viewer] Intercepted performance data');
-                    apiData.performance = data;
-                    // Store in Tampermonkey storage
-                    GM_setValue('api_performance', JSON.stringify(data));
-                } catch (e) {
-                    console.error('[Goal Portfolio Viewer] Error parsing API response:', e);
-                }
-            } else if (url.includes('/v2/goals/investible')) {
-                const clonedResponse = response.clone();
-                try {
-                    const data = await clonedResponse.json();
-                    logDebug('[Goal Portfolio Viewer] Intercepted investible data');
-                    apiData.investible = data;
-                    // Store in Tampermonkey storage
-                    GM_setValue('api_investible', JSON.stringify(data));
-                } catch (e) {
-                    console.error('[Goal Portfolio Viewer] Error parsing API response:', e);
-                }
-            } else if (url.match(/\/v1\/goals(?:[?#]|$)/)) {
-                // Check for base goals endpoint (summary data)
-                // Pattern ensures we match /v1/goals but not /v1/goals/{id} or other sub-paths
-                const clonedResponse = response.clone();
-                try {
-                    const data = await clonedResponse.json();
-                    // Only store if data is an array (the summary endpoint returns an array of goals)
-                    if (Array.isArray(data)) {
-                        logDebug('[Goal Portfolio Viewer] Intercepted summary data');
-                        apiData.summary = data;
-                        // Store in Tampermonkey storage
-                        GM_setValue('api_summary', JSON.stringify(data));
-                    }
-                } catch (e) {
-                    console.error('[Goal Portfolio Viewer] Error parsing API response:', e);
-                }
-            }
-        }
-        
+        await handleInterceptedResponse(url, () => response.clone().json());
         return response;
     };
 
@@ -1228,49 +1238,9 @@
         extractAuthHeaders(url, { headers: this._headers });
         
         if (url && typeof url === 'string') {
-            // Check more specific patterns first to avoid false matches
-            if (url.includes('/v1/goals/performance')) {
-                this.addEventListener('load', function() {
-                    try {
-                        const data = JSON.parse(this.responseText);
-                        logDebug('[Goal Portfolio Viewer] Intercepted performance data (XHR)');
-                        apiData.performance = data;
-                        // Store in Tampermonkey storage
-                        GM_setValue('api_performance', JSON.stringify(data));
-                    } catch (e) {
-                        console.error('[Goal Portfolio Viewer] Error parsing XHR response:', e);
-                    }
-                });
-            } else if (url.includes('/v2/goals/investible')) {
-                this.addEventListener('load', function() {
-                    try {
-                        const data = JSON.parse(this.responseText);
-                        logDebug('[Goal Portfolio Viewer] Intercepted investible data (XHR)');
-                        apiData.investible = data;
-                        // Store in Tampermonkey storage
-                        GM_setValue('api_investible', JSON.stringify(data));
-                    } catch (e) {
-                        console.error('[Goal Portfolio Viewer] Error parsing XHR response:', e);
-                    }
-                });
-            } else if (url.match(/\/v1\/goals(?:[?#]|$)/)) {
-                // Check for base goals endpoint (summary data)
-                // Pattern ensures we match /v1/goals but not /v1/goals/{id} or other sub-paths
-                this.addEventListener('load', function() {
-                    try {
-                        const data = JSON.parse(this.responseText);
-                        // Only store if data is an array (the summary endpoint returns an array of goals)
-                        if (Array.isArray(data)) {
-                            logDebug('[Goal Portfolio Viewer] Intercepted summary data (XHR)');
-                            apiData.summary = data;
-                            // Store in Tampermonkey storage
-                            GM_setValue('api_summary', JSON.stringify(data));
-                        }
-                    } catch (e) {
-                        console.error('[Goal Portfolio Viewer] Error parsing XHR response:', e);
-                    }
-                });
-            }
+            this.addEventListener('load', function() {
+                handleInterceptedResponse(url, () => Promise.resolve(JSON.parse(this.responseText)));
+            });
         }
         
         return originalXHRSend.apply(this, args);
