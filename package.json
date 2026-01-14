@@ -27,13 +27,16 @@
   },
   "homepage": "https://github.com/laurenceputra/goal-portfolio-viewer#readme",
   "devDependencies": {
-    "eslint": "^8.57.0",
+    "eslint": "^8.57.1",
     "jest": "^29.7.0"
   },
   "jest": {
     "testEnvironment": "node",
     "coverageDirectory": "coverage",
-    "coverageReporters": ["json-summary", "text"],
+    "coverageReporters": [
+      "json-summary",
+      "text"
+    ],
     "collectCoverageFrom": [
       "tampermonkey/**/*.user.js"
     ],
