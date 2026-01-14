@@ -157,6 +157,9 @@
 
     function formatPercentValue(value, options = {}) {
         const fallback = options.fallback ?? '-';
+        if (value === null || value === undefined) {
+            return fallback;
+        }
         const numericValue = toFiniteNumber(value, null);
         if (numericValue === null) {
             return fallback;
