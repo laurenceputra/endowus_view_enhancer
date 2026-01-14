@@ -126,7 +126,12 @@
 
     function formatMoney(val) {
         if (typeof val === 'number' && !isNaN(val)) {
-            return '$' + val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return new Intl.NumberFormat('en-SG', {
+                style: 'currency',
+                currency: 'SGD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(val);
         }
         return '-';
     }
@@ -1187,6 +1192,7 @@
     const PERFORMANCE_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
     const PERFORMANCE_CACHE_REFRESH_MIN_AGE_MS = 24 * 60 * 60 * 1000;
     const PERFORMANCE_CHART_WINDOW = PERFORMANCE_WINDOWS.oneYear.key;
+    const PERFORMANCE_REQUEST_TIMEOUT_MS = 10000;
 
     // Non-persistent storage for projected investments (resets on reload)
     // Key format: "bucketName|goalType" -> projected amount
@@ -1323,16 +1329,31 @@
             const storedSummary = GM_getValue('api_summary', null);
             
             if (storedPerformance) {
-                apiDataState.performance = JSON.parse(storedPerformance);
-                logDebug('[Goal Portfolio Viewer] Loaded performance data from storage');
+                const parsed = JSON.parse(storedPerformance);
+                if (parsed && typeof parsed === 'object') {
+                    apiDataState.performance = parsed;
+                    logDebug('[Goal Portfolio Viewer] Loaded performance data from storage');
+                } else {
+                    GM_deleteValue('api_performance');
+                }
             }
             if (storedInvestible) {
-                apiDataState.investible = JSON.parse(storedInvestible);
-                logDebug('[Goal Portfolio Viewer] Loaded investible data from storage');
+                const parsed = JSON.parse(storedInvestible);
+                if (parsed && typeof parsed === 'object') {
+                    apiDataState.investible = parsed;
+                    logDebug('[Goal Portfolio Viewer] Loaded investible data from storage');
+                } else {
+                    GM_deleteValue('api_investible');
+                }
             }
             if (storedSummary) {
-                apiDataState.summary = JSON.parse(storedSummary);
-                logDebug('[Goal Portfolio Viewer] Loaded summary data from storage');
+                const parsed = JSON.parse(storedSummary);
+                if (Array.isArray(parsed)) {
+                    apiDataState.summary = parsed;
+                    logDebug('[Goal Portfolio Viewer] Loaded summary data from storage');
+                } else {
+                    GM_deleteValue('api_summary');
+                }
             }
         } catch (e) {
             console.error('[Goal Portfolio Viewer] Error loading stored data:', e);
@@ -1620,7 +1641,10 @@
                 return null;
             }
             const parsed = JSON.parse(stored);
-            if (!parsed || !isCacheFresh(parsed.fetchedAt, PERFORMANCE_CACHE_MAX_AGE_MS)) {
+            const fetchedAt = parsed?.fetchedAt;
+            const response = parsed?.response;
+            const hasValidShape = typeof fetchedAt === 'number' && fetchedAt > 0 && response && typeof response === 'object';
+            if (!parsed || !hasValidShape || !isCacheFresh(fetchedAt, PERFORMANCE_CACHE_MAX_AGE_MS)) {
                 GM_deleteValue(key);
                 return null;
             }
@@ -1655,10 +1679,21 @@
     async function fetchPerformanceForGoal(goalId) {
         const url = `${PERFORMANCE_ENDPOINT}?displayCcy=SGD&goalId=${encodeURIComponent(goalId)}`;
         const headers = await buildPerformanceRequestHeaders();
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        let timeoutId = null;
+        if (controller) {
+            timeoutId = setTimeout(() => controller.abort(), PERFORMANCE_REQUEST_TIMEOUT_MS);
+        }
+
         const response = await fetch(url, {
             method: 'GET',
             credentials: 'include',
-            headers
+            headers,
+            signal: controller ? controller.signal : undefined
+        }).finally(() => {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
         });
         const cloned = response.clone();
         if (!response.ok) {
