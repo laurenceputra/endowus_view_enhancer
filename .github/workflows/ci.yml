@@ -65,13 +65,23 @@ jobs:
         script: |
           const fs = require('fs');
           const summary = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
-          const userscript = summary['tampermonkey/goal_portfolio_viewer.user.js'] || summary.total;
+          const baseKey = 'tampermonkey/goal_portfolio_viewer.user.js';
+          const userscript = summary[baseKey] || summary.total;
           const format = data =>
             `S:${(data.statements?.pct ?? 0).toFixed(2)}% B:${(data.branches?.pct ?? 0).toFixed(2)}% F:${(data.functions?.pct ?? 0).toFixed(2)}% L:${(data.lines?.pct ?? 0).toFixed(2)}%`;
+          const delta = (a, b) => (a.pct ?? 0) - (b.pct ?? 0);
+          const deltas = {
+            statements: delta(userscript.statements || {}, summary.total.statements || {}),
+            branches: delta(userscript.branches || {}, summary.total.branches || {}),
+            functions: delta(userscript.functions || {}, summary.total.functions || {}),
+            lines: delta(userscript.lines || {}, summary.total.lines || {})
+          };
+          const formatDelta = v => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
           const body = [
             '### 📊 Layered Coverage',
             `- Userscript: ${format(userscript)}`,
-            `- Overall: ${format(summary.total)}`
+            `- Overall: ${format(summary.total)}`,
+            `- Delta (Userscript - Overall): S:${formatDelta(deltas.statements)} B:${formatDelta(deltas.branches)} F:${formatDelta(deltas.functions)} L:${formatDelta(deltas.lines)}`
           ].join('\n');
           await github.rest.issues.createComment({
             ...context.repo,
