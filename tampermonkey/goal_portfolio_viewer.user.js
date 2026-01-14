@@ -939,7 +939,7 @@
         return total / totalWeight;
     }
 
-    function calculateWeightedWindowReturns(performanceResponses, fallbackPerformanceDates) {
+    function calculateWeightedWindowReturns(performanceResponses) {
         const responses = Array.isArray(performanceResponses) ? performanceResponses : [];
         const windowKeys = Object.values(PERFORMANCE_WINDOWS).map(window => window.key);
         const valuesByWindow = {};
@@ -1415,16 +1415,6 @@
     }
 
     /**
-     * Get projected investment for a specific goal type
-     * @param {string} bucket - Bucket name
-     * @param {string} goalType - Goal type
-     * @returns {number} Projected investment amount (0 if not set)
-     */
-    function getProjectedInvestment(projectedInvestmentsState, bucket, goalType) {
-        return getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType);
-    }
-
-    /**
      * Set projected investment for a specific goal type
      * @param {string} bucket - Bucket name
      * @param {string} goalType - Goal type
@@ -1768,7 +1758,7 @@
                 primaryPerformanceDates,
                 performanceResponses[0]?.timeSeries?.data || []
             )
-            : calculateWeightedWindowReturns(performanceResponses, primaryPerformanceDates);
+            : calculateWeightedWindowReturns(performanceResponses);
 
         const metrics = summarizePerformanceMetrics(performanceResponses, normalizedMergedSeries);
 
