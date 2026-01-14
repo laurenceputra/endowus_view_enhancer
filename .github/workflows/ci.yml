@@ -58,7 +58,7 @@ jobs:
     - name: Run tests
       run: npm run test:coverage
 
-    - name: Post layered coverage comment
+    - name: Post coverage comment
       if: github.event_name == 'pull_request'
       uses: actions/github-script@v7
       with:
@@ -69,19 +69,15 @@ jobs:
           const userscript = summary[baseKey] || summary.total;
           const format = data =>
             `S:${(data.statements?.pct ?? 0).toFixed(2)}% B:${(data.branches?.pct ?? 0).toFixed(2)}% F:${(data.functions?.pct ?? 0).toFixed(2)}% L:${(data.lines?.pct ?? 0).toFixed(2)}%`;
-          const delta = (a, b) => (a.pct ?? 0) - (b.pct ?? 0);
-          const deltas = {
-            statements: delta(userscript.statements || {}, summary.total.statements || {}),
-            branches: delta(userscript.branches || {}, summary.total.branches || {}),
-            functions: delta(userscript.functions || {}, summary.total.functions || {}),
-            lines: delta(userscript.lines || {}, summary.total.lines || {})
-          };
-          const formatDelta = v => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
+          const delta = (a, b) => ((a?.pct ?? 0) - (b?.pct ?? 0)).toFixed(2);
           const body = [
-            '### 📊 Layered Coverage',
+            '### 📊 Coverage Summary',
             `- Userscript: ${format(userscript)}`,
             `- Overall: ${format(summary.total)}`,
-            `- Delta (Userscript - Overall): S:${formatDelta(deltas.statements)} B:${formatDelta(deltas.branches)} F:${formatDelta(deltas.functions)} L:${formatDelta(deltas.lines)}`
+            `- Delta (Userscript vs Overall): S:${delta(userscript.statements, summary.total.statements)}% ` +
+              `B:${delta(userscript.branches, summary.total.branches)}% ` +
+              `F:${delta(userscript.functions, summary.total.functions)}% ` +
+              `L:${delta(userscript.lines, summary.total.lines)}%`
           ].join('\n');
           await github.rest.issues.createComment({
             ...context.repo,
