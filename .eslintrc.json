@@ -1,0 +1,31 @@
+{
+  "root": true,
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2021": true,
+    "jest": true
+  },
+  "extends": [
+    "eslint:recommended"
+  ],
+  "parserOptions": {
+    "ecmaVersion": 2021,
+    "sourceType": "script"
+  },
+  "globals": {
+    "GM_setValue": "readonly",
+    "GM_getValue": "readonly",
+    "GM_deleteValue": "readonly",
+    "GM_cookie": "readonly"
+  },
+  "rules": {
+    "no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ]
+  }
+}
