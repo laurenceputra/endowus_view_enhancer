@@ -25,21 +25,9 @@
     const REMAINING_TARGET_ALERT_THRESHOLD = 2;
     const DEBUG_AUTH = false;
 
-    // Declare browser-only helpers for test exports (assigned later in browser block).
+    // Export surface for tests; populated as helpers become available.
     // When set before load, window.__GPV_DISABLE_AUTO_INIT prevents DOM auto-init (used in tests).
-    let renderSummaryView;
-    let renderPerformanceChart;
-    let createLineChartSvg;
-    let getChartHeightForWidth;
-    let getChartDimensions;
-    let buildPerformanceWindowGrid;
-    let handleGoalTargetChange;
-    let handleGoalFixedToggle;
-    let handleProjectedInvestmentChange;
-    let readPerformanceCache;
-    let writePerformanceCache;
-    let getCachedPerformanceResponse;
-    let clearPerformanceCache;
+    const testExports = {};
 
     function logDebug(message, data) {
         if (!DEBUG) {
@@ -1177,6 +1165,12 @@
         }
     }
 
+    const Interception = {
+        detectEndpointKey,
+        handleInterceptedResponse,
+        handlers: ENDPOINT_HANDLERS
+    };
+
     function logAuthDebug(message, data) {
         if (!DEBUG_AUTH) {
             return;
@@ -1654,6 +1648,7 @@
             return null;
         }
     };
+    testExports.readPerformanceCache = readPerformanceCache;
 
     writePerformanceCache = function writePerformanceCache(goalId, responseData) {
         try {
@@ -1667,6 +1662,7 @@
             console.error('[Goal Portfolio Viewer] Error writing performance cache:', error);
         }
     };
+    testExports.writePerformanceCache = writePerformanceCache;
 
     getCachedPerformanceResponse = function getCachedPerformanceResponse(goalId) {
         const cached = readPerformanceCache(goalId);
@@ -1675,6 +1671,7 @@
         }
         return cached.response || null;
     };
+    testExports.getCachedPerformanceResponse = getCachedPerformanceResponse;
 
     async function fetchPerformanceForGoal(goalId) {
         const url = `${PERFORMANCE_ENDPOINT}?displayCcy=SGD&goalId=${encodeURIComponent(goalId)}`;
@@ -1813,6 +1810,7 @@
             delete goalPerformanceData[goalId];
         });
     };
+    testExports.clearPerformanceCache = clearPerformanceCache;
 
     // ============================================
     // UI
@@ -1838,6 +1836,7 @@
             Math.max(PERFORMANCE_CHART_MIN_HEIGHT, targetHeight || PERFORMANCE_CHART_DEFAULT_HEIGHT)
         );
     };
+    testExports.getChartHeightForWidth = getChartHeightForWidth;
 
     function getChartPadding(chartWidth, chartHeight) {
         const base = Math.min(chartWidth, chartHeight);
@@ -1860,6 +1859,7 @@
             height: height || PERFORMANCE_CHART_DEFAULT_HEIGHT
         };
     };
+    testExports.getChartDimensions = getChartDimensions;
 
     renderPerformanceChart = function renderPerformanceChart(chartWrapper, series, dimensionsOverride) {
         if (!chartWrapper) {
@@ -1870,6 +1870,7 @@
         chartWrapper.innerHTML = '';
         chartWrapper.appendChild(svg);
     };
+    testExports.renderPerformanceChart = renderPerformanceChart;
 
     function initializePerformanceChart(chartWrapper, series) {
         if (typeof ResizeObserver === 'undefined' || !chartWrapper) {
@@ -2078,6 +2079,7 @@
         svg.appendChild(pointGroup);
         return svg;
     };
+    testExports.createLineChartSvg = createLineChartSvg;
 
     buildPerformanceWindowGrid = function buildPerformanceWindowGrid(windowReturns) {
         const grid = document.createElement('div');
@@ -2113,6 +2115,7 @@
 
         return grid;
     };
+    testExports.buildPerformanceWindowGrid = buildPerformanceWindowGrid;
 
     function buildPerformanceMetricsTable(metrics) {
         const table = document.createElement('table');
@@ -2322,6 +2325,7 @@
 
         contentDiv.appendChild(summaryContainer);
     };
+    testExports.renderSummaryView = renderSummaryView;
 
     function renderBucketView(
         contentDiv,
@@ -2712,6 +2716,7 @@
             projectedInvestmentsState
         );
     };
+    testExports.handleGoalTargetChange = handleGoalTargetChange;
 
     handleGoalFixedToggle = function handleGoalFixedToggle(
         input,
@@ -2739,6 +2744,7 @@
             { forceTargetRefresh: true }
         );
     };
+    testExports.handleGoalFixedToggle = handleGoalFixedToggle;
 
     /**
      * Handle changes to projected investment input
@@ -2795,6 +2801,7 @@
             );
         }
     };
+    testExports.handleProjectedInvestmentChange = handleProjectedInvestmentChange;
 
     // ============================================
     // UI: Styles
@@ -3971,49 +3978,7 @@
             createSequentialRequestQueue
         };
 
-        const exported = { ...baseExports };
-
-        if (typeof renderSummaryView !== 'undefined') {
-            exported.renderSummaryView = renderSummaryView;
-        }
-        if (typeof renderPerformanceChart !== 'undefined') {
-            exported.renderPerformanceChart = renderPerformanceChart;
-        }
-        if (typeof createLineChartSvg !== 'undefined') {
-            exported.createLineChartSvg = createLineChartSvg;
-        }
-        if (typeof getChartHeightForWidth !== 'undefined') {
-            exported.getChartHeightForWidth = getChartHeightForWidth;
-        }
-        if (typeof getChartDimensions !== 'undefined') {
-            exported.getChartDimensions = getChartDimensions;
-        }
-        if (typeof buildPerformanceWindowGrid !== 'undefined') {
-            exported.buildPerformanceWindowGrid = buildPerformanceWindowGrid;
-        }
-        if (typeof handleGoalTargetChange !== 'undefined') {
-            exported.handleGoalTargetChange = handleGoalTargetChange;
-        }
-        if (typeof handleGoalFixedToggle !== 'undefined') {
-            exported.handleGoalFixedToggle = handleGoalFixedToggle;
-        }
-        if (typeof handleProjectedInvestmentChange !== 'undefined') {
-            exported.handleProjectedInvestmentChange = handleProjectedInvestmentChange;
-        }
-        if (typeof readPerformanceCache !== 'undefined') {
-            exported.readPerformanceCache = readPerformanceCache;
-        }
-        if (typeof writePerformanceCache !== 'undefined') {
-            exported.writePerformanceCache = writePerformanceCache;
-        }
-        if (typeof getCachedPerformanceResponse !== 'undefined') {
-            exported.getCachedPerformanceResponse = getCachedPerformanceResponse;
-        }
-        if (typeof clearPerformanceCache !== 'undefined') {
-            exported.clearPerformanceCache = clearPerformanceCache;
-        }
-
-        module.exports = exported;
+        module.exports = { ...baseExports, ...testExports };
     }
 
 })();
