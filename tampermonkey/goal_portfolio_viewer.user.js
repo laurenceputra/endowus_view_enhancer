@@ -3894,10 +3894,12 @@
     }
 
     // Wait for DOM to be ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
+    if (!window.__GPV_DISABLE_AUTO_INIT) {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     }
 
     } // End of browser-only code
@@ -3910,7 +3912,7 @@
     // In Node.js (test/CI), these functions are programmatically accessible.
     // Pattern: Keep all logic in ONE place (this file), test the real implementation.
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = {
+        const exported = {
             getGoalTargetKey,
             getGoalFixedKey,
             getProjectedInvestmentKey,
@@ -3957,6 +3959,27 @@
             summarizePerformanceMetrics,
             derivePerformanceWindows
         };
+
+        if (typeof renderSummaryView !== 'undefined') {
+            exported.renderSummaryView = renderSummaryView;
+        }
+        if (typeof renderPerformanceChart !== 'undefined') {
+            exported.renderPerformanceChart = renderPerformanceChart;
+        }
+        if (typeof createLineChartSvg !== 'undefined') {
+            exported.createLineChartSvg = createLineChartSvg;
+        }
+        if (typeof getChartHeightForWidth !== 'undefined') {
+            exported.getChartHeightForWidth = getChartHeightForWidth;
+        }
+        if (typeof getChartDimensions !== 'undefined') {
+            exported.getChartDimensions = getChartDimensions;
+        }
+        if (typeof buildPerformanceWindowGrid !== 'undefined') {
+            exported.buildPerformanceWindowGrid = buildPerformanceWindowGrid;
+        }
+
+        module.exports = exported;
     }
 
 })();
