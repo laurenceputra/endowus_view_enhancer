@@ -1338,10 +1338,18 @@
 
     // Fetch interception
     window.fetch = async function(...args) {
-        extractAuthHeaders(args[0], args[1]);
+        try {
+            extractAuthHeaders(args[0], args[1]);
+        } catch (error) {
+            console.error('[Goal Portfolio Viewer] Error extracting auth headers:', error);
+        }
         const response = await originalFetch.apply(this, args);
         const url = args[0];
-        await handleInterceptedResponse(url, () => response.clone().json());
+        try {
+            await handleInterceptedResponse(url, () => response.clone().json());
+        } catch (error) {
+            console.error('[Goal Portfolio Viewer] Error handling intercepted fetch response:', error);
+        }
         return response;
     };
 
@@ -1361,14 +1369,22 @@
 
     XMLHttpRequest.prototype.send = function(...args) {
         const url = this._url;
-        extractAuthHeaders(url, { headers: this._headers });
-        
+        try {
+            extractAuthHeaders(url, { headers: this._headers });
+        } catch (error) {
+            console.error('[Goal Portfolio Viewer] Error extracting XHR auth headers:', error);
+        }
+
         if (url && typeof url === 'string') {
             this.addEventListener('load', function() {
-                handleInterceptedResponse(url, () => Promise.resolve(JSON.parse(this.responseText)));
+                try {
+                    handleInterceptedResponse(url, () => Promise.resolve(JSON.parse(this.responseText)));
+                } catch (error) {
+                    console.error('[Goal Portfolio Viewer] Error handling intercepted XHR response:', error);
+                }
             });
         }
-        
+
         return originalXHRSend.apply(this, args);
     };
 
@@ -2285,29 +2301,44 @@
             });
         }
 
+        function renderPerformanceError(message) {
+            performanceContainer.innerHTML = '';
+            const errorState = document.createElement('div');
+            errorState.className = 'gpv-performance-loading';
+            errorState.textContent = message || 'Performance data unavailable.';
+            performanceContainer.appendChild(errorState);
+        }
+
         function loadPerformanceData() {
-            ensurePerformanceData(goalIds).then(performanceMap => {
-                if (!performanceContainer.isConnected) {
-                    return;
-                }
-                const responses = goalIds
-                    .map(goalId => performanceMap[goalId])
-                    .filter(Boolean);
-                const summary = buildGoalTypePerformanceSummary(responses);
+            ensurePerformanceData(goalIds)
+                .then(performanceMap => {
+                    if (!performanceContainer.isConnected) {
+                        return;
+                    }
+                    const responses = goalIds
+                        .map(goalId => performanceMap[goalId])
+                        .filter(Boolean);
+                    let summary = null;
+                    try {
+                        summary = buildGoalTypePerformanceSummary(responses);
+                    } catch (error) {
+                        console.error('[Goal Portfolio Viewer] Error summarizing performance data:', error);
+                    }
 
-                performanceContainer.innerHTML = '';
-                if (!summary) {
-                    const emptyState = document.createElement('div');
-                    emptyState.className = 'gpv-performance-loading';
-                    emptyState.textContent = 'Performance data unavailable.';
-                    performanceContainer.appendChild(emptyState);
-                    return;
-                }
+                    if (!summary) {
+                        renderPerformanceError('Performance data unavailable.');
+                        return;
+                    }
 
-                renderPerformanceSummary(summary);
-                const latestFetchedAt = getLatestPerformanceCacheTimestamp(goalIds);
-                setRefreshButtonState(latestFetchedAt);
-            });
+                    performanceContainer.innerHTML = '';
+                    renderPerformanceSummary(summary);
+                    const latestFetchedAt = getLatestPerformanceCacheTimestamp(goalIds);
+                    setRefreshButtonState(latestFetchedAt);
+                })
+                .catch(error => {
+                    console.error('[Goal Portfolio Viewer] Error loading performance data:', error);
+                    renderPerformanceError('Performance data unavailable.');
+                });
         }
 
         refreshButton.addEventListener('click', () => {
@@ -3731,11 +3762,16 @@
             old.remove();
         }
 
-        const data = buildMergedInvestmentData(
-            apiData.performance,
-            apiData.investible,
-            apiData.summary
-        );
+        let data = null;
+        try {
+            data = buildMergedInvestmentData(
+                apiData.performance,
+                apiData.investible,
+                apiData.summary
+            );
+        } catch (error) {
+            console.error('[Goal Portfolio Viewer] Error merging portfolio data:', error);
+        }
         if (!data) {
             logDebug('[Goal Portfolio Viewer] Not all API data available yet');
             alert('Please wait for portfolio data to load, then try again.');
