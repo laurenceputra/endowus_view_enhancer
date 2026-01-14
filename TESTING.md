@@ -31,6 +31,11 @@ The project uses a unique pattern to enable testing without code duplication:
 - Add function to exports section if it's new
 - Add/update tests in `__tests__/utils.test.js`
 
+### Test Hooks and Conditional Exports
+
+- `window.__GPV_DISABLE_AUTO_INIT`: set this to `true` before loading the userscript in Jest/jsdom to prevent DOM auto-init during tests. Keep it undocumented in runtime behavior but noted here for contributors.
+- UI/browser-only helpers are conditionally exported. Tests that import them **must guard** for `undefined` and skip gracefully when absent to avoid brittle failures.
+
 ## Running Tests
 
 ### Install Dependencies
@@ -174,6 +179,9 @@ describe('functionName', () => {
    - Test with real-world values
    - Verify rounding behavior
    - Test edge cases (very large/small numbers)
+6. **Cover new UI/rendering utilities early**
+   - Add minimal jsdom-based tests when introducing renderers/charts/caches
+   - Guard conditional exports so browser-only helpers don’t break Node test runs
 
 ## Continuous Integration
 

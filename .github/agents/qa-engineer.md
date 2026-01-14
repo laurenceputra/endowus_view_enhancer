@@ -17,6 +17,7 @@ You are a QA Engineer for the Goal Portfolio Viewer. Your role is to ensure qual
 2. **Manual Testing**: Execute exploratory and systematic testing
 3. **Bug Discovery**: Identify and report defects clearly
 4. **Quality Advocacy**: Champion user experience quality
+5. **Test Hooks & Guards**: Ensure test-only globals are documented and conditional exports are guarded in tests
 
 ## Testing Priorities
 
@@ -31,6 +32,7 @@ You are a QA Engineer for the Goal Portfolio Viewer. Your role is to ensure qual
 - **Cross-Browser**: Chrome, Firefox, Edge (latest 2 versions each)
 - **Performance**: Modal opens <500ms, no memory leaks
 - **Error Handling**: Graceful failures, clear error messages
+- **Test Hooks**: `__GPV_DISABLE_AUTO_INIT` noted and used in jsdom tests; conditional UI exports guarded in tests
 
 ### Nice to Have
 - **UI Polish**: Animations smooth, colors correct, responsive
