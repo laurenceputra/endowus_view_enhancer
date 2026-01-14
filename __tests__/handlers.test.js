@@ -4,6 +4,7 @@ describe('handlers and cache', () => {
     let exportsModule;
     let storage;
     const originalDateNow = Date.now;
+    let baseFetchMock;
 
     beforeEach(() => {
         jest.resetModules();
@@ -30,7 +31,9 @@ describe('handlers and cache', () => {
             status: 200
         });
 
-        window.fetch = jest.fn(() => Promise.resolve(responseFactory({})));
+        baseFetchMock = jest.fn(() => Promise.resolve(responseFactory({})));
+        global.fetch = baseFetchMock;
+        window.fetch = baseFetchMock;
 
         class FakeXHR {
             constructor() {
@@ -249,7 +252,7 @@ describe('handlers and cache', () => {
             ok: true,
             status: 200
         });
-        window.fetch.mockResolvedValueOnce(responseFactory(body));
+        baseFetchMock.mockResolvedValueOnce(responseFactory(body));
 
         await window.fetch('/v1/goals/performance');
         const stored = storage.get('api_performance');
