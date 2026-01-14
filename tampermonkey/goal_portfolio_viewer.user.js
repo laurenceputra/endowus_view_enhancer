@@ -546,6 +546,46 @@
         };
     }
 
+    function createViewModelCache() {
+        let cachedVersion = null;
+        let cachedSummary = null;
+        const bucketCache = new Map();
+
+        function reset(version) {
+            cachedVersion = version;
+            cachedSummary = null;
+            bucketCache.clear();
+        }
+
+        function ensureVersion(version) {
+            if (cachedVersion !== version) {
+                reset(version);
+            }
+        }
+
+        return {
+            getSummary(version, buildFn) {
+                ensureVersion(version);
+                if (!cachedSummary) {
+                    cachedSummary = buildFn();
+                }
+                return cachedSummary;
+            },
+            getBucket(version, bucketName, buildFn) {
+                ensureVersion(version);
+                if (bucketCache.has(bucketName)) {
+                    return bucketCache.get(bucketName);
+                }
+                const value = buildFn();
+                bucketCache.set(bucketName, value);
+                return value;
+            },
+            clear() {
+                reset(null);
+            }
+        };
+    }
+
     function collectGoalIds(bucketObj) {
         if (!bucketObj || typeof bucketObj !== 'object') {
             return [];
@@ -1211,16 +1251,23 @@
         investible: null,
         summary: null
     };
+    let viewModelVersion = 0;
+
+    function bumpViewModelVersion() {
+        viewModelVersion += 1;
+    }
     const ENDPOINT_HANDLERS = {
         performance: data => {
             apiData.performance = data;
             GM_setValue('api_performance', JSON.stringify(data));
             logDebug('[Goal Portfolio Viewer] Intercepted performance data');
+            bumpViewModelVersion();
         },
         investible: data => {
             apiData.investible = data;
             GM_setValue('api_investible', JSON.stringify(data));
             logDebug('[Goal Portfolio Viewer] Intercepted investible data');
+            bumpViewModelVersion();
         },
         summary: data => {
             if (!Array.isArray(data)) {
@@ -1229,6 +1276,7 @@
             apiData.summary = data;
             GM_setValue('api_summary', JSON.stringify(data));
             logDebug('[Goal Portfolio Viewer] Intercepted summary data');
+            bumpViewModelVersion();
         }
     };
 
@@ -2737,6 +2785,7 @@
         diffCell.textContent = diffData.diffDisplay;
         diffCell.className = diffData.diffClassName;
 
+        bumpViewModelVersion();
         refreshGoalTypeSection(
             typeSection,
             bucket,
@@ -2764,6 +2813,7 @@
             GoalTargetStore.clearFixed(goalId);
         }
 
+        bumpViewModelVersion();
         refreshGoalTypeSection(
             typeSection,
             bucket,
@@ -2817,7 +2867,8 @@
                 input.style.borderColor = '';
             }, 500);
         }
-        
+
+        bumpViewModelVersion();
         // Recalculate all diffs in this goal type section
         const tbody = typeSection.querySelector('.gpv-goal-table tbody');
         if (tbody) {
@@ -3666,6 +3717,7 @@
         }
         logDebug('[Goal Portfolio Viewer] Data merged successfully');
 
+        const viewModelCache = createViewModelCache();
         const overlay = document.createElement('div');
         overlay.id = 'gpv-overlay';
         overlay.className = 'gpv-overlay';
@@ -3745,22 +3797,27 @@
         container.appendChild(contentDiv);
 
         function renderView(value) {
+            const currentVersion = viewModelVersion;
             if (value === 'SUMMARY') {
-                const summaryViewModel = buildSummaryViewModel(data);
+                const summaryViewModel = viewModelCache.getSummary(currentVersion, () => (
+                    buildSummaryViewModel(data)
+                ));
                 renderSummaryView(contentDiv, summaryViewModel, onBucketSelect);
                 return;
             }
             const bucketObj = data[value];
-            const goalIds = collectGoalIds(bucketObj);
-            const goalTargetById = buildGoalTargetById(goalIds, GoalTargetStore.getTarget);
-            const goalFixedById = buildGoalFixedById(goalIds, GoalTargetStore.getFixed);
-            const bucketViewModel = buildBucketDetailViewModel(
-                value,
-                data,
-                projectedInvestments,
-                goalTargetById,
-                goalFixedById
-            );
+            const bucketViewModel = viewModelCache.getBucket(currentVersion, value, () => {
+                const goalIds = collectGoalIds(bucketObj);
+                const goalTargetById = buildGoalTargetById(goalIds, GoalTargetStore.getTarget);
+                const goalFixedById = buildGoalFixedById(goalIds, GoalTargetStore.getFixed);
+                return buildBucketDetailViewModel(
+                    value,
+                    data,
+                    projectedInvestments,
+                    goalTargetById,
+                    goalFixedById
+                );
+            });
             renderBucketView(
                 contentDiv,
                 bucketViewModel,
@@ -3977,6 +4034,7 @@
             resolveGoalTypeActionTarget,
             buildSummaryViewModel,
             buildBucketDetailViewModel,
+            createViewModelCache,
             collectGoalIds,
             buildGoalTargetById,
             buildGoalFixedById,
