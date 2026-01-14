@@ -112,6 +112,8 @@
         return [...sorted, ...others];
     }
 
+    // MONEY_FORMATTER uses en-US locale to avoid narrow no-break space rendering differences across environments,
+    // while keeping the currency fixed to SGD. This maintains consistent formatting without relying on locale-specific symbols.
     const MONEY_FORMATTER = new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'SGD',
