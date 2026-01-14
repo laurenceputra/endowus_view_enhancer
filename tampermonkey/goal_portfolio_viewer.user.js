@@ -25,6 +25,12 @@
     const REMAINING_TARGET_ALERT_THRESHOLD = 2;
     const DEBUG_AUTH = false;
 
+    const API_ENDPOINTS = {
+        performance: '/v1/goals/performance',
+        investible: '/v2/goals/investible',
+        summaryPattern: /\/v1\/goals(?:[?#]|$)/
+    };
+
     // Export surface for tests; populated as helpers become available.
     // When set before load, window.__GPV_DISABLE_AUTO_INIT prevents DOM auto-init (used in tests).
     const testExports = {};
@@ -110,6 +116,22 @@
             if (goalTypeKeys.includes(p)) sorted.push(p); 
         });
         return [...sorted, ...others];
+    }
+
+    function detectEndpointKey(url) {
+        if (typeof url !== 'string') {
+            return null;
+        }
+        if (url.includes(API_ENDPOINTS.performance)) {
+            return 'performance';
+        }
+        if (url.includes(API_ENDPOINTS.investible)) {
+            return 'investible';
+        }
+        if (API_ENDPOINTS.summaryPattern.test(url)) {
+            return 'summary';
+        }
+        return null;
     }
 
     // MONEY_FORMATTER uses en-US locale to avoid narrow no-break space rendering differences across environments,
@@ -1135,22 +1157,6 @@
             logDebug('[Goal Portfolio Viewer] Intercepted summary data');
         }
     };
-
-    function detectEndpointKey(url) {
-        if (typeof url !== 'string') {
-            return null;
-        }
-        if (url.includes('/v1/goals/performance')) {
-            return 'performance';
-        }
-        if (url.includes('/v2/goals/investible')) {
-            return 'investible';
-        }
-        if (url.match(/\/v1\/goals(?:[?#]|$)/)) {
-            return 'summary';
-        }
-        return null;
-    }
 
     async function handleInterceptedResponse(url, readData) {
         const endpointKey = detectEndpointKey(url);
@@ -3877,6 +3883,7 @@
             extractBucketName,
             getDisplayGoalType,
             sortGoalTypes,
+            detectEndpointKey,
             formatMoney,
             formatPercentDisplay,
             formatGrowthPercentFromEndingBalance,
