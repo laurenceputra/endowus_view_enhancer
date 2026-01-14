@@ -9,9 +9,11 @@
 const {
     getGoalTargetKey,
     getProjectedInvestmentKey,
+    extractBucketName,
     getDisplayGoalType,
     sortGoalTypes,
     formatMoney,
+    formatPercentDisplay,
     formatGrowthPercentFromEndingBalance,
     calculateGoalDiff,
     calculateFixedTargetPercent,
@@ -24,9 +26,17 @@ const {
     isCacheRefreshAllowed,
     formatPercentage,
     isDashboardRoute,
+    normalizeTimeSeriesData,
+    getLatestTimeSeriesPoint,
+    findNearestPointOnOrBefore,
+    getPerformanceDate,
     getWindowStartDate,
     calculateReturnFromTimeSeries,
     mapReturnsTableToWindowReturns,
+    mergeTimeSeriesByDate,
+    getTimeSeriesWindow,
+    extractAmount,
+    calculateWeightedAverage,
     calculateWeightedWindowReturns,
     summarizePerformanceMetrics,
     derivePerformanceWindows
@@ -59,6 +69,26 @@ describe('getProjectedInvestmentKey', () => {
     test('should preserve special characters', () => {
         expect(getProjectedInvestmentKey('Emergency-Fund', 'CASH_MANAGEMENT'))
             .toBe('Emergency-Fund|CASH_MANAGEMENT');
+    });
+});
+
+describe('extractBucketName', () => {
+    test('should return Uncategorized for invalid inputs', () => {
+        expect(extractBucketName(null)).toBe('Uncategorized');
+        expect(extractBucketName(123)).toBe('Uncategorized');
+        expect(extractBucketName('   ')).toBe('Uncategorized');
+    });
+
+    test('should return full name when no separator', () => {
+        expect(extractBucketName('Emergency Fund')).toBe('Emergency Fund');
+    });
+
+    test('should return bucket prefix when separator exists', () => {
+        expect(extractBucketName('Retirement - Core Portfolio')).toBe('Retirement');
+    });
+
+    test('should handle multiple separators', () => {
+        expect(extractBucketName('Bucket - Goal - Extra')).toBe('Bucket');
     });
 });
 
@@ -154,6 +184,26 @@ describe('formatMoney', () => {
     });
 });
 
+describe('formatPercentDisplay', () => {
+    test('should return fallback for invalid inputs', () => {
+        expect(formatPercentDisplay(null)).toBe('-');
+        expect(formatPercentDisplay('invalid')).toBe('-');
+        expect(formatPercentDisplay(10, { multiplier: 'invalid' })).toBe('-');
+    });
+
+    test('should respect custom fallback', () => {
+        expect(formatPercentDisplay(null, { fallback: 'n/a' })).toBe('n/a');
+    });
+
+    test('should format with default multiplier', () => {
+        expect(formatPercentDisplay(12.3456)).toBe('12.35%');
+    });
+
+    test('should format with custom multiplier', () => {
+        expect(formatPercentDisplay(0.1234, { multiplier: 100 })).toBe('12.34%');
+    });
+});
+
 describe('formatGrowthPercentFromEndingBalance', () => {
     test('should calculate growth percentage correctly for positive returns', () => {
         // Principal: 100, Return: 10, Ending Balance: 110
@@ -213,6 +263,22 @@ describe('calculateGoalDiff', () => {
         const result = calculateGoalDiff(1000, 80, 2000);
         expect(result.diffAmount).toBe(-600);
         expect(result.diffClass).toBe('negative');
+    });
+
+    test('should mark diff as positive when at threshold', () => {
+        const result = calculateGoalDiff(1000, 95, 1000);
+        expect(result.diffAmount).toBe(50);
+        expect(result.diffClass).toBe('positive');
+    });
+
+    test('should handle zero or negative current amounts', () => {
+        const zeroResult = calculateGoalDiff(0, 50, 1000);
+        expect(zeroResult.diffAmount).toBe(-500);
+        expect(zeroResult.diffClass).toBe('negative');
+
+        const negativeResult = calculateGoalDiff(-100, 50, 1000);
+        expect(negativeResult.diffAmount).toBe(-600);
+        expect(negativeResult.diffClass).toBe('negative');
     });
 
     test('should return null diff for invalid totals', () => {
@@ -310,6 +376,22 @@ describe('isDashboardRoute', () => {
 
     test('should reject non-dashboard paths', () => {
         expect(isDashboardRoute('https://app.sg.endowus.com/overview')).toBe(false);
+    });
+});
+
+describe('extractAmount', () => {
+    test('should return number when input is numeric', () => {
+        expect(extractAmount(10)).toBe(10);
+    });
+
+    test('should extract nested amount fields', () => {
+        expect(extractAmount({ amount: 25 })).toBe(25);
+        expect(extractAmount({ display: { amount: 50 } })).toBe(50);
+    });
+
+    test('should return null for invalid input', () => {
+        expect(extractAmount({})).toBeNull();
+        expect(extractAmount({ amount: 'bad' })).toBeNull();
     });
 });
 
@@ -450,6 +532,66 @@ describe('formatPercentage', () => {
     });
 });
 
+describe('normalizeTimeSeriesData', () => {
+    test('should normalize and sort by date', () => {
+        const result = normalizeTimeSeriesData([
+            { date: '2024-06-02', amount: 110 },
+            { date: '2024-06-01', amount: 100 }
+        ]);
+        expect(result[0].dateString).toBe('2024-06-01');
+        expect(result[1].dateString).toBe('2024-06-02');
+    });
+
+    test('should skip invalid entries', () => {
+        const result = normalizeTimeSeriesData([
+            { date: 'invalid', amount: 100 },
+            { date: '2024-06-01', amount: null }
+        ]);
+        expect(result).toEqual([]);
+    });
+});
+
+describe('getLatestTimeSeriesPoint', () => {
+    test('should return latest normalized point', () => {
+        const data = [
+            { date: '2024-06-01', amount: 100 },
+            { date: '2024-06-03', amount: 120 }
+        ];
+        const latest = getLatestTimeSeriesPoint(data);
+        expect(latest.dateString).toBe('2024-06-03');
+    });
+
+    test('should return null for empty data', () => {
+        expect(getLatestTimeSeriesPoint([])).toBeNull();
+    });
+});
+
+describe('findNearestPointOnOrBefore', () => {
+    test('should return nearest point on or before target date', () => {
+        const data = [
+            { date: '2024-06-01', amount: 100 },
+            { date: '2024-06-03', amount: 120 }
+        ];
+        const nearest = findNearestPointOnOrBefore(data, new Date('2024-06-02'));
+        expect(nearest.dateString).toBe('2024-06-01');
+    });
+
+    test('should return null for invalid target date', () => {
+        expect(findNearestPointOnOrBefore([], 'invalid')).toBeNull();
+    });
+});
+
+describe('getPerformanceDate', () => {
+    test('should return first valid date from keys', () => {
+        const result = getPerformanceDate({ ytd: '2024-01-02', ytdStartDate: '2024-01-01' }, ['ytdStartDate', 'ytd']);
+        expect(result.toISOString().slice(0, 10)).toBe('2024-01-01');
+    });
+
+    test('should return null when no valid dates', () => {
+        expect(getPerformanceDate({ ytd: 'invalid' }, ['ytd'])).toBeNull();
+    });
+});
+
 describe('getWindowStartDate', () => {
     const timeSeries = [
         { date: '2024-05-30', amount: 100 },
@@ -504,6 +646,55 @@ describe('getWindowStartDate', () => {
     });
 });
 
+describe('mergeTimeSeriesByDate', () => {
+    test('should merge series by date and sum amounts', () => {
+        const series = [
+            [
+                { date: '2024-06-01', amount: 100 },
+                { date: '2024-06-02', amount: 200 }
+            ],
+            [
+                { date: '2024-06-01', amount: 50 }
+            ]
+        ];
+        const result = mergeTimeSeriesByDate(series);
+        expect(result).toEqual([
+            { date: '2024-06-01', amount: 150 },
+            { date: '2024-06-02', amount: 200 }
+        ]);
+    });
+});
+
+describe('getTimeSeriesWindow', () => {
+    test('should return full series when start date is missing', () => {
+        const result = getTimeSeriesWindow([
+            { date: '2024-06-01', amount: 100 },
+            { date: '2024-06-02', amount: 200 }
+        ]);
+        expect(result).toHaveLength(2);
+    });
+
+    test('should filter by start date', () => {
+        const result = getTimeSeriesWindow([
+            { date: '2024-06-01', amount: 100 },
+            { date: '2024-06-02', amount: 200 }
+        ], new Date('2024-06-02'));
+        expect(result).toEqual([{ date: '2024-06-02', amount: 200 }]);
+    });
+});
+
+describe('calculateWeightedAverage', () => {
+    test('should calculate weighted average with positive weights', () => {
+        expect(calculateWeightedAverage([1, 3], [1, 3])).toBe(2.5);
+    });
+
+    test('should return null for invalid inputs', () => {
+        expect(calculateWeightedAverage([1], [1, 2])).toBeNull();
+        expect(calculateWeightedAverage([], [])).toBeNull();
+        expect(calculateWeightedAverage([1], [0])).toBeNull();
+    });
+});
+
 describe('summarizePerformanceMetrics', () => {
     test('should preserve zero-valued summary amounts', () => {
         const metrics = summarizePerformanceMetrics([
@@ -519,6 +710,47 @@ describe('summarizePerformanceMetrics', () => {
         expect(metrics.totalReturnAmount).toBe(0);
         expect(metrics.netInvestmentAmount).toBe(0);
         expect(metrics.endingBalanceAmount).toBe(0);
+    });
+
+    test('should aggregate net fees and weighted returns', () => {
+        const metrics = summarizePerformanceMetrics([
+            {
+                totalCumulativeReturnAmount: { amount: 20 },
+                gainOrLossTable: {
+                    netInvestment: { allTimeValue: 100 },
+                    accessFeeCharged: { allTimeValue: 5 },
+                    trailerFeeRebates: { allTimeValue: 1 }
+                },
+                totalCumulativeReturnPercent: 0.2,
+                simpleRateOfReturnPercent: 0.1,
+                returnsTable: { twr: { allTimeValue: 0.08 }, annualisedIrr: { allTimeValue: 0.07 } }
+            },
+            {
+                totalCumulativeReturnAmount: { amount: 30 },
+                gainOrLossTable: {
+                    netInvestment: { allTimeValue: 300 },
+                    accessFeeCharged: { allTimeValue: 9 },
+                    trailerFeeRebates: { allTimeValue: 3 }
+                },
+                totalCumulativeReturnPercent: 0.1,
+                simpleRateOfReturnPercent: 0.05,
+                returnsTable: { twr: { allTimeValue: 0.04 }, annualisedIrr: { allTimeValue: 0.03 } }
+            }
+        ], []);
+
+        expect(metrics.netFeesAmount).toBe(10);
+        expect(metrics.totalReturnAmount).toBe(50);
+        expect(metrics.totalReturnPercent).toBeCloseTo((0.2 * 100 + 0.1 * 300) / 400, 6);
+        expect(metrics.simpleReturnPercent).toBeCloseTo((0.1 * 100 + 0.05 * 300) / 400, 6);
+        expect(metrics.twrPercent).toBeCloseTo((0.08 * 100 + 0.04 * 300) / 400, 6);
+        expect(metrics.annualisedIrrPercent).toBeCloseTo((0.07 * 100 + 0.03 * 300) / 400, 6);
+    });
+
+    test('should fallback ending balance from merged time series', () => {
+        const metrics = summarizePerformanceMetrics([], [
+            { date: '2024-06-01', amount: 123 }
+        ]);
+        expect(metrics.endingBalanceAmount).toBe(123);
     });
 });
 
@@ -850,6 +1082,21 @@ describe('calculateWeightedWindowReturns', () => {
         const result = calculateWeightedWindowReturns(responses, null);
         expect(result.oneYear).toBeCloseTo(0.1, 6);
         expect(result.oneMonth).toBeNull();
+    });
+
+    test('should use fallback net investment fields', () => {
+        const responses = [
+            {
+                returnsTable: { twr: { oneMonthValue: 0.1 } },
+                netInvestmentAmount: { amount: 100 }
+            },
+            {
+                returnsTable: { twr: { oneMonthValue: 0.2 } },
+                netInvestment: { amount: 300 }
+            }
+        ];
+        const result = calculateWeightedWindowReturns(responses, null);
+        expect(result.oneMonth).toBeCloseTo((0.1 * 100 + 0.2 * 300) / 400, 6);
     });
 });
 

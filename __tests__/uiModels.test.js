@@ -153,6 +153,32 @@ describe('view model builders', () => {
         expect(firstGoal.isFixed).toBe(true);
     });
 
+    test('should return empty buckets for invalid summary input', () => {
+        expect(buildSummaryViewModel(null)).toEqual({ buckets: [] });
+        expect(buildSummaryViewModel('invalid')).toEqual({ buckets: [] });
+    });
+
+    test('should handle summary buckets without meta or goal types', () => {
+        const bucketMap = {
+            Lonely: {}
+        };
+        const viewModel = buildSummaryViewModel(bucketMap);
+        expect(viewModel.buckets).toHaveLength(1);
+        expect(viewModel.buckets[0].endingBalanceAmount).toBe(0);
+        expect(viewModel.buckets[0].goalTypes).toEqual([]);
+    });
+
+    test('should build bucket detail without projected investments or targets', () => {
+        const bucketMap = createBucketMapFixture();
+        const viewModel = buildBucketDetailViewModel('Retirement', bucketMap, null, null, null);
+        const goalTypeModel = viewModel.goalTypes[0];
+        expect(goalTypeModel.projectedAmount).toBe(0);
+        expect(goalTypeModel.remainingTargetDisplay).toBe('100.00%');
+        expect(goalTypeModel.remainingTargetIsHigh).toBe(true);
+        expect(goalTypeModel.goals[0].targetDisplay).toBe('');
+        expect(goalTypeModel.goals[0].returnPercentDisplay).toBe('10.00%');
+    });
+
     test('should return null for missing bucket', () => {
         const bucketMap = createBucketMapFixture();
         expect(buildBucketDetailViewModel('Missing', bucketMap, {}, {})).toBeNull();
