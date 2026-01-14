@@ -57,6 +57,27 @@ jobs:
     
     - name: Run tests
       run: npm run test:coverage
+
+    - name: Post layered coverage comment
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const summary = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+          const userscript = summary['tampermonkey/goal_portfolio_viewer.user.js'] || summary.total;
+          const format = data =>
+            `S:${(data.statements?.pct ?? 0).toFixed(2)}% B:${(data.branches?.pct ?? 0).toFixed(2)}% F:${(data.functions?.pct ?? 0).toFixed(2)}% L:${(data.lines?.pct ?? 0).toFixed(2)}%`;
+          const body = [
+            '### 📊 Layered Coverage',
+            `- Userscript: ${format(userscript)}`,
+            `- Overall: ${format(summary.total)}`
+          ].join('\n');
+          await github.rest.issues.createComment({
+            ...context.repo,
+            issue_number: context.issue.number,
+            body
+          });
     
     - name: Post coverage comment
       if: github.event_name == 'pull_request'
