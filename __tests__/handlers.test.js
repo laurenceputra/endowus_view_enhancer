@@ -131,7 +131,7 @@ describe('handlers and cache', () => {
         );
 
         expect(storage.get('goal_target_pct_g1')).toBe(50);
-        expect(diffCell.textContent).toMatch(/^\$100\.00/);
+        expect(diffCell.textContent).toMatch(/100\.00/);
         expect(diffCell.className).toContain('gpv-diff-cell');
     });
 

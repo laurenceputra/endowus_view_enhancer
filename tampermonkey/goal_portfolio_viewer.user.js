@@ -112,14 +112,16 @@
         return [...sorted, ...others];
     }
 
+    const MONEY_FORMATTER = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'SGD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+
     function formatMoney(val) {
         if (typeof val === 'number' && !isNaN(val)) {
-            return new Intl.NumberFormat('en-SG', {
-                style: 'currency',
-                currency: 'SGD',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(val);
+            return MONEY_FORMATTER.format(val);
         }
         return '-';
     }
