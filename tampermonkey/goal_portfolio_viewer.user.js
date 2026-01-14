@@ -3691,6 +3691,25 @@
     // Controller
     // ============================================
 
+    function createRenderScheduler(renderFn) {
+        let scheduled = null;
+        let latestValue = null;
+        const scheduleFn = typeof requestAnimationFrame === 'function'
+            ? requestAnimationFrame
+            : (callback => setTimeout(callback, 0));
+
+        return function schedule(value) {
+            latestValue = value;
+            if (scheduled) {
+                return;
+            }
+            scheduled = scheduleFn(() => {
+                scheduled = null;
+                renderFn(latestValue);
+            });
+        };
+    }
+
     function showOverlay() {
         let old = document.getElementById('gpv-overlay');
         if (old) {
@@ -3832,13 +3851,14 @@
                 return;
             }
             select.value = bucket;
-            renderView(bucket);
+            scheduleRender(bucket);
         }
 
-        renderView('SUMMARY');
+        const scheduleRender = createRenderScheduler(renderView);
+        scheduleRender('SUMMARY');
 
         select.onchange = function() {
-            renderView(select.value);
+            scheduleRender(select.value);
         };
 
         overlay.appendChild(container);
