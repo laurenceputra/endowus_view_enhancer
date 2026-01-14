@@ -205,7 +205,7 @@
         try {
             const target = new URL(url, originFallback);
             return target.pathname === '/dashboard' || target.pathname === '/dashboard/';
-        } catch (error) {
+        } catch (_error) {
             return false;
         }
     }
@@ -1461,7 +1461,7 @@
         }
         try {
             return decodeURIComponent(value);
-        } catch (error) {
+        } catch (_error) {
             // Fallback to raw value if decoding fails due to malformed encoding
             return value;
         }
@@ -1511,11 +1511,9 @@
                     path: cookie.path,
                     name: cookie.name
                 }));
-                // eslint-disable-next-line no-console
                 logAuthDebug('[Goal Portfolio Viewer][DEBUG_AUTH] Available GM_cookie entries:', summary);
             })
             .catch(error => {
-                // eslint-disable-next-line no-console
                 console.error('[Goal Portfolio Viewer][DEBUG_AUTH] Failed to list GM_cookie entries:', error);
             });
     }
@@ -1585,7 +1583,6 @@
         const url = typeof requestUrl === 'string' ? requestUrl : requestUrl?.url;
         if (!url || !url.includes('endowus.com')) {
             if (DEBUG_AUTH && url) {
-                // eslint-disable-next-line no-console
                 logAuthDebug('[Goal Portfolio Viewer][DEBUG_AUTH] Skipping header extraction for non-endowus.com URL:', url);
             }
             return;
@@ -1641,8 +1638,8 @@
                 return null;
             }
             return parsed;
-        } catch (error) {
-            console.error('[Goal Portfolio Viewer] Error reading performance cache:', error);
+        } catch (_error) {
+            console.error('[Goal Portfolio Viewer] Error reading performance cache:', _error);
             return null;
         }
     }
@@ -1656,8 +1653,8 @@
                 response: responseData
             };
             GM_setValue(key, JSON.stringify(payload));
-        } catch (error) {
-            console.error('[Goal Portfolio Viewer] Error writing performance cache:', error);
+        } catch (_error) {
+            console.error('[Goal Portfolio Viewer] Error writing performance cache:', _error);
         }
     }
     testExports.writePerformanceCache = writePerformanceCache;
