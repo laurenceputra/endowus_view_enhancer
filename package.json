@@ -28,7 +28,8 @@
   "homepage": "https://github.com/laurenceputra/goal-portfolio-viewer#readme",
   "devDependencies": {
     "eslint": "^8.57.1",
-    "jest": "^29.7.0"
+    "jest": "^29.7.0",
+    "jsdom": "^22.1.0"
   },
   "jest": {
     "testEnvironment": "node",
