@@ -32,6 +32,45 @@ applies_to:
 
 ---
 
+## Workflow Contract (Required)
+
+Use this compact workflow for all changes. Keep detailed role guidance in `.github/agents/*.md` and avoid duplicating it here.
+
+### Required Artifacts
+- **Change Brief**: Problem, goal, and acceptance criteria.
+- **Risks & Tradeoffs**: Short note, especially for data accuracy, privacy, or API interception changes.
+- **Test Plan**: Jest coverage and any manual checks needed.
+- **Verification**: Commands run and outcomes.
+
+### Change Type → Required Steps
+
+| Change Type | Required Steps |
+| --- | --- |
+| Pure logic | Jest tests with edge cases; update docs if behavior changes |
+| UI/visual | Jest (if logic touched) + screenshot + smoke check |
+| Behavior change | Jest + update TECHNICAL_DESIGN.md and README references |
+| Performance | Jest + perf check and reasoning about impact |
+| Documentation-only | No tests required unless logic changed |
+
+### Role Guides (Single Source of Detail)
+- **Product**: `.github/agents/product-manager.md` (requirements framing)
+- **Architecture/Risks**: `.github/agents/staff-engineer.md`
+- **QA/Test Depth**: `.github/agents/qa-engineer.md`
+- **Review Gates**: `.github/agents/code-reviewer.md`
+
+### Agent Interaction Model (Required)
+1. **Product**: Frame the problem, user impact, and acceptance criteria.
+2. **Staff Engineer**: Confirm architecture fit, call out risks/tradeoffs.
+3. **Implementer**: Make focused changes aligned with constraints.
+4. **QA**: Define test depth, edge cases, and verification steps.
+5. **Code Reviewer**: Apply review gates before final approval.
+
+### Versioning & Docs
+- If behavior changes, update TECHNICAL_DESIGN.md and any related README references.
+- Behavior changes require a version bump in the userscript and package files.
+
+---
+
 ## Code Style & Standards
 
 ### JavaScript Style
@@ -375,64 +414,15 @@ function escapeHtml(text) {
 
 ## Testing Guidelines
 
-### Manual Testing Checklist
+### Automated Testing (Required)
 
-Before any commit:
-- [ ] Test in clean browser profile with fresh Tampermonkey install
-- [ ] Verify button appears on the platform page (app.sg.endowus.com)
-- [ ] Check modal opens and displays data correctly
-- [ ] Test with zero goals (empty state)
-- [ ] Test with negative returns
-- [ ] Verify financial calculations match the platform (spot check 3 goals)
-- [ ] Test in Chrome, Firefox, Edge
-- [ ] Check console for errors (should be zero in production mode)
-- [ ] Verify no data leaves browser (check Network tab)
+- Run Jest for every change.
+- Add or update tests for new logic, regressions, and edge cases.
 
-### Financial Accuracy Validation
+### Manual/Exploratory Testing (When Applicable)
 
-CRITICAL: Always manually verify calculations:
-
-```javascript
-// Verification helper (use in console during testing)
-function verifyCalculations(goals) {
-  goals.forEach(goal => {
-    const expectedGrowth = (goal.cumulativeReturn / goal.investment) * 100;
-    const actualGrowth = goal.growthPercentage;
-    const diff = Math.abs(expectedGrowth - actualGrowth);
-    
-    if (diff > 0.01) {
-      console.error('Calculation error:', goal.name, {
-        expected: expectedGrowth,
-        actual: actualGrowth,
-        difference: diff
-      });
-    }
-  });
-}
-```
-
-### Edge Cases to Test
-
-1. **Empty/Missing Data**:
-   - No goals in account
-   - Goals with zero investment
-   - Goals with missing fields
-
-2. **Special Characters**:
-   - Goal names with HTML: `<script>alert(1)</script>`
-   - Goal names with emoji: `Retirement 🏖️ - Core`
-   - Goal names with quotes: `"Special" Goal`
-
-3. **Boundary Values**:
-   - Very large investments (> $1M)
-   - Very small investments (< $1)
-   - Large negative returns (-100%)
-   - Large positive returns (+1000%)
-
-4. **Browser Compatibility**:
-   - Chrome (latest 2 versions)
-   - Firefox (latest 2 versions)
-   - Edge (latest 2 versions)
+- UI or behavior changes require a smoke check and financial accuracy spot checks.
+- For full checklists, edge cases, and cross-browser expectations, follow `.github/agents/qa-engineer.md`.
 
 ---
 
