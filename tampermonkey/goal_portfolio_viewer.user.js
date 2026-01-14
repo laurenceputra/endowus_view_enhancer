@@ -1713,7 +1713,8 @@
         return headers;
     }
 
-    function readPerformanceCache(goalId) {
+    function readPerformanceCache(goalId, options = {}) {
+        const allowStale = options.allowStale === true;
         try {
             const key = getPerformanceCacheKey(goalId);
             const stored = GM_getValue(key, null);
@@ -1724,11 +1725,16 @@
             const fetchedAt = parsed?.fetchedAt;
             const response = parsed?.response;
             const hasValidShape = typeof fetchedAt === 'number' && fetchedAt > 0 && response && typeof response === 'object';
-            if (!parsed || !hasValidShape || !isCacheFresh(fetchedAt, PERFORMANCE_CACHE_MAX_AGE_MS)) {
+            const isFresh = hasValidShape && isCacheFresh(fetchedAt, PERFORMANCE_CACHE_MAX_AGE_MS);
+            if (!parsed || !hasValidShape) {
                 GM_deleteValue(key);
                 return null;
             }
-            return parsed;
+            if (!isFresh && !allowStale) {
+                GM_deleteValue(key);
+                return null;
+            }
+            return { ...parsed, isFresh };
         } catch (_error) {
             console.error('[Goal Portfolio Viewer] Error reading performance cache:', _error);
             return null;
@@ -1797,10 +1803,14 @@
                 results[goalId] = goalPerformanceData[goalId];
                 return;
             }
-            const cached = getCachedPerformanceResponse(goalId);
-            if (cached) {
-                goalPerformanceData[goalId] = cached;
-                results[goalId] = cached;
+            const cachedEntry = readPerformanceCache(goalId, { allowStale: true });
+            if (cachedEntry && cachedEntry.response) {
+                results[goalId] = cachedEntry.response;
+                if (cachedEntry.isFresh) {
+                    goalPerformanceData[goalId] = cachedEntry.response;
+                } else {
+                    idsToFetch.push(goalId);
+                }
             } else {
                 idsToFetch.push(goalId);
             }
@@ -1872,7 +1882,7 @@
         }
         let latestFetchedAt = null;
         goalIds.forEach(goalId => {
-            const cached = readPerformanceCache(goalId);
+            const cached = readPerformanceCache(goalId, { allowStale: true });
             const fetchedAt = cached?.fetchedAt;
             if (typeof fetchedAt === 'number' && Number.isFinite(fetchedAt)) {
                 if (latestFetchedAt === null || fetchedAt > latestFetchedAt) {
