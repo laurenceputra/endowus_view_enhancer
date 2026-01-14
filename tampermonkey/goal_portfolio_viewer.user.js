@@ -150,19 +150,31 @@
         return '-';
     }
 
-    function formatPercentDisplay(value, options = {}) {
-        if (value === null || value === undefined) {
-            return options.fallback ?? '-';
-        }
+    function toFiniteNumber(value, fallback = null) {
         const numericValue = Number(value);
-        if (!Number.isFinite(numericValue)) {
-            return options.fallback ?? '-';
+        return Number.isFinite(numericValue) ? numericValue : fallback;
+    }
+
+    function formatPercentValue(value, options = {}) {
+        const fallback = options.fallback ?? '-';
+        const numericValue = toFiniteNumber(value, null);
+        if (numericValue === null) {
+            return fallback;
         }
-        const multiplier = Number(options.multiplier ?? 1);
-        if (!Number.isFinite(multiplier)) {
-            return options.fallback ?? '-';
+        const multiplier = toFiniteNumber(options.multiplier ?? 1, null);
+        if (multiplier === null) {
+            return fallback;
         }
-        return `${(numericValue * multiplier).toFixed(2)}%`;
+        const sign = options.showSign && numericValue > 0 ? '+' : '';
+        return `${sign}${(numericValue * multiplier).toFixed(2)}%`;
+    }
+
+    function formatPercentDisplay(value, options = {}) {
+        return formatPercentValue(value, {
+            multiplier: options.multiplier ?? 1,
+            fallback: options.fallback,
+            showSign: false
+        });
     }
 
     function formatGrowthPercentFromEndingBalance(totalReturn, endingBalance) {
@@ -170,42 +182,45 @@
         // where principal = ending balance - return
         // Example: if you invested $100 and now have $110, return is $10
         // Growth = 10 / 100 * 100 = 10%
-        const numericReturn = Number(totalReturn);
-        const numericEndingBalance = Number(endingBalance);
+        const numericReturn = toFiniteNumber(totalReturn, null);
+        const numericEndingBalance = toFiniteNumber(endingBalance, null);
+        if (numericReturn === null || numericEndingBalance === null) {
+            return '-';
+        }
         const principal = numericEndingBalance - numericReturn;
-        if (!Number.isFinite(numericReturn) || !Number.isFinite(numericEndingBalance) || principal <= 0) {
+        if (principal <= 0) {
             return '-';
         }
         return ((numericReturn / principal) * 100).toFixed(2) + '%';
     }
 
     function getReturnClass(value) {
-        const numericValue = Number(value);
-        if (!Number.isFinite(numericValue)) {
+        const numericValue = toFiniteNumber(value, null);
+        if (numericValue === null) {
             return '';
         }
         return numericValue >= 0 ? 'positive' : 'negative';
     }
 
     function calculatePercentOfType(amount, total) {
-        const numericAmount = Number(amount);
-        const numericTotal = Number(total);
-        if (!Number.isFinite(numericAmount) || !Number.isFinite(numericTotal) || numericTotal <= 0) {
+        const numericAmount = toFiniteNumber(amount, null);
+        const numericTotal = toFiniteNumber(total, null);
+        if (numericAmount === null || numericTotal === null || numericTotal <= 0) {
             return 0;
         }
         return (numericAmount / numericTotal) * 100;
     }
 
     function calculateGoalDiff(currentAmount, targetPercent, adjustedTypeTotal) {
-        const numericCurrent = Number(currentAmount);
-        const numericTarget = Number(targetPercent);
-        const numericTotal = Number(adjustedTypeTotal);
+        const numericCurrent = toFiniteNumber(currentAmount, null);
+        const numericTarget = toFiniteNumber(targetPercent, null);
+        const numericTotal = toFiniteNumber(adjustedTypeTotal, null);
         if (
             targetPercent === null
             || targetPercent === undefined
-            || !Number.isFinite(numericCurrent)
-            || !Number.isFinite(numericTarget)
-            || !Number.isFinite(numericTotal)
+            || numericCurrent === null
+            || numericTarget === null
+            || numericTotal === null
             || numericTotal <= 0
         ) {
             return { diffAmount: null, diffClass: '' };
@@ -759,15 +774,7 @@
     }
 
     function formatPercentage(value) {
-        if (value === null || value === undefined) {
-            return '-';
-        }
-        const numericValue = Number(value);
-        if (!Number.isFinite(numericValue)) {
-            return '-';
-        }
-        const sign = numericValue > 0 ? '+' : '';
-        return `${sign}${(numericValue * 100).toFixed(2)}%`;
+        return formatPercentValue(value, { multiplier: 100, showSign: true });
     }
 
     function normalizeTimeSeriesData(timeSeriesData) {
@@ -1020,9 +1027,9 @@
         let total = 0;
         let totalWeight = 0;
         values.forEach((value, index) => {
-            const numericValue = Number(value);
-            const weight = Number(weights[index]);
-            if (Number.isFinite(numericValue) && Number.isFinite(weight) && weight > 0) {
+            const numericValue = toFiniteNumber(value, null);
+            const weight = toFiniteNumber(weights[index], null);
+            if (numericValue !== null && weight !== null && weight > 0) {
                 total += numericValue * weight;
                 totalWeight += weight;
             }
@@ -3952,6 +3959,8 @@
             sortGoalTypes,
             detectEndpointKey,
             formatMoney,
+            toFiniteNumber,
+            formatPercentValue,
             formatPercentDisplay,
             formatGrowthPercentFromEndingBalance,
             getReturnClass,
