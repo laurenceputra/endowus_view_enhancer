@@ -20,6 +20,7 @@
     "GM_cookie": "readonly"
   },
   "rules": {
+    "no-inner-declarations": "off",
     "no-unused-vars": [
       "warn",
       {

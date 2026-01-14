@@ -23,6 +23,15 @@
 
     const DEBUG = false;
     const REMAINING_TARGET_ALERT_THRESHOLD = 2;
+    const DEBUG_AUTH = false;
+
+    // Declare browser-only helpers for test exports (assigned later in browser block).
+    let renderSummaryView;
+    let renderPerformanceChart;
+    let createLineChartSvg;
+    let getChartHeightForWidth;
+    let getChartDimensions;
+    let buildPerformanceWindowGrid;
 
     function logDebug(message, data) {
         if (!DEBUG) {
@@ -1102,8 +1111,6 @@
         summary: null
     };
 
-    const DEBUG_AUTH = false;
-
     function logAuthDebug(message, data) {
         if (!DEBUG_AUTH) {
             return;
@@ -1820,21 +1827,21 @@
     // and reducing re-renders during continuous resize events.
     const CHART_RESIZE_DEBOUNCE_MS = 140;
 
-    function getChartHeightForWidth(width) {
+    getChartHeightForWidth = function getChartHeightForWidth(width) {
         const safeWidth = Math.max(PERFORMANCE_CHART_MIN_WIDTH, Number(width) || PERFORMANCE_CHART_DEFAULT_WIDTH);
         const targetHeight = Math.round(safeWidth * PERFORMANCE_CHART_ASPECT_RATIO);
         return Math.min(
             PERFORMANCE_CHART_MAX_HEIGHT,
             Math.max(PERFORMANCE_CHART_MIN_HEIGHT, targetHeight || PERFORMANCE_CHART_DEFAULT_HEIGHT)
         );
-    }
+    };
 
     function getChartPadding(chartWidth, chartHeight) {
         const base = Math.min(chartWidth, chartHeight);
         return Math.min(22, Math.max(12, Math.round(base * 0.18)));
     }
 
-    function getChartDimensions(container) {
+    getChartDimensions = function getChartDimensions(container) {
         if (!container || typeof container.getBoundingClientRect !== 'function') {
             return {
                 width: PERFORMANCE_CHART_DEFAULT_WIDTH,
@@ -1849,9 +1856,9 @@
             width: width || PERFORMANCE_CHART_DEFAULT_WIDTH,
             height: height || PERFORMANCE_CHART_DEFAULT_HEIGHT
         };
-    }
+    };
 
-    function renderPerformanceChart(chartWrapper, series, dimensionsOverride) {
+    renderPerformanceChart = function renderPerformanceChart(chartWrapper, series, dimensionsOverride) {
         if (!chartWrapper) {
             return;
         }
@@ -1859,7 +1866,7 @@
         const svg = createLineChartSvg(series, dimensions.width, dimensions.height);
         chartWrapper.innerHTML = '';
         chartWrapper.appendChild(svg);
-    }
+    };
 
     function initializePerformanceChart(chartWrapper, series) {
         if (typeof ResizeObserver === 'undefined' || !chartWrapper) {
@@ -1902,7 +1909,7 @@
         };
     }
 
-    function createLineChartSvg(series, chartWidth, chartHeight) {
+    createLineChartSvg = function createLineChartSvg(series, chartWidth, chartHeight) {
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         const widthValue = Math.max(PERFORMANCE_CHART_MIN_WIDTH, Number(chartWidth) || PERFORMANCE_CHART_DEFAULT_WIDTH);
         const heightValue = Math.max(PERFORMANCE_CHART_MIN_HEIGHT, Number(chartHeight) || PERFORMANCE_CHART_DEFAULT_HEIGHT);
@@ -2067,9 +2074,9 @@
         svg.appendChild(path);
         svg.appendChild(pointGroup);
         return svg;
-    }
+    };
 
-    function buildPerformanceWindowGrid(windowReturns) {
+    buildPerformanceWindowGrid = function buildPerformanceWindowGrid(windowReturns) {
         const grid = document.createElement('div');
         grid.className = 'gpv-performance-window-grid';
 
@@ -2102,7 +2109,7 @@
         });
 
         return grid;
-    }
+    };
 
     function buildPerformanceMetricsTable(metrics) {
         const table = document.createElement('table');
@@ -2244,7 +2251,7 @@
         loadPerformanceData();
     }
     
-    function renderSummaryView(contentDiv, summaryViewModel, onBucketSelect) {
+    renderSummaryView = function renderSummaryView(contentDiv, summaryViewModel, onBucketSelect) {
         contentDiv.innerHTML = '';
 
         const summaryContainer = document.createElement('div');
@@ -2311,7 +2318,7 @@
         });
 
         contentDiv.appendChild(summaryContainer);
-    }
+    };
 
     function renderBucketView(
         contentDiv,
