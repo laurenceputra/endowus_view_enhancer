@@ -33,6 +33,13 @@
     let getChartHeightForWidth;
     let getChartDimensions;
     let buildPerformanceWindowGrid;
+    let handleGoalTargetChange;
+    let handleGoalFixedToggle;
+    let handleProjectedInvestmentChange;
+    let readPerformanceCache;
+    let writePerformanceCache;
+    let getCachedPerformanceResponse;
+    let clearPerformanceCache;
 
     function logDebug(message, data) {
         if (!DEBUG) {
@@ -1635,7 +1642,7 @@
         return headers;
     }
 
-    function readPerformanceCache(goalId) {
+    readPerformanceCache = function readPerformanceCache(goalId) {
         try {
             const key = getPerformanceCacheKey(goalId);
             const stored = GM_getValue(key, null);
@@ -1652,9 +1659,9 @@
             console.error('[Goal Portfolio Viewer] Error reading performance cache:', error);
             return null;
         }
-    }
+    };
 
-    function writePerformanceCache(goalId, responseData) {
+    writePerformanceCache = function writePerformanceCache(goalId, responseData) {
         try {
             const key = getPerformanceCacheKey(goalId);
             const payload = {
@@ -1665,15 +1672,15 @@
         } catch (error) {
             console.error('[Goal Portfolio Viewer] Error writing performance cache:', error);
         }
-    }
+    };
 
-    function getCachedPerformanceResponse(goalId) {
+    getCachedPerformanceResponse = function getCachedPerformanceResponse(goalId) {
         const cached = readPerformanceCache(goalId);
         if (!cached) {
             return null;
         }
         return cached.response || null;
-    }
+    };
 
     async function fetchPerformanceForGoal(goalId) {
         const url = `${PERFORMANCE_ENDPOINT}?displayCcy=SGD&goalId=${encodeURIComponent(goalId)}`;
@@ -1788,7 +1795,7 @@
         return latestFetchedAt;
     }
 
-    function clearPerformanceCache(goalIds) {
+    clearPerformanceCache = function clearPerformanceCache(goalIds) {
         if (!Array.isArray(goalIds)) {
             return;
         }
@@ -1800,7 +1807,7 @@
             GM_deleteValue(key);
             delete goalPerformanceData[goalId];
         });
-    }
+    };
 
     // ============================================
     // UI
@@ -2624,7 +2631,7 @@
      * @param {HTMLElement} typeSection - Goal type section container
      * @param {Object} mergedInvestmentDataState - Current merged data map
      */
-    function handleGoalTargetChange(
+    handleGoalTargetChange = function handleGoalTargetChange(
         input,
         goalId,
         currentEndingBalance,
@@ -2699,9 +2706,9 @@
             mergedInvestmentDataState,
             projectedInvestmentsState
         );
-    }
+    };
 
-    function handleGoalFixedToggle(
+    handleGoalFixedToggle = function handleGoalFixedToggle(
         input,
         goalId,
         bucket,
@@ -2726,7 +2733,7 @@
             projectedInvestmentsState,
             { forceTargetRefresh: true }
         );
-    }
+    };
 
     /**
      * Handle changes to projected investment input
@@ -2735,7 +2742,7 @@
      * @param {string} goalType - Goal type
      * @param {HTMLElement} typeSection - The type section element containing the table
      */
-    function handleProjectedInvestmentChange(
+    handleProjectedInvestmentChange = function handleProjectedInvestmentChange(
         input,
         bucket,
         goalType,
@@ -2782,7 +2789,7 @@
                 projectedInvestmentsState
             );
         }
-    }
+    };
 
     // ============================================
     // UI: Styles
@@ -3955,7 +3962,8 @@
             calculateWeightedAverage,
             calculateWeightedWindowReturns,
             summarizePerformanceMetrics,
-            derivePerformanceWindows
+            derivePerformanceWindows,
+            createSequentialRequestQueue
         };
 
         const exported = { ...baseExports };
@@ -3977,6 +3985,27 @@
         }
         if (typeof buildPerformanceWindowGrid !== 'undefined') {
             exported.buildPerformanceWindowGrid = buildPerformanceWindowGrid;
+        }
+        if (typeof handleGoalTargetChange !== 'undefined') {
+            exported.handleGoalTargetChange = handleGoalTargetChange;
+        }
+        if (typeof handleGoalFixedToggle !== 'undefined') {
+            exported.handleGoalFixedToggle = handleGoalFixedToggle;
+        }
+        if (typeof handleProjectedInvestmentChange !== 'undefined') {
+            exported.handleProjectedInvestmentChange = handleProjectedInvestmentChange;
+        }
+        if (typeof readPerformanceCache !== 'undefined') {
+            exported.readPerformanceCache = readPerformanceCache;
+        }
+        if (typeof writePerformanceCache !== 'undefined') {
+            exported.writePerformanceCache = writePerformanceCache;
+        }
+        if (typeof getCachedPerformanceResponse !== 'undefined') {
+            exported.getCachedPerformanceResponse = getCachedPerformanceResponse;
+        }
+        if (typeof clearPerformanceCache !== 'undefined') {
+            exported.clearPerformanceCache = clearPerformanceCache;
         }
 
         module.exports = exported;
