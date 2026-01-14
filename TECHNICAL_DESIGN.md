@@ -370,14 +370,16 @@ The `summaryViewModel` contains:
 - totals/returns/growth display strings
 - per-goal-type rows with display names
 
+Summary cards display the three headline stats: Ending Balance, Total Return, and Growth.
+
 Growth percentages are calculated as `cumulativeReturn / (endingBalance - cumulativeReturn) * 100`, because ending balance is derived from performance totals (including pending processing amounts when available) or the investible API’s `totalInvestmentAmount`, which is misnamed and actually represents ending balance.
 
 #### Detail View Rendering
 
 ```javascript
 const goalIds = collectGoalIds(bucketMap[bucketName]);
-const goalTargetById = buildGoalTargetById(goalIds, getGoalTargetPercentage);
-const goalFixedById = buildGoalFixedById(goalIds, getGoalFixedFlag);
+const goalTargetById = buildGoalTargetById(goalIds, GoalTargetStore.getTarget);
+const goalFixedById = buildGoalFixedById(goalIds, GoalTargetStore.getFixed);
 const bucketViewModel = buildBucketDetailViewModel(
     bucketName,
     bucketMap,
