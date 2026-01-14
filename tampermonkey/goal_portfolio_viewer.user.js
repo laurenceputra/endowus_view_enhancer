@@ -2636,7 +2636,7 @@
      * @param {HTMLElement} typeSection - Goal type section container
      * @param {Object} mergedInvestmentDataState - Current merged data map
      */
-    handleGoalTargetChange = function handleGoalTargetChange(
+    function handleGoalTargetChange(
         input,
         goalId,
         currentEndingBalance,
@@ -2711,10 +2711,10 @@
             mergedInvestmentDataState,
             projectedInvestmentsState
         );
-    };
+    }
     testExports.handleGoalTargetChange = handleGoalTargetChange;
 
-    handleGoalFixedToggle = function handleGoalFixedToggle(
+    function handleGoalFixedToggle(
         input,
         goalId,
         bucket,
@@ -2739,7 +2739,7 @@
             projectedInvestmentsState,
             { forceTargetRefresh: true }
         );
-    };
+    }
     testExports.handleGoalFixedToggle = handleGoalFixedToggle;
 
     /**
@@ -2749,7 +2749,7 @@
      * @param {string} goalType - Goal type
      * @param {HTMLElement} typeSection - The type section element containing the table
      */
-    handleProjectedInvestmentChange = function handleProjectedInvestmentChange(
+    function handleProjectedInvestmentChange(
         input,
         bucket,
         goalType,
@@ -2796,7 +2796,7 @@
                 projectedInvestmentsState
             );
         }
-    };
+    }
     testExports.handleProjectedInvestmentChange = handleProjectedInvestmentChange;
 
     // ============================================
