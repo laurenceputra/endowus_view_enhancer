@@ -573,6 +573,71 @@
         }, {});
     }
 
+    function normalizeGoalId(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+        return String(value).trim();
+    }
+
+    function normalizeGoalName(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+        return String(value).trim();
+    }
+
+    function normalizeGoalType(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+        return String(value).trim();
+    }
+
+    function normalizePerformanceData(performanceData) {
+        if (!Array.isArray(performanceData)) {
+            return [];
+        }
+        return performanceData
+            .map(item => ({
+                goalId: normalizeGoalId(item?.goalId),
+                totalInvestmentValue: item?.totalInvestmentValue,
+                pendingProcessingAmount: item?.pendingProcessingAmount,
+                totalCumulativeReturn: item?.totalCumulativeReturn,
+                simpleRateOfReturnPercent: Number.isFinite(item?.simpleRateOfReturnPercent)
+                    ? item.simpleRateOfReturnPercent
+                    : null
+            }))
+            .filter(item => item.goalId);
+    }
+
+    function normalizeInvestibleData(investibleData) {
+        if (!Array.isArray(investibleData)) {
+            return [];
+        }
+        return investibleData
+            .map(item => ({
+                goalId: normalizeGoalId(item?.goalId),
+                goalName: normalizeGoalName(item?.goalName),
+                investmentGoalType: normalizeGoalType(item?.investmentGoalType),
+                totalInvestmentAmount: item?.totalInvestmentAmount
+            }))
+            .filter(item => item.goalId);
+    }
+
+    function normalizeSummaryData(summaryData) {
+        if (!Array.isArray(summaryData)) {
+            return [];
+        }
+        return summaryData
+            .map(item => ({
+                goalId: normalizeGoalId(item?.goalId),
+                goalName: normalizeGoalName(item?.goalName),
+                investmentGoalType: normalizeGoalType(item?.investmentGoalType)
+            }))
+            .filter(item => item.goalId);
+    }
+
     /**
      * Merges data from all three API endpoints into a structured bucket map
      * @param {Array} performanceData - Performance API data
@@ -590,15 +655,19 @@
             return null;
         }
 
+        const normalizedPerformance = normalizePerformanceData(performanceData);
+        const normalizedInvestible = normalizeInvestibleData(investibleData);
+        const normalizedSummary = normalizeSummaryData(summaryData);
+
         const investibleMap = {};
-        investibleData.forEach(item => investibleMap[item.goalId] = item);
+        normalizedInvestible.forEach(item => investibleMap[item.goalId] = item);
 
         const summaryMap = {};
-        summaryData.forEach(item => summaryMap[item.goalId] = item);
+        normalizedSummary.forEach(item => summaryMap[item.goalId] = item);
 
         const bucketMap = {};
 
-        performanceData.forEach(perf => {
+        normalizedPerformance.forEach(perf => {
             const invest = investibleMap[perf.goalId] || {};
             const summary = summaryMap[perf.goalId] || {};
             const goalName = invest.goalName || summary.goalName || '';
@@ -625,9 +694,7 @@
                 goalType: invest.investmentGoalType || summary.investmentGoalType || '',
                 endingBalanceAmount: Number.isFinite(endingBalanceAmount) ? endingBalanceAmount : null,
                 totalCumulativeReturn: Number.isFinite(cumulativeReturn) ? cumulativeReturn : null,
-                simpleRateOfReturnPercent: Number.isFinite(perf.simpleRateOfReturnPercent)
-                    ? perf.simpleRateOfReturnPercent
-                    : null
+                simpleRateOfReturnPercent: perf.simpleRateOfReturnPercent
             };
 
             if (!bucketMap[goalBucket]) {
@@ -3904,6 +3971,12 @@
             collectGoalIds,
             buildGoalTargetById,
             buildGoalFixedById,
+            normalizeGoalId,
+            normalizeGoalName,
+            normalizeGoalType,
+            normalizePerformanceData,
+            normalizeInvestibleData,
+            normalizeSummaryData,
             buildMergedInvestmentData,
             getPerformanceCacheKey,
             isCacheFresh,
