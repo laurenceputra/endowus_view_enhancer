@@ -1822,14 +1822,14 @@
     // and reducing re-renders during continuous resize events.
     const CHART_RESIZE_DEBOUNCE_MS = 140;
 
-    getChartHeightForWidth = function getChartHeightForWidth(width) {
+    function getChartHeightForWidth(width) {
         const safeWidth = Math.max(PERFORMANCE_CHART_MIN_WIDTH, Number(width) || PERFORMANCE_CHART_DEFAULT_WIDTH);
         const targetHeight = Math.round(safeWidth * PERFORMANCE_CHART_ASPECT_RATIO);
         return Math.min(
             PERFORMANCE_CHART_MAX_HEIGHT,
             Math.max(PERFORMANCE_CHART_MIN_HEIGHT, targetHeight || PERFORMANCE_CHART_DEFAULT_HEIGHT)
         );
-    };
+    }
     testExports.getChartHeightForWidth = getChartHeightForWidth;
 
     function getChartPadding(chartWidth, chartHeight) {
@@ -1837,7 +1837,7 @@
         return Math.min(22, Math.max(12, Math.round(base * 0.18)));
     }
 
-    getChartDimensions = function getChartDimensions(container) {
+    function getChartDimensions(container) {
         if (!container || typeof container.getBoundingClientRect !== 'function') {
             return {
                 width: PERFORMANCE_CHART_DEFAULT_WIDTH,
@@ -1852,10 +1852,10 @@
             width: width || PERFORMANCE_CHART_DEFAULT_WIDTH,
             height: height || PERFORMANCE_CHART_DEFAULT_HEIGHT
         };
-    };
+    }
     testExports.getChartDimensions = getChartDimensions;
 
-    renderPerformanceChart = function renderPerformanceChart(chartWrapper, series, dimensionsOverride) {
+    function renderPerformanceChart(chartWrapper, series, dimensionsOverride) {
         if (!chartWrapper) {
             return;
         }
@@ -1863,7 +1863,7 @@
         const svg = createLineChartSvg(series, dimensions.width, dimensions.height);
         chartWrapper.innerHTML = '';
         chartWrapper.appendChild(svg);
-    };
+    }
     testExports.renderPerformanceChart = renderPerformanceChart;
 
     function initializePerformanceChart(chartWrapper, series) {
@@ -1907,7 +1907,7 @@
         };
     }
 
-    createLineChartSvg = function createLineChartSvg(series, chartWidth, chartHeight) {
+    function createLineChartSvg(series, chartWidth, chartHeight) {
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         const widthValue = Math.max(PERFORMANCE_CHART_MIN_WIDTH, Number(chartWidth) || PERFORMANCE_CHART_DEFAULT_WIDTH);
         const heightValue = Math.max(PERFORMANCE_CHART_MIN_HEIGHT, Number(chartHeight) || PERFORMANCE_CHART_DEFAULT_HEIGHT);
@@ -2072,10 +2072,10 @@
         svg.appendChild(path);
         svg.appendChild(pointGroup);
         return svg;
-    };
+    }
     testExports.createLineChartSvg = createLineChartSvg;
 
-    buildPerformanceWindowGrid = function buildPerformanceWindowGrid(windowReturns) {
+    function buildPerformanceWindowGrid(windowReturns) {
         const grid = document.createElement('div');
         grid.className = 'gpv-performance-window-grid';
 
@@ -2108,7 +2108,7 @@
         });
 
         return grid;
-    };
+    }
     testExports.buildPerformanceWindowGrid = buildPerformanceWindowGrid;
 
     function buildPerformanceMetricsTable(metrics) {
@@ -2251,7 +2251,7 @@
         loadPerformanceData();
     }
     
-    renderSummaryView = function renderSummaryView(contentDiv, summaryViewModel, onBucketSelect) {
+    function renderSummaryView(contentDiv, summaryViewModel, onBucketSelect) {
         contentDiv.innerHTML = '';
 
         const summaryContainer = document.createElement('div');
@@ -2318,7 +2318,7 @@
         });
 
         contentDiv.appendChild(summaryContainer);
-    };
+    }
     testExports.renderSummaryView = renderSummaryView;
 
     function renderBucketView(
