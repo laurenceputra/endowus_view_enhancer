@@ -26,6 +26,7 @@
     const DEBUG_AUTH = false;
 
     // Declare browser-only helpers for test exports (assigned later in browser block).
+    // When set before load, window.__GPV_DISABLE_AUTO_INIT prevents DOM auto-init (used in tests).
     let renderSummaryView;
     let renderPerformanceChart;
     let createLineChartSvg;
@@ -3909,7 +3910,7 @@
     // In Node.js (test/CI), these functions are programmatically accessible.
     // Pattern: Keep all logic in ONE place (this file), test the real implementation.
     if (typeof module !== 'undefined' && module.exports) {
-        const exported = {
+        const baseExports = {
             getGoalTargetKey,
             getGoalFixedKey,
             getProjectedInvestmentKey,
@@ -3956,6 +3957,8 @@
             summarizePerformanceMetrics,
             derivePerformanceWindows
         };
+
+        const exported = { ...baseExports };
 
         if (typeof renderSummaryView !== 'undefined') {
             exported.renderSummaryView = renderSummaryView;
