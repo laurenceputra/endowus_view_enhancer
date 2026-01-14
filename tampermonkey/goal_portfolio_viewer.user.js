@@ -2208,7 +2208,7 @@
     }) {
         return `
             <div class="gpv-stat-item">
-                <span class="gpv-stat-label">Ending Balance</span>
+                <span class="gpv-stat-label">Balance</span>
                 <span class="gpv-stat-value">${endingBalanceDisplay}</span>
             </div>
             <div class="gpv-stat-item">
@@ -2258,7 +2258,7 @@
                 returnDisplay: bucketModel.returnDisplay,
                 returnClass: bucketModel.returnClass,
                 growthDisplay: bucketModel.growthDisplay,
-                returnLabel: 'Total Return'
+                returnLabel: 'Return'
             });
             
             bucketHeader.appendChild(bucketTitle);
@@ -2270,7 +2270,7 @@
                 typeRow.className = 'gpv-goal-type-row';
                 typeRow.innerHTML = `
                     <span class="gpv-goal-type-name">${goalTypeModel.displayName}</span>
-                    <span class="gpv-goal-type-stat">Ending Balance: ${goalTypeModel.endingBalanceDisplay}</span>
+                    <span class="gpv-goal-type-stat">Balance: ${goalTypeModel.endingBalanceDisplay}</span>
                     <span class="gpv-goal-type-stat">Return: ${goalTypeModel.returnDisplay}</span>
                     <span class="gpv-goal-type-stat">Growth: ${goalTypeModel.growthDisplay}</span>
                 `;
@@ -2310,7 +2310,7 @@
             returnDisplay: bucketViewModel.returnDisplay,
             returnClass: bucketViewModel.returnClass,
             growthDisplay: bucketViewModel.growthDisplay,
-            returnLabel: 'Total Return'
+            returnLabel: 'Return'
         });
         
         bucketHeader.appendChild(bucketTitle);
@@ -2334,7 +2334,7 @@
             typeHeader.innerHTML = `
                 <h3>${goalTypeModel.displayName}</h3>
                 <div class="gpv-type-summary">
-                    <span>Ending Balance: ${goalTypeModel.endingBalanceDisplay}</span>
+                    <span>Balance: ${goalTypeModel.endingBalanceDisplay}</span>
                     <span>Return: ${goalTypeModel.returnDisplay}</span>
                     <span>Growth: ${typeGrowth}</span>
                 </div>
@@ -2388,7 +2388,7 @@
                 <thead>
                     <tr>
                         <th class="gpv-goal-name-header">Goal Name</th>
-                        <th>Ending Balance</th>
+                        <th>Balance</th>
                         <th>% of Goal Type</th>
                         <th class="gpv-fixed-header">Fixed</th>
                         <th class="gpv-target-header">
