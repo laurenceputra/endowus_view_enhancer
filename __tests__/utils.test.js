@@ -13,6 +13,8 @@ const {
     getDisplayGoalType,
     sortGoalTypes,
     formatMoney,
+    toFiniteNumber,
+    formatPercentValue,
     formatPercentDisplay,
     formatGrowthPercentFromEndingBalance,
     calculateGoalDiff,
@@ -21,6 +23,13 @@ const {
     isRemainingTargetAboveThreshold,
     buildGoalTypeAllocationModel,
     buildMergedInvestmentData,
+    detectEndpointKey,
+    normalizeGoalId,
+    normalizeGoalName,
+    normalizeGoalType,
+    normalizePerformanceData,
+    normalizeInvestibleData,
+    normalizeSummaryData,
     getPerformanceCacheKey,
     isCacheFresh,
     isCacheRefreshAllowed,
@@ -39,7 +48,8 @@ const {
     calculateWeightedAverage,
     calculateWeightedWindowReturns,
     summarizePerformanceMetrics,
-    derivePerformanceWindows
+    derivePerformanceWindows,
+    createViewModelCache
 } = require('../tampermonkey/goal_portfolio_viewer.user.js');
 
 describe('getGoalTargetKey', () => {
@@ -115,6 +125,20 @@ describe('getDisplayGoalType', () => {
     });
 });
 
+describe('detectEndpointKey', () => {
+    test('matches known API endpoints', () => {
+        expect(detectEndpointKey('/v1/goals/performance')).toBe('performance');
+        expect(detectEndpointKey('/v2/goals/investible')).toBe('investible');
+        expect(detectEndpointKey('/v1/goals')).toBe('summary');
+        expect(detectEndpointKey('/v1/goals?foo=bar')).toBe('summary');
+    });
+
+    test('returns null for unknown endpoints', () => {
+        expect(detectEndpointKey('/v1/other')).toBeNull();
+        expect(detectEndpointKey(null)).toBeNull();
+    });
+});
+
 describe('sortGoalTypes', () => {
     test('should sort in preferred order', () => {
         const input = ['CASH_MANAGEMENT', 'GENERAL_WEALTH_ACCUMULATION', 'PASSIVE_INCOME'];
@@ -149,6 +173,51 @@ describe('sortGoalTypes', () => {
         const original = [...input];
         sortGoalTypes(input);
         expect(input).toEqual(original);
+    });
+});
+
+describe('toFiniteNumber', () => {
+    test('returns numeric values or fallback', () => {
+        expect(toFiniteNumber(10)).toBe(10);
+        expect(toFiniteNumber('12.5')).toBe(12.5);
+        expect(toFiniteNumber(NaN)).toBeNull();
+        expect(toFiniteNumber('invalid', 0)).toBe(0);
+        expect(toFiniteNumber(Infinity, -1)).toBe(-1);
+    });
+});
+
+describe('formatPercentValue', () => {
+    test('formats percent values consistently', () => {
+        expect(formatPercentValue(0.1, { multiplier: 100, showSign: true })).toBe('+10.00%');
+        expect(formatPercentValue(-0.05, { multiplier: 100, showSign: true })).toBe('-5.00%');
+        expect(formatPercentValue(12.3456)).toBe('12.35%');
+    });
+
+    test('falls back on invalid values', () => {
+        expect(formatPercentValue(null)).toBe('-');
+        expect(formatPercentValue('invalid', { fallback: 'n/a' })).toBe('n/a');
+    });
+});
+
+describe('normalize goal helpers', () => {
+    test('normalizeGoalId/Name/Type trim and coerce', () => {
+        expect(normalizeGoalId(123)).toBe('123');
+        expect(normalizeGoalName('  My Goal ')).toBe('My Goal');
+        expect(normalizeGoalType(null)).toBe('');
+    });
+
+    test('normalize*Data filters invalid entries', () => {
+        const perf = normalizePerformanceData([{ goalId: 'a' }, { goalId: null }]);
+        expect(perf).toHaveLength(1);
+        expect(perf[0].goalId).toBe('a');
+
+        const investible = normalizeInvestibleData([{ goalId: 'b', goalName: 'Foo' }, { goalId: '' }]);
+        expect(investible).toHaveLength(1);
+        expect(investible[0].goalName).toBe('Foo');
+
+        const summary = normalizeSummaryData([{ goalId: 'c', goalName: 'Bar' }, {}]);
+        expect(summary).toHaveLength(1);
+        expect(summary[0].goalName).toBe('Bar');
     });
 });
 
@@ -1420,5 +1489,24 @@ describe('buildMergedInvestmentData', () => {
         expect(result.Retirement._meta.endingBalanceTotal).toBe(1000); // Only goal1 counted
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.endingBalanceAmount).toBe(1000);
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.goals).toHaveLength(2); // Both goals present
+    });
+});
+
+describe('createViewModelCache', () => {
+    test('caches values per version', () => {
+        const cache = createViewModelCache();
+        const summaryBuilder = jest.fn(() => ({ buckets: [] }));
+        const bucketBuilder = jest.fn(() => ({ bucketName: 'A' }));
+
+        expect(cache.getSummary(1, summaryBuilder)).toEqual({ buckets: [] });
+        expect(cache.getSummary(1, summaryBuilder)).toEqual({ buckets: [] });
+        expect(summaryBuilder).toHaveBeenCalledTimes(1);
+
+        expect(cache.getBucket(1, 'A', bucketBuilder)).toEqual({ bucketName: 'A' });
+        expect(cache.getBucket(1, 'A', bucketBuilder)).toEqual({ bucketName: 'A' });
+        expect(bucketBuilder).toHaveBeenCalledTimes(1);
+
+        cache.getBucket(2, 'A', bucketBuilder);
+        expect(bucketBuilder).toHaveBeenCalledTimes(2);
     });
 });

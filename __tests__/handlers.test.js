@@ -235,12 +235,18 @@ describe('handlers and cache', () => {
         writePerformanceCache('goal-x', { foo: 'bar' });
         const fresh = readPerformanceCache('goal-x');
         expect(fresh.response.foo).toBe('bar');
+        expect(fresh.isFresh).toBe(true);
         expect(getCachedPerformanceResponse('goal-x').foo).toBe('bar');
 
         // Make entry stale (>7 days)
         Date.now = () => 8 * 24 * 60 * 60 * 1000;
-        const stale = readPerformanceCache('goal-x');
-        expect(stale).toBeNull();
+        const stale = readPerformanceCache('goal-x', { allowStale: true });
+        expect(stale.response.foo).toBe('bar');
+        expect(stale.isFresh).toBe(false);
+        expect(storage.has('gpv_performance_goal-x')).toBe(true);
+
+        const expired = readPerformanceCache('goal-x');
+        expect(expired).toBeNull();
         expect(storage.has('gpv_performance_goal-x')).toBe(false);
     });
 
