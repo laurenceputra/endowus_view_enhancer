@@ -2351,10 +2351,9 @@
     }
 
     function renderSummaryView(contentDiv, summaryViewModel, onBucketSelect) {
-        contentDiv.innerHTML = '';
-
         const summaryContainer = document.createElement('div');
         summaryContainer.className = 'gpv-summary-container';
+        const bucketFragment = document.createDocumentFragment();
 
         summaryViewModel.buckets.forEach(bucketModel => {
             const bucketCard = document.createElement('div');
@@ -2393,6 +2392,7 @@
             bucketHeader.appendChild(bucketStats);
             bucketCard.appendChild(bucketHeader);
 
+            const goalTypeFragment = document.createDocumentFragment();
             bucketModel.goalTypes.forEach(goalTypeModel => {
                 const typeRow = document.createElement('div');
                 typeRow.className = 'gpv-goal-type-row';
@@ -2402,13 +2402,15 @@
                     <span class="gpv-goal-type-stat">Return: ${goalTypeModel.returnDisplay}</span>
                     <span class="gpv-goal-type-stat">Growth: ${goalTypeModel.growthDisplay}</span>
                 `;
-                bucketCard.appendChild(typeRow);
+                goalTypeFragment.appendChild(typeRow);
             });
 
-            summaryContainer.appendChild(bucketCard);
+            bucketCard.appendChild(goalTypeFragment);
+            bucketFragment.appendChild(bucketCard);
         });
 
-        contentDiv.appendChild(summaryContainer);
+        summaryContainer.appendChild(bucketFragment);
+        contentDiv.replaceChildren(summaryContainer);
     }
     testExports.renderSummaryView = renderSummaryView;
 
@@ -2419,7 +2421,7 @@
         projectedInvestmentsState,
         cleanupCallbacks
     ) {
-        contentDiv.innerHTML = '';
+        contentDiv.replaceChildren();
         if (!bucketViewModel) {
             return;
         }
@@ -2445,6 +2447,7 @@
         bucketHeader.appendChild(bucketStats);
         contentDiv.appendChild(bucketHeader);
 
+        const typeSectionFragment = document.createDocumentFragment();
         bucketViewModel.goalTypes.forEach(goalTypeModel => {
             const typeGrowth = goalTypeModel.growthDisplay;
             
@@ -2539,6 +2542,7 @@
                 return acc;
             }, {});
 
+            const rowFragment = document.createDocumentFragment();
             goalTypeModel.goals.forEach(goalModel => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -2575,9 +2579,10 @@
                     <td class="${goalModel.returnClass}">${goalModel.returnPercentDisplay}</td>
                 `;
 
-                tbody.appendChild(tr);
+                rowFragment.appendChild(tr);
             });
-            
+
+            tbody.appendChild(rowFragment);
             table.appendChild(tbody);
             typeSection.appendChild(table);
 
@@ -2623,8 +2628,10 @@
                     projectedInvestmentsState
                 );
             });
-            contentDiv.appendChild(typeSection);
+            typeSectionFragment.appendChild(typeSection);
         });
+
+        contentDiv.appendChild(typeSectionFragment);
     }
 
     function buildGoalTypeAllocationSnapshot(
