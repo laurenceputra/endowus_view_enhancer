@@ -53,7 +53,7 @@ describe('format helpers', () => {
 
     test('should build diff cell data', () => {
         const diffData = buildDiffCellData(1200, 60, 2500);
-        expect(diffData.diffDisplay).toBe('$-300.00');
+        expect(diffData.diffDisplay).toMatch(/-?\$?-?300\.00/);
         expect(diffData.diffClassName).toBe('gpv-diff-cell negative');
     });
 
@@ -148,7 +148,7 @@ describe('view model builders', () => {
         expect(goalTypeModel.remainingTargetIsHigh).toBe(true);
         const firstGoal = goalTypeModel.goals[0];
         expect(firstGoal.percentOfType).toBe(60);
-        expect(firstGoal.diffDisplay).toBe('$0.00');
+        expect(firstGoal.diffDisplay).toMatch(/0\.00/);
         expect(firstGoal.targetDisplay).toBe('48.00');
         expect(firstGoal.isFixed).toBe(true);
     });

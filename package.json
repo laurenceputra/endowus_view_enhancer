@@ -4,9 +4,11 @@
   "description": "View and organize your investment portfolio by buckets with a modern interface",
   "main": "tampermonkey/goal_portfolio_viewer.user.js",
   "scripts": {
+    "lint": "eslint tampermonkey __tests__",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "coverage:layers": "npm run test:coverage && node scripts/coverage-by-layer.js"
   },
   "repository": {
     "type": "git",
@@ -26,12 +28,17 @@
   },
   "homepage": "https://github.com/laurenceputra/goal-portfolio-viewer#readme",
   "devDependencies": {
-    "jest": "^29.7.0"
+    "eslint": "^9.39.2",
+    "jest": "^29.7.0",
+    "jsdom": "^22.1.0"
   },
   "jest": {
     "testEnvironment": "node",
     "coverageDirectory": "coverage",
-    "coverageReporters": ["json-summary", "text"],
+    "coverageReporters": [
+      "json-summary",
+      "text"
+    ],
     "collectCoverageFrom": [
       "tampermonkey/**/*.user.js"
     ],

@@ -23,6 +23,11 @@
 
     const DEBUG = false;
     const REMAINING_TARGET_ALERT_THRESHOLD = 2;
+    const DEBUG_AUTH = false;
+
+    // Export surface for tests; populated as helpers become available.
+    // When set before load, window.__GPV_DISABLE_AUTO_INIT prevents DOM auto-init (used in tests).
+    const testExports = {};
 
     function logDebug(message, data) {
         if (!DEBUG) {
@@ -107,9 +112,18 @@
         return [...sorted, ...others];
     }
 
+    // MONEY_FORMATTER uses en-US locale to avoid narrow no-break space rendering differences across environments,
+    // while keeping the currency fixed to SGD. This maintains consistent formatting without relying on locale-specific symbols.
+    const MONEY_FORMATTER = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'SGD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+
     function formatMoney(val) {
         if (typeof val === 'number' && !isNaN(val)) {
-            return '$' + val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return MONEY_FORMATTER.format(val);
         }
         return '-';
     }
@@ -191,7 +205,7 @@
         try {
             const target = new URL(url, originFallback);
             return target.pathname === '/dashboard' || target.pathname === '/dashboard/';
-        } catch (error) {
+        } catch (_error) {
             return false;
         }
     }
@@ -930,7 +944,7 @@
         return total / totalWeight;
     }
 
-    function calculateWeightedWindowReturns(performanceResponses, fallbackPerformanceDates) {
+    function calculateWeightedWindowReturns(performanceResponses) {
         const responses = Array.isArray(performanceResponses) ? performanceResponses : [];
         const windowKeys = Object.values(PERFORMANCE_WINDOWS).map(window => window.key);
         const valuesByWindow = {};
@@ -1101,8 +1115,59 @@
         investible: null,
         summary: null
     };
+    const ENDPOINT_HANDLERS = {
+        performance: data => {
+            apiData.performance = data;
+            GM_setValue('api_performance', JSON.stringify(data));
+            logDebug('[Goal Portfolio Viewer] Intercepted performance data');
+        },
+        investible: data => {
+            apiData.investible = data;
+            GM_setValue('api_investible', JSON.stringify(data));
+            logDebug('[Goal Portfolio Viewer] Intercepted investible data');
+        },
+        summary: data => {
+            if (!Array.isArray(data)) {
+                return;
+            }
+            apiData.summary = data;
+            GM_setValue('api_summary', JSON.stringify(data));
+            logDebug('[Goal Portfolio Viewer] Intercepted summary data');
+        }
+    };
 
-    const DEBUG_AUTH = false;
+    function detectEndpointKey(url) {
+        if (typeof url !== 'string') {
+            return null;
+        }
+        if (url.includes('/v1/goals/performance')) {
+            return 'performance';
+        }
+        if (url.includes('/v2/goals/investible')) {
+            return 'investible';
+        }
+        if (url.match(/\/v1\/goals(?:[?#]|$)/)) {
+            return 'summary';
+        }
+        return null;
+    }
+
+    async function handleInterceptedResponse(url, readData) {
+        const endpointKey = detectEndpointKey(url);
+        if (!endpointKey) {
+            return;
+        }
+        const handler = ENDPOINT_HANDLERS[endpointKey];
+        if (typeof handler !== 'function') {
+            return;
+        }
+        try {
+            const data = await readData();
+            handler(data);
+        } catch (error) {
+            console.error('[Goal Portfolio Viewer] Error parsing API response:', error);
+        }
+    }
 
     function logAuthDebug(message, data) {
         if (!DEBUG_AUTH) {
@@ -1119,6 +1184,7 @@
     const PERFORMANCE_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
     const PERFORMANCE_CACHE_REFRESH_MIN_AGE_MS = 24 * 60 * 60 * 1000;
     const PERFORMANCE_CHART_WINDOW = PERFORMANCE_WINDOWS.oneYear.key;
+    const PERFORMANCE_REQUEST_TIMEOUT_MS = 10000;
 
     // Non-persistent storage for projected investments (resets on reload)
     // Key format: "bucketName|goalType" -> projected amount
@@ -1147,50 +1213,7 @@
         extractAuthHeaders(args[0], args[1]);
         const response = await originalFetch.apply(this, args);
         const url = args[0];
-        
-        if (typeof url === 'string') {
-            // Check more specific patterns first to avoid false matches
-            if (url.includes('/v1/goals/performance')) {
-                const clonedResponse = response.clone();
-                try {
-                    const data = await clonedResponse.json();
-                    logDebug('[Goal Portfolio Viewer] Intercepted performance data');
-                    apiData.performance = data;
-                    // Store in Tampermonkey storage
-                    GM_setValue('api_performance', JSON.stringify(data));
-                } catch (e) {
-                    console.error('[Goal Portfolio Viewer] Error parsing API response:', e);
-                }
-            } else if (url.includes('/v2/goals/investible')) {
-                const clonedResponse = response.clone();
-                try {
-                    const data = await clonedResponse.json();
-                    logDebug('[Goal Portfolio Viewer] Intercepted investible data');
-                    apiData.investible = data;
-                    // Store in Tampermonkey storage
-                    GM_setValue('api_investible', JSON.stringify(data));
-                } catch (e) {
-                    console.error('[Goal Portfolio Viewer] Error parsing API response:', e);
-                }
-            } else if (url.match(/\/v1\/goals(?:[?#]|$)/)) {
-                // Check for base goals endpoint (summary data)
-                // Pattern ensures we match /v1/goals but not /v1/goals/{id} or other sub-paths
-                const clonedResponse = response.clone();
-                try {
-                    const data = await clonedResponse.json();
-                    // Only store if data is an array (the summary endpoint returns an array of goals)
-                    if (Array.isArray(data)) {
-                        logDebug('[Goal Portfolio Viewer] Intercepted summary data');
-                        apiData.summary = data;
-                        // Store in Tampermonkey storage
-                        GM_setValue('api_summary', JSON.stringify(data));
-                    }
-                } catch (e) {
-                    console.error('[Goal Portfolio Viewer] Error parsing API response:', e);
-                }
-            }
-        }
-        
+        await handleInterceptedResponse(url, () => response.clone().json());
         return response;
     };
 
@@ -1213,49 +1236,9 @@
         extractAuthHeaders(url, { headers: this._headers });
         
         if (url && typeof url === 'string') {
-            // Check more specific patterns first to avoid false matches
-            if (url.includes('/v1/goals/performance')) {
-                this.addEventListener('load', function() {
-                    try {
-                        const data = JSON.parse(this.responseText);
-                        logDebug('[Goal Portfolio Viewer] Intercepted performance data (XHR)');
-                        apiData.performance = data;
-                        // Store in Tampermonkey storage
-                        GM_setValue('api_performance', JSON.stringify(data));
-                    } catch (e) {
-                        console.error('[Goal Portfolio Viewer] Error parsing XHR response:', e);
-                    }
-                });
-            } else if (url.includes('/v2/goals/investible')) {
-                this.addEventListener('load', function() {
-                    try {
-                        const data = JSON.parse(this.responseText);
-                        logDebug('[Goal Portfolio Viewer] Intercepted investible data (XHR)');
-                        apiData.investible = data;
-                        // Store in Tampermonkey storage
-                        GM_setValue('api_investible', JSON.stringify(data));
-                    } catch (e) {
-                        console.error('[Goal Portfolio Viewer] Error parsing XHR response:', e);
-                    }
-                });
-            } else if (url.match(/\/v1\/goals(?:[?#]|$)/)) {
-                // Check for base goals endpoint (summary data)
-                // Pattern ensures we match /v1/goals but not /v1/goals/{id} or other sub-paths
-                this.addEventListener('load', function() {
-                    try {
-                        const data = JSON.parse(this.responseText);
-                        // Only store if data is an array (the summary endpoint returns an array of goals)
-                        if (Array.isArray(data)) {
-                            logDebug('[Goal Portfolio Viewer] Intercepted summary data (XHR)');
-                            apiData.summary = data;
-                            // Store in Tampermonkey storage
-                            GM_setValue('api_summary', JSON.stringify(data));
-                        }
-                    } catch (e) {
-                        console.error('[Goal Portfolio Viewer] Error parsing XHR response:', e);
-                    }
-                });
-            }
+            this.addEventListener('load', function() {
+                handleInterceptedResponse(url, () => Promise.resolve(JSON.parse(this.responseText)));
+            });
         }
         
         return originalXHRSend.apply(this, args);
@@ -1338,16 +1321,31 @@
             const storedSummary = GM_getValue('api_summary', null);
             
             if (storedPerformance) {
-                apiDataState.performance = JSON.parse(storedPerformance);
-                logDebug('[Goal Portfolio Viewer] Loaded performance data from storage');
+                const parsed = JSON.parse(storedPerformance);
+                if (parsed && typeof parsed === 'object') {
+                    apiDataState.performance = parsed;
+                    logDebug('[Goal Portfolio Viewer] Loaded performance data from storage');
+                } else {
+                    GM_deleteValue('api_performance');
+                }
             }
             if (storedInvestible) {
-                apiDataState.investible = JSON.parse(storedInvestible);
-                logDebug('[Goal Portfolio Viewer] Loaded investible data from storage');
+                const parsed = JSON.parse(storedInvestible);
+                if (parsed && typeof parsed === 'object') {
+                    apiDataState.investible = parsed;
+                    logDebug('[Goal Portfolio Viewer] Loaded investible data from storage');
+                } else {
+                    GM_deleteValue('api_investible');
+                }
             }
             if (storedSummary) {
-                apiDataState.summary = JSON.parse(storedSummary);
-                logDebug('[Goal Portfolio Viewer] Loaded summary data from storage');
+                const parsed = JSON.parse(storedSummary);
+                if (Array.isArray(parsed)) {
+                    apiDataState.summary = parsed;
+                    logDebug('[Goal Portfolio Viewer] Loaded summary data from storage');
+                } else {
+                    GM_deleteValue('api_summary');
+                }
             }
         } catch (e) {
             console.error('[Goal Portfolio Viewer] Error loading stored data:', e);
@@ -1408,16 +1406,6 @@
     }
 
     /**
-     * Get projected investment for a specific goal type
-     * @param {string} bucket - Bucket name
-     * @param {string} goalType - Goal type
-     * @returns {number} Projected investment amount (0 if not set)
-     */
-    function getProjectedInvestment(projectedInvestmentsState, bucket, goalType) {
-        return getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType);
-    }
-
-    /**
      * Set projected investment for a specific goal type
      * @param {string} bucket - Bucket name
      * @param {string} goalType - Goal type
@@ -1473,7 +1461,7 @@
         }
         try {
             return decodeURIComponent(value);
-        } catch (error) {
+        } catch (_error) {
             // Fallback to raw value if decoding fails due to malformed encoding
             return value;
         }
@@ -1523,11 +1511,9 @@
                     path: cookie.path,
                     name: cookie.name
                 }));
-                // eslint-disable-next-line no-console
                 logAuthDebug('[Goal Portfolio Viewer][DEBUG_AUTH] Available GM_cookie entries:', summary);
             })
             .catch(error => {
-                // eslint-disable-next-line no-console
                 console.error('[Goal Portfolio Viewer][DEBUG_AUTH] Failed to list GM_cookie entries:', error);
             });
     }
@@ -1597,7 +1583,6 @@
         const url = typeof requestUrl === 'string' ? requestUrl : requestUrl?.url;
         if (!url || !url.includes('endowus.com')) {
             if (DEBUG_AUTH && url) {
-                // eslint-disable-next-line no-console
                 logAuthDebug('[Goal Portfolio Viewer][DEBUG_AUTH] Skipping header extraction for non-endowus.com URL:', url);
             }
             return;
@@ -1645,16 +1630,20 @@
                 return null;
             }
             const parsed = JSON.parse(stored);
-            if (!parsed || !isCacheFresh(parsed.fetchedAt, PERFORMANCE_CACHE_MAX_AGE_MS)) {
+            const fetchedAt = parsed?.fetchedAt;
+            const response = parsed?.response;
+            const hasValidShape = typeof fetchedAt === 'number' && fetchedAt > 0 && response && typeof response === 'object';
+            if (!parsed || !hasValidShape || !isCacheFresh(fetchedAt, PERFORMANCE_CACHE_MAX_AGE_MS)) {
                 GM_deleteValue(key);
                 return null;
             }
             return parsed;
-        } catch (error) {
-            console.error('[Goal Portfolio Viewer] Error reading performance cache:', error);
+        } catch (_error) {
+            console.error('[Goal Portfolio Viewer] Error reading performance cache:', _error);
             return null;
         }
     }
+    testExports.readPerformanceCache = readPerformanceCache;
 
     function writePerformanceCache(goalId, responseData) {
         try {
@@ -1664,10 +1653,11 @@
                 response: responseData
             };
             GM_setValue(key, JSON.stringify(payload));
-        } catch (error) {
-            console.error('[Goal Portfolio Viewer] Error writing performance cache:', error);
+        } catch (_error) {
+            console.error('[Goal Portfolio Viewer] Error writing performance cache:', _error);
         }
     }
+    testExports.writePerformanceCache = writePerformanceCache;
 
     function getCachedPerformanceResponse(goalId) {
         const cached = readPerformanceCache(goalId);
@@ -1676,14 +1666,26 @@
         }
         return cached.response || null;
     }
+    testExports.getCachedPerformanceResponse = getCachedPerformanceResponse;
 
     async function fetchPerformanceForGoal(goalId) {
         const url = `${PERFORMANCE_ENDPOINT}?displayCcy=SGD&goalId=${encodeURIComponent(goalId)}`;
         const headers = await buildPerformanceRequestHeaders();
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        let timeoutId = null;
+        if (controller) {
+            timeoutId = setTimeout(() => controller.abort(), PERFORMANCE_REQUEST_TIMEOUT_MS);
+        }
+
         const response = await fetch(url, {
             method: 'GET',
             credentials: 'include',
-            headers
+            headers,
+            signal: controller ? controller.signal : undefined
+        }).finally(() => {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
         });
         const cloned = response.clone();
         if (!response.ok) {
@@ -1761,7 +1763,7 @@
                 primaryPerformanceDates,
                 performanceResponses[0]?.timeSeries?.data || []
             )
-            : calculateWeightedWindowReturns(performanceResponses, primaryPerformanceDates);
+            : calculateWeightedWindowReturns(performanceResponses);
 
         const metrics = summarizePerformanceMetrics(performanceResponses, normalizedMergedSeries);
 
@@ -1803,6 +1805,7 @@
             delete goalPerformanceData[goalId];
         });
     }
+    testExports.clearPerformanceCache = clearPerformanceCache;
 
     // ============================================
     // UI
@@ -1828,6 +1831,7 @@
             Math.max(PERFORMANCE_CHART_MIN_HEIGHT, targetHeight || PERFORMANCE_CHART_DEFAULT_HEIGHT)
         );
     }
+    testExports.getChartHeightForWidth = getChartHeightForWidth;
 
     function getChartPadding(chartWidth, chartHeight) {
         const base = Math.min(chartWidth, chartHeight);
@@ -1850,6 +1854,7 @@
             height: height || PERFORMANCE_CHART_DEFAULT_HEIGHT
         };
     }
+    testExports.getChartDimensions = getChartDimensions;
 
     function renderPerformanceChart(chartWrapper, series, dimensionsOverride) {
         if (!chartWrapper) {
@@ -1860,6 +1865,7 @@
         chartWrapper.innerHTML = '';
         chartWrapper.appendChild(svg);
     }
+    testExports.renderPerformanceChart = renderPerformanceChart;
 
     function initializePerformanceChart(chartWrapper, series) {
         if (typeof ResizeObserver === 'undefined' || !chartWrapper) {
@@ -2068,6 +2074,7 @@
         svg.appendChild(pointGroup);
         return svg;
     }
+    testExports.createLineChartSvg = createLineChartSvg;
 
     function buildPerformanceWindowGrid(windowReturns) {
         const grid = document.createElement('div');
@@ -2103,6 +2110,7 @@
 
         return grid;
     }
+    testExports.buildPerformanceWindowGrid = buildPerformanceWindowGrid;
 
     function buildPerformanceMetricsTable(metrics) {
         const table = document.createElement('table');
@@ -2312,6 +2320,7 @@
 
         contentDiv.appendChild(summaryContainer);
     }
+    testExports.renderSummaryView = renderSummaryView;
 
     function renderBucketView(
         contentDiv,
@@ -2702,6 +2711,7 @@
             projectedInvestmentsState
         );
     }
+    testExports.handleGoalTargetChange = handleGoalTargetChange;
 
     function handleGoalFixedToggle(
         input,
@@ -2729,6 +2739,7 @@
             { forceTargetRefresh: true }
         );
     }
+    testExports.handleGoalFixedToggle = handleGoalFixedToggle;
 
     /**
      * Handle changes to projected investment input
@@ -2785,6 +2796,7 @@
             );
         }
     }
+    testExports.handleProjectedInvestmentChange = handleProjectedInvestmentChange;
 
     // ============================================
     // UI: Styles
@@ -3894,10 +3906,12 @@
     }
 
     // Wait for DOM to be ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
+    if (!window.__GPV_DISABLE_AUTO_INIT) {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     }
 
     } // End of browser-only code
@@ -3910,7 +3924,7 @@
     // In Node.js (test/CI), these functions are programmatically accessible.
     // Pattern: Keep all logic in ONE place (this file), test the real implementation.
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = {
+        const baseExports = {
             getGoalTargetKey,
             getGoalFixedKey,
             getProjectedInvestmentKey,
@@ -3955,8 +3969,11 @@
             calculateWeightedAverage,
             calculateWeightedWindowReturns,
             summarizePerformanceMetrics,
-            derivePerformanceWindows
+            derivePerformanceWindows,
+            createSequentialRequestQueue
         };
+
+        module.exports = { ...baseExports, ...testExports };
     }
 
 })();
