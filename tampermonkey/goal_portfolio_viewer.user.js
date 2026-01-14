@@ -1165,12 +1165,6 @@
         }
     }
 
-    const Interception = {
-        detectEndpointKey,
-        handleInterceptedResponse,
-        handlers: ENDPOINT_HANDLERS
-    };
-
     function logAuthDebug(message, data) {
         if (!DEBUG_AUTH) {
             return;
@@ -1627,7 +1621,7 @@
         return headers;
     }
 
-    readPerformanceCache = function readPerformanceCache(goalId) {
+    function readPerformanceCache(goalId) {
         try {
             const key = getPerformanceCacheKey(goalId);
             const stored = GM_getValue(key, null);
@@ -1647,10 +1641,10 @@
             console.error('[Goal Portfolio Viewer] Error reading performance cache:', error);
             return null;
         }
-    };
+    }
     testExports.readPerformanceCache = readPerformanceCache;
 
-    writePerformanceCache = function writePerformanceCache(goalId, responseData) {
+    function writePerformanceCache(goalId, responseData) {
         try {
             const key = getPerformanceCacheKey(goalId);
             const payload = {
@@ -1661,16 +1655,16 @@
         } catch (error) {
             console.error('[Goal Portfolio Viewer] Error writing performance cache:', error);
         }
-    };
+    }
     testExports.writePerformanceCache = writePerformanceCache;
 
-    getCachedPerformanceResponse = function getCachedPerformanceResponse(goalId) {
+    function getCachedPerformanceResponse(goalId) {
         const cached = readPerformanceCache(goalId);
         if (!cached) {
             return null;
         }
         return cached.response || null;
-    };
+    }
     testExports.getCachedPerformanceResponse = getCachedPerformanceResponse;
 
     async function fetchPerformanceForGoal(goalId) {
@@ -1797,7 +1791,7 @@
         return latestFetchedAt;
     }
 
-    clearPerformanceCache = function clearPerformanceCache(goalIds) {
+    function clearPerformanceCache(goalIds) {
         if (!Array.isArray(goalIds)) {
             return;
         }
@@ -1809,7 +1803,7 @@
             GM_deleteValue(key);
             delete goalPerformanceData[goalId];
         });
-    };
+    }
     testExports.clearPerformanceCache = clearPerformanceCache;
 
     // ============================================
