@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.6.8
+// @version      2.7.0
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -1353,59 +1353,6 @@
     }
 
     /**
-     * Get target percentage for a specific goal
-     * @param {string} goalId - Goal ID
-     * @returns {number|null} Target percentage or null if not set
-     */
-    function getGoalTargetPercentage(goalId) {
-        return GoalTargetStore.getTarget(goalId);
-    }
-
-    /**
-     * Set target percentage for a specific goal
-     * @param {string} goalId - Goal ID
-     * @param {number} percentage - Target percentage (0-100)
-     * @returns {number} The actual value stored (after clamping)
-     */
-    function setGoalTargetPercentage(goalId, percentage) {
-        return GoalTargetStore.setTarget(goalId, percentage);
-    }
-
-    /**
-     * Delete target percentage for a specific goal
-     * @param {string} goalId - Goal ID
-     */
-    function deleteGoalTargetPercentage(goalId) {
-        GoalTargetStore.clearTarget(goalId);
-    }
-
-    /**
-     * Get fixed state for a specific goal
-     * @param {string} goalId - Goal ID
-     * @returns {boolean} Fixed state (false if not set)
-     */
-    function getGoalFixedFlag(goalId) {
-        return GoalTargetStore.getFixed(goalId);
-    }
-
-    /**
-     * Set fixed state for a specific goal
-     * @param {string} goalId - Goal ID
-     * @param {boolean} isFixed - Fixed flag
-     */
-    function setGoalFixedFlag(goalId, isFixed) {
-        GoalTargetStore.setFixed(goalId, isFixed);
-    }
-
-    /**
-     * Delete fixed state for a specific goal
-     * @param {string} goalId - Goal ID
-     */
-    function deleteGoalFixedFlag(goalId) {
-        GoalTargetStore.clearFixed(goalId);
-    }
-
-    /**
      * Set projected investment for a specific goal type
      * @param {string} bucket - Bucket name
      * @param {string} goalType - Goal type
@@ -2252,6 +2199,29 @@
         loadPerformanceData();
     }
     
+    function buildBucketStatsMarkup({
+        endingBalanceDisplay,
+        returnDisplay,
+        returnClass,
+        growthDisplay,
+        returnLabel
+    }) {
+        return `
+            <div class="gpv-stat-item">
+                <span class="gpv-stat-label">Balance</span>
+                <span class="gpv-stat-value">${endingBalanceDisplay}</span>
+            </div>
+            <div class="gpv-stat-item">
+                <span class="gpv-stat-label">${returnLabel}</span>
+                <span class="gpv-stat-value ${returnClass}">${returnDisplay}</span>
+            </div>
+            <div class="gpv-stat-item">
+                <span class="gpv-stat-label">Growth</span>
+                <span class="gpv-stat-value ${returnClass}">${growthDisplay}</span>
+            </div>
+        `;
+    }
+
     function renderSummaryView(contentDiv, summaryViewModel, onBucketSelect) {
         contentDiv.innerHTML = '';
 
@@ -2282,22 +2252,14 @@
             bucketTitle.textContent = bucketModel.bucketName;
             
             const bucketStats = document.createElement('div');
-            bucketStats.className = 'gpv-bucket-stats';
-            
-            bucketStats.innerHTML = `
-                <div class="gpv-stat">
-                    <span class="gpv-stat-label">Ending Balance</span>
-                    <span class="gpv-stat-value">${bucketModel.endingBalanceDisplay}</span>
-                </div>
-                <div class="gpv-stat">
-                    <span class="gpv-stat-label">Return</span>
-                    <span class="gpv-stat-value ${bucketModel.returnClass}">${bucketModel.returnDisplay}</span>
-                </div>
-                <div class="gpv-stat">
-                    <span class="gpv-stat-label">Growth</span>
-                    <span class="gpv-stat-value ${bucketModel.returnClass}">${bucketModel.growthDisplay}</span>
-                </div>
-            `;
+            bucketStats.className = 'gpv-stats gpv-bucket-stats';
+            bucketStats.innerHTML = buildBucketStatsMarkup({
+                endingBalanceDisplay: bucketModel.endingBalanceDisplay,
+                returnDisplay: bucketModel.returnDisplay,
+                returnClass: bucketModel.returnClass,
+                growthDisplay: bucketModel.growthDisplay,
+                returnLabel: 'Return'
+            });
             
             bucketHeader.appendChild(bucketTitle);
             bucketHeader.appendChild(bucketStats);
@@ -2308,7 +2270,7 @@
                 typeRow.className = 'gpv-goal-type-row';
                 typeRow.innerHTML = `
                     <span class="gpv-goal-type-name">${goalTypeModel.displayName}</span>
-                    <span class="gpv-goal-type-stat">Ending Balance: ${goalTypeModel.endingBalanceDisplay}</span>
+                    <span class="gpv-goal-type-stat">Balance: ${goalTypeModel.endingBalanceDisplay}</span>
                     <span class="gpv-goal-type-stat">Return: ${goalTypeModel.returnDisplay}</span>
                     <span class="gpv-goal-type-stat">Growth: ${goalTypeModel.growthDisplay}</span>
                 `;
@@ -2342,22 +2304,14 @@
         bucketTitle.textContent = bucketViewModel.bucketName;
         
         const bucketStats = document.createElement('div');
-        bucketStats.className = 'gpv-detail-stats';
-        
-        bucketStats.innerHTML = `
-            <div class="gpv-stat-item">
-                <span class="gpv-stat-label">Ending Balance</span>
-                <span class="gpv-stat-value">${bucketViewModel.endingBalanceDisplay}</span>
-            </div>
-            <div class="gpv-stat-item">
-                <span class="gpv-stat-label">Total Return</span>
-                <span class="gpv-stat-value ${bucketViewModel.returnClass}">${bucketViewModel.returnDisplay}</span>
-            </div>
-            <div class="gpv-stat-item">
-                <span class="gpv-stat-label">Growth</span>
-                <span class="gpv-stat-value ${bucketViewModel.returnClass}">${bucketViewModel.growthDisplay}</span>
-            </div>
-        `;
+        bucketStats.className = 'gpv-stats gpv-detail-stats';
+        bucketStats.innerHTML = buildBucketStatsMarkup({
+            endingBalanceDisplay: bucketViewModel.endingBalanceDisplay,
+            returnDisplay: bucketViewModel.returnDisplay,
+            returnClass: bucketViewModel.returnClass,
+            growthDisplay: bucketViewModel.growthDisplay,
+            returnLabel: 'Return'
+        });
         
         bucketHeader.appendChild(bucketTitle);
         bucketHeader.appendChild(bucketStats);
@@ -2380,7 +2334,7 @@
             typeHeader.innerHTML = `
                 <h3>${goalTypeModel.displayName}</h3>
                 <div class="gpv-type-summary">
-                    <span>Ending Balance: ${goalTypeModel.endingBalanceDisplay}</span>
+                    <span>Balance: ${goalTypeModel.endingBalanceDisplay}</span>
                     <span>Return: ${goalTypeModel.returnDisplay}</span>
                     <span>Growth: ${typeGrowth}</span>
                 </div>
@@ -2434,7 +2388,7 @@
                 <thead>
                     <tr>
                         <th class="gpv-goal-name-header">Goal Name</th>
-                        <th>Ending Balance</th>
+                        <th>Balance</th>
                         <th>% of Goal Type</th>
                         <th class="gpv-fixed-header">Fixed</th>
                         <th class="gpv-target-header">
@@ -2558,8 +2512,8 @@
         }
         const goals = Array.isArray(group.goals) ? group.goals : [];
         const goalIds = goals.map(goal => goal.goalId).filter(Boolean);
-        const goalTargets = buildGoalTargetById(goalIds, getGoalTargetPercentage);
-        const goalFixed = buildGoalFixedById(goalIds, getGoalFixedFlag);
+        const goalTargets = buildGoalTargetById(goalIds, GoalTargetStore.getTarget);
+        const goalFixed = buildGoalFixedById(goalIds, GoalTargetStore.getFixed);
         const totalTypeAmount = group.endingBalanceAmount || 0;
         const projectedAmount = getProjectedInvestmentValue(projectedInvestmentsState, bucket, goalType);
         const adjustedTotal = totalTypeAmount + projectedAmount;
@@ -2655,7 +2609,7 @@
         
         if (value === '') {
             // Clear the target if input is empty
-            deleteGoalTargetPercentage(goalId);
+            GoalTargetStore.clearTarget(goalId);
             diffCell.textContent = '-';
             diffCell.className = 'gpv-diff-cell';
             refreshGoalTypeSection(
@@ -2681,7 +2635,7 @@
         }
         
         // Save to storage (this will clamp to 0-100 automatically)
-        const savedValue = setGoalTargetPercentage(goalId, targetPercent);
+        const savedValue = GoalTargetStore.setTarget(goalId, targetPercent);
         
         // Check if value was clamped and provide feedback
         if (savedValue !== targetPercent) {
@@ -2725,9 +2679,9 @@
         const isFixed = input.checked === true;
 
         if (isFixed) {
-            setGoalFixedFlag(goalId, true);
+            GoalTargetStore.setFixed(goalId, true);
         } else {
-            deleteGoalFixedFlag(goalId);
+            GoalTargetStore.clearFixed(goalId);
         }
 
         refreshGoalTypeSection(
@@ -3006,13 +2960,16 @@
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
             
-            .gpv-bucket-stats {
+            .gpv-stats {
                 display: flex;
                 gap: 24px;
+            }
+
+            .gpv-bucket-stats {
                 flex-wrap: wrap;
             }
             
-            .gpv-stat {
+            .gpv-stat-item {
                 display: flex;
                 flex-direction: column;
                 gap: 4px;
@@ -3081,14 +3038,8 @@
             }
             
             .gpv-detail-stats {
-                display: flex;
                 gap: 28px;
-            }
-            
-            .gpv-stat-item {
-                display: flex;
-                flex-direction: column;
-                gap: 4px;
+                flex-wrap: nowrap;
             }
             
             .gpv-type-section {
@@ -3505,11 +3456,6 @@
                 fill: #1f2937;
             }
 
-            .gpv-performance-chart-baseline {
-                stroke: #e2e8f0;
-                stroke-width: 1;
-            }
-
             .gpv-performance-chart-empty {
                 font-size: 12px;
                 fill: #94a3b8;
@@ -3726,8 +3672,8 @@
             }
             const bucketObj = data[value];
             const goalIds = collectGoalIds(bucketObj);
-            const goalTargetById = buildGoalTargetById(goalIds, getGoalTargetPercentage);
-            const goalFixedById = buildGoalFixedById(goalIds, getGoalFixedFlag);
+            const goalTargetById = buildGoalTargetById(goalIds, GoalTargetStore.getTarget);
+            const goalFixedById = buildGoalFixedById(goalIds, GoalTargetStore.getFixed);
             const bucketViewModel = buildBucketDetailViewModel(
                 value,
                 data,
