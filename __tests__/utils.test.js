@@ -178,6 +178,11 @@ describe('formatMoney', () => {
         expect(formatMoney('invalid')).toBe('-');
     });
 
+    test('should return dash for non-finite numbers', () => {
+        expect(formatMoney(Infinity)).toBe('-');
+        expect(formatMoney(-Infinity)).toBe('-');
+    });
+
     test('should handle very large numbers', () => {
         const result = formatMoney(1000000000);
         expect(result).toMatch(/1,000,000,000\.00/);

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.7.0
+// @version      2.7.1
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -122,7 +122,7 @@
     });
 
     function formatMoney(val) {
-        if (typeof val === 'number' && !isNaN(val)) {
+        if (typeof val === 'number' && Number.isFinite(val)) {
             return MONEY_FORMATTER.format(val);
         }
         return '-';
@@ -1213,7 +1213,7 @@
         extractAuthHeaders(args[0], args[1]);
         const response = await originalFetch.apply(this, args);
         const url = args[0];
-        await handleInterceptedResponse(url, () => response.clone().json());
+        void handleInterceptedResponse(url, () => response.clone().json());
         return response;
     };
 
@@ -1255,23 +1255,30 @@
             try {
                 const key = getGoalTargetKey(goalId);
                 const value = GM_getValue(key, null);
-                return value !== null ? parseFloat(value) : null;
+                if (value === null) {
+                    return null;
+                }
+                const numericValue = parseFloat(value);
+                return Number.isFinite(numericValue) ? numericValue : null;
             } catch (e) {
                 console.error('[Goal Portfolio Viewer] Error loading goal target percentage:', e);
                 return null;
             }
         },
         setTarget(goalId, percentage) {
+            const numericPercentage = parseFloat(percentage);
+            if (!Number.isFinite(numericPercentage)) {
+                return null;
+            }
+            const validPercentage = Math.max(0, Math.min(100, numericPercentage));
             try {
                 const key = getGoalTargetKey(goalId);
-                const validPercentage = Math.max(0, Math.min(100, parseFloat(percentage)));
                 GM_setValue(key, validPercentage);
                 logDebug(`[Goal Portfolio Viewer] Saved goal target percentage for ${goalId}: ${validPercentage}%`);
-                return validPercentage;
             } catch (e) {
                 console.error('[Goal Portfolio Viewer] Error saving goal target percentage:', e);
-                return Math.max(0, Math.min(100, parseFloat(percentage)));
             }
+            return validPercentage;
         },
         clearTarget(goalId) {
             try {
@@ -2199,27 +2206,43 @@
         loadPerformanceData();
     }
     
-    function buildBucketStatsMarkup({
+    function createElement(tagName, className, textContent) {
+        const element = document.createElement(tagName);
+        if (className) {
+            element.className = className;
+        }
+        if (textContent !== undefined && textContent !== null) {
+            element.textContent = textContent;
+        }
+        return element;
+    }
+
+    function appendTextSpan(container, className, textContent) {
+        const span = createElement('span', className, textContent);
+        container.appendChild(span);
+        return span;
+    }
+
+    function createStatItem(label, value, valueClass) {
+        const item = createElement('div', 'gpv-stat-item');
+        item.appendChild(createElement('span', 'gpv-stat-label', label));
+        const valueClassName = valueClass ? `gpv-stat-value ${valueClass}` : 'gpv-stat-value';
+        item.appendChild(createElement('span', valueClassName, value));
+        return item;
+    }
+
+    function buildBucketStatsFragment({
         endingBalanceDisplay,
         returnDisplay,
         returnClass,
         growthDisplay,
         returnLabel
     }) {
-        return `
-            <div class="gpv-stat-item">
-                <span class="gpv-stat-label">Balance</span>
-                <span class="gpv-stat-value">${endingBalanceDisplay}</span>
-            </div>
-            <div class="gpv-stat-item">
-                <span class="gpv-stat-label">${returnLabel}</span>
-                <span class="gpv-stat-value ${returnClass}">${returnDisplay}</span>
-            </div>
-            <div class="gpv-stat-item">
-                <span class="gpv-stat-label">Growth</span>
-                <span class="gpv-stat-value ${returnClass}">${growthDisplay}</span>
-            </div>
-        `;
+        const fragment = document.createDocumentFragment();
+        fragment.appendChild(createStatItem('Balance', endingBalanceDisplay));
+        fragment.appendChild(createStatItem(returnLabel, returnDisplay, returnClass));
+        fragment.appendChild(createStatItem('Growth', growthDisplay, returnClass));
+        return fragment;
     }
 
     function renderSummaryView(contentDiv, summaryViewModel, onBucketSelect) {
@@ -2253,13 +2276,13 @@
             
             const bucketStats = document.createElement('div');
             bucketStats.className = 'gpv-stats gpv-bucket-stats';
-            bucketStats.innerHTML = buildBucketStatsMarkup({
+            bucketStats.appendChild(buildBucketStatsFragment({
                 endingBalanceDisplay: bucketModel.endingBalanceDisplay,
                 returnDisplay: bucketModel.returnDisplay,
                 returnClass: bucketModel.returnClass,
                 growthDisplay: bucketModel.growthDisplay,
                 returnLabel: 'Return'
-            });
+            }));
             
             bucketHeader.appendChild(bucketTitle);
             bucketHeader.appendChild(bucketStats);
@@ -2268,12 +2291,22 @@
             bucketModel.goalTypes.forEach(goalTypeModel => {
                 const typeRow = document.createElement('div');
                 typeRow.className = 'gpv-goal-type-row';
-                typeRow.innerHTML = `
-                    <span class="gpv-goal-type-name">${goalTypeModel.displayName}</span>
-                    <span class="gpv-goal-type-stat">Balance: ${goalTypeModel.endingBalanceDisplay}</span>
-                    <span class="gpv-goal-type-stat">Return: ${goalTypeModel.returnDisplay}</span>
-                    <span class="gpv-goal-type-stat">Growth: ${goalTypeModel.growthDisplay}</span>
-                `;
+                appendTextSpan(typeRow, 'gpv-goal-type-name', goalTypeModel.displayName);
+                appendTextSpan(
+                    typeRow,
+                    'gpv-goal-type-stat',
+                    `Balance: ${goalTypeModel.endingBalanceDisplay}`
+                );
+                appendTextSpan(
+                    typeRow,
+                    'gpv-goal-type-stat',
+                    `Return: ${goalTypeModel.returnDisplay}`
+                );
+                appendTextSpan(
+                    typeRow,
+                    'gpv-goal-type-stat',
+                    `Growth: ${goalTypeModel.growthDisplay}`
+                );
                 bucketCard.appendChild(typeRow);
             });
 
@@ -2305,13 +2338,13 @@
         
         const bucketStats = document.createElement('div');
         bucketStats.className = 'gpv-stats gpv-detail-stats';
-        bucketStats.innerHTML = buildBucketStatsMarkup({
+        bucketStats.appendChild(buildBucketStatsFragment({
             endingBalanceDisplay: bucketViewModel.endingBalanceDisplay,
             returnDisplay: bucketViewModel.returnDisplay,
             returnClass: bucketViewModel.returnClass,
             growthDisplay: bucketViewModel.growthDisplay,
             returnLabel: 'Return'
-        });
+        }));
         
         bucketHeader.appendChild(bucketTitle);
         bucketHeader.appendChild(bucketStats);
@@ -2331,14 +2364,13 @@
             // Get current projected investment for this goal type
             const currentProjectedInvestment = goalTypeModel.projectedAmount;
             
-            typeHeader.innerHTML = `
-                <h3>${goalTypeModel.displayName}</h3>
-                <div class="gpv-type-summary">
-                    <span>Balance: ${goalTypeModel.endingBalanceDisplay}</span>
-                    <span>Return: ${goalTypeModel.returnDisplay}</span>
-                    <span>Growth: ${typeGrowth}</span>
-                </div>
-            `;
+            const typeTitle = createElement('h3', null, goalTypeModel.displayName);
+            const typeSummary = createElement('div', 'gpv-type-summary');
+            appendTextSpan(typeSummary, null, `Balance: ${goalTypeModel.endingBalanceDisplay}`);
+            appendTextSpan(typeSummary, null, `Return: ${goalTypeModel.returnDisplay}`);
+            appendTextSpan(typeSummary, null, `Growth: ${typeGrowth}`);
+            typeHeader.appendChild(typeTitle);
+            typeHeader.appendChild(typeSummary);
             
             typeSection.appendChild(typeHeader);
 
@@ -2351,26 +2383,27 @@
             // Add projected investment input section as sibling after performance container
             const projectedInputContainer = document.createElement('div');
             projectedInputContainer.className = 'gpv-projected-input-container';
-            projectedInputContainer.innerHTML = `
-                <label class="gpv-projected-label">
-                    <span class="gpv-projected-icon">💡</span>
-                    <span>Add Projected Investment (simulation only):</span>
-                </label>
-                <input 
-                    type="number" 
-                    class="gpv-projected-input" 
-                    step="100"
-                    value="${currentProjectedInvestment > 0 ? currentProjectedInvestment : ''}"
-                    placeholder="Enter amount"
-                    data-bucket="${bucketViewModel.bucketName}"
-                    data-goal-type="${goalTypeModel.goalType}"
-                />
-            `;
+            const projectedLabel = createElement('label', 'gpv-projected-label');
+            const projectedIcon = createElement('span', 'gpv-projected-icon', '💡');
+            const projectedText = createElement('span', null, 'Add Projected Investment (simulation only):');
+            projectedLabel.appendChild(projectedIcon);
+            projectedLabel.appendChild(projectedText);
+
+            const projectedInput = document.createElement('input');
+            projectedInput.type = 'number';
+            projectedInput.className = 'gpv-projected-input';
+            projectedInput.step = '100';
+            projectedInput.value = currentProjectedInvestment > 0 ? String(currentProjectedInvestment) : '';
+            projectedInput.placeholder = 'Enter amount';
+            projectedInput.dataset.bucket = bucketViewModel.bucketName;
+            projectedInput.dataset.goalType = goalTypeModel.goalType;
+
+            projectedInputContainer.appendChild(projectedLabel);
+            projectedInputContainer.appendChild(projectedInput);
             
             typeSection.appendChild(projectedInputContainer);
             
             // Add event listener for projected investment input
-            const projectedInput = projectedInputContainer.querySelector('.gpv-projected-input');
             projectedInput.addEventListener('input', function() {
                 handleProjectedInvestmentChange(
                     this,
@@ -2384,23 +2417,33 @@
 
             const table = document.createElement('table');
             table.className = 'gpv-table gpv-goal-table';
-            table.innerHTML = `
-                <thead>
-                    <tr>
-                        <th class="gpv-goal-name-header">Goal Name</th>
-                        <th>Balance</th>
-                        <th>% of Goal Type</th>
-                        <th class="gpv-fixed-header">Fixed</th>
-                        <th class="gpv-target-header">
-                            <div>Target %</div>
-                            <div class="gpv-remaining-target ${goalTypeModel.remainingTargetIsHigh ? 'gpv-remaining-alert' : ''}">Remaining: ${goalTypeModel.remainingTargetDisplay}</div>
-                        </th>
-                        <th>Diff</th>
-                        <th>Cumulative Return</th>
-                        <th>Return %</th>
-                    </tr>
-                </thead>
-            `;
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+
+            headerRow.appendChild(createElement('th', 'gpv-goal-name-header', 'Goal Name'));
+            headerRow.appendChild(createElement('th', null, 'Balance'));
+            headerRow.appendChild(createElement('th', null, '% of Goal Type'));
+            headerRow.appendChild(createElement('th', 'gpv-fixed-header', 'Fixed'));
+
+            const targetHeader = document.createElement('th');
+            targetHeader.className = 'gpv-target-header';
+            targetHeader.appendChild(createElement('div', null, 'Target %'));
+            const remainingTarget = createElement(
+                'div',
+                goalTypeModel.remainingTargetIsHigh
+                    ? 'gpv-remaining-target gpv-remaining-alert'
+                    : 'gpv-remaining-target',
+                `Remaining: ${goalTypeModel.remainingTargetDisplay}`
+            );
+            targetHeader.appendChild(remainingTarget);
+            headerRow.appendChild(targetHeader);
+
+            headerRow.appendChild(createElement('th', null, 'Diff'));
+            headerRow.appendChild(createElement('th', null, 'Cumulative Return'));
+            headerRow.appendChild(createElement('th', null, 'Return %'));
+
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
 
             const tbody = document.createElement('tbody');
 
@@ -2413,39 +2456,46 @@
 
             goalTypeModel.goals.forEach(goalModel => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="gpv-goal-name">${goalModel.goalName}</td>
-                    <td>${goalModel.endingBalanceDisplay}</td>
-                    <td>${goalModel.percentOfTypeDisplay}</td>
-                    <td class="gpv-fixed-cell">
-                        <label class="gpv-fixed-toggle">
-                            <input 
-                                type="checkbox"
-                                class="gpv-fixed-toggle-input"
-                                data-goal-id="${goalModel.goalId}"
-                                ${goalModel.isFixed ? 'checked' : ''}
-                            />
-                            <span class="gpv-toggle-slider"></span>
-                        </label>
-                    </td>
-                    <td class="gpv-target-cell">
-                        <input 
-                            type="number" 
-                            class="gpv-target-input" 
-                            min="0" 
-                            max="100" 
-                            step="0.01"
-                            value="${goalModel.targetDisplay}"
-                            placeholder="Set target"
-                            data-goal-id="${goalModel.goalId}"
-                            data-fixed="${goalModel.isFixed ? 'true' : 'false'}"
-                            ${goalModel.isFixed ? 'disabled' : ''}
-                        />
-                    </td>
-                    <td class="gpv-diff-cell ${goalModel.diffClass}">${goalModel.diffDisplay}</td>
-                    <td class="${goalModel.returnClass}">${goalModel.returnDisplay}</td>
-                    <td class="${goalModel.returnClass}">${goalModel.returnPercentDisplay}</td>
-                `;
+                tr.appendChild(createElement('td', 'gpv-goal-name', goalModel.goalName));
+                tr.appendChild(createElement('td', null, goalModel.endingBalanceDisplay));
+                tr.appendChild(createElement('td', null, goalModel.percentOfTypeDisplay));
+
+                const fixedCell = document.createElement('td');
+                fixedCell.className = 'gpv-fixed-cell';
+                const fixedLabel = createElement('label', 'gpv-fixed-toggle');
+                const fixedInput = document.createElement('input');
+                fixedInput.type = 'checkbox';
+                fixedInput.className = 'gpv-fixed-toggle-input';
+                fixedInput.dataset.goalId = goalModel.goalId;
+                fixedInput.checked = goalModel.isFixed === true;
+                const fixedSlider = createElement('span', 'gpv-toggle-slider');
+                fixedLabel.appendChild(fixedInput);
+                fixedLabel.appendChild(fixedSlider);
+                fixedCell.appendChild(fixedLabel);
+                tr.appendChild(fixedCell);
+
+                const targetCell = document.createElement('td');
+                targetCell.className = 'gpv-target-cell';
+                const targetInput = document.createElement('input');
+                targetInput.type = 'number';
+                targetInput.className = 'gpv-target-input';
+                targetInput.min = '0';
+                targetInput.max = '100';
+                targetInput.step = '0.01';
+                targetInput.value = goalModel.targetDisplay ?? '';
+                targetInput.placeholder = 'Set target';
+                targetInput.dataset.goalId = goalModel.goalId;
+                targetInput.dataset.fixed = goalModel.isFixed ? 'true' : 'false';
+                targetInput.disabled = goalModel.isFixed === true;
+                targetCell.appendChild(targetInput);
+                tr.appendChild(targetCell);
+
+                const diffClassName = goalModel.diffClass
+                    ? `gpv-diff-cell ${goalModel.diffClass}`
+                    : 'gpv-diff-cell';
+                tr.appendChild(createElement('td', diffClassName, goalModel.diffDisplay));
+                tr.appendChild(createElement('td', goalModel.returnClass || null, goalModel.returnDisplay));
+                tr.appendChild(createElement('td', goalModel.returnClass || null, goalModel.returnPercentDisplay));
 
                 tbody.appendChild(tr);
             });
@@ -3604,7 +3654,7 @@
         
         const closeBtn = document.createElement('button');
         closeBtn.className = 'gpv-close-btn';
-        closeBtn.innerHTML = '✕';
+        closeBtn.textContent = '✕';
         function teardownOverlay() {
             if (!overlay.isConnected) {
                 return;

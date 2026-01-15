@@ -546,10 +546,9 @@ element.innerHTML = html;
    - Don't log sensitive information
 
 5. **Trusted Rendering**
-   - The UI currently uses `innerHTML` in specific view renderers where data comes
-     from same-origin API responses or user-owned inputs.
-   - If data sources expand beyond trusted inputs, switch to `textContent` or
-     sanitize all dynamic strings before rendering.
+   - Renderer functions build DOM nodes with `textContent` for all dynamic strings.
+   - Avoid `innerHTML` for user-visible content; only use it for static skeletons
+     or clearing containers.
 
 ---
 
