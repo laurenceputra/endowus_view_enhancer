@@ -25,6 +25,37 @@
     const REMAINING_TARGET_ALERT_THRESHOLD = 2;
     const DEBUG_AUTH = false;
 
+    const UNKNOWN_GOAL_TYPE = 'UNKNOWN_GOAL_TYPE';
+    const PROJECTED_KEY_SEPARATOR = '|';
+
+    const ENDPOINT_PATHS = {
+        performance: '/v1/goals/performance',
+        investible: '/v2/goals/investible',
+        summary: '/v1/goals'
+    };
+    const SUMMARY_ENDPOINT_REGEX = /\/v1\/goals(?:[?#]|$)/;
+
+    const STORAGE_KEYS = {
+        performance: 'api_performance',
+        investible: 'api_investible',
+        summary: 'api_summary'
+    };
+    const STORAGE_KEY_PREFIXES = {
+        goalTarget: 'goal_target_pct_',
+        goalFixed: 'goal_fixed_',
+        performanceCache: 'gpv_performance_'
+    };
+
+    const CLASS_NAMES = {
+        goalTable: 'gpv-goal-table',
+        targetInput: 'gpv-target-input',
+        fixedToggleInput: 'gpv-fixed-toggle-input',
+        projectedInput: 'gpv-projected-input',
+        remainingTarget: 'gpv-remaining-target',
+        remainingAlert: 'gpv-remaining-alert',
+        diffCell: 'gpv-diff-cell'
+    };
+
     // Export surface for tests; populated as helpers become available.
     // When set before load, window.__GPV_DISABLE_AUTO_INIT prevents DOM auto-init (used in tests).
     const testExports = {};
@@ -51,7 +82,7 @@
      * @returns {string} Storage key
      */
     function getGoalTargetKey(goalId) {
-        return `goal_target_pct_${goalId}`;
+        return `${STORAGE_KEY_PREFIXES.goalTarget}${goalId}`;
     }
 
     /**
@@ -60,7 +91,7 @@
      * @returns {string} Storage key
      */
     function getGoalFixedKey(goalId) {
-        return `goal_fixed_${goalId}`;
+        return `${STORAGE_KEY_PREFIXES.goalFixed}${goalId}`;
     }
 
     /**
@@ -70,7 +101,52 @@
      * @returns {string} Storage key
      */
     function getProjectedInvestmentKey(bucket, goalType) {
-        return `${bucket}|${goalType}`;
+        const safeBucket = encodeURIComponent(bucket ?? '');
+        const safeGoalType = encodeURIComponent(goalType ?? '');
+        return `${safeBucket}${PROJECTED_KEY_SEPARATOR}${safeGoalType}`;
+    }
+
+    function normalizeString(value, fallback = '') {
+        if (value === null || value === undefined) {
+            return fallback;
+        }
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            return trimmed ? trimmed : fallback;
+        }
+        return String(value);
+    }
+
+    function normalizeGoalType(goalType) {
+        const normalized = normalizeString(goalType, UNKNOWN_GOAL_TYPE);
+        return normalized || UNKNOWN_GOAL_TYPE;
+    }
+
+    function normalizeGoalName(goalName) {
+        return normalizeString(goalName, '');
+    }
+
+    function normalizePerformanceResponse(response) {
+        const safeResponse = response && typeof response === 'object' ? response : {};
+        const returnsTable = safeResponse.returnsTable && typeof safeResponse.returnsTable === 'object'
+            ? safeResponse.returnsTable
+            : {};
+        const performanceDates = safeResponse.performanceDates && typeof safeResponse.performanceDates === 'object'
+            ? safeResponse.performanceDates
+            : {};
+        const timeSeries = safeResponse.timeSeries && typeof safeResponse.timeSeries === 'object'
+            ? safeResponse.timeSeries
+            : {};
+        const timeSeriesData = Array.isArray(timeSeries.data) ? timeSeries.data : [];
+        return {
+            ...safeResponse,
+            returnsTable,
+            performanceDates,
+            timeSeries: {
+                ...timeSeries,
+                data: timeSeriesData
+            }
+        };
     }
 
     function extractBucketName(goalName) {
@@ -90,6 +166,9 @@
     }
 
     function getDisplayGoalType(goalType) {
+        if (!goalType || goalType === UNKNOWN_GOAL_TYPE) {
+            return 'Unknown';
+        }
         switch (goalType) {
             case 'GENERAL_WEALTH_ACCUMULATION':
                 return 'Investment';
@@ -128,7 +207,7 @@
         return '-';
     }
 
-    function formatPercentDisplay(value, options = {}) {
+    function formatPercentFromRatio(value, options = {}) {
         if (value === null || value === undefined) {
             return options.fallback ?? '-';
         }
@@ -136,11 +215,38 @@
         if (!Number.isFinite(numericValue)) {
             return options.fallback ?? '-';
         }
+        const percentValue = numericValue * 100;
+        const showSign = options.showSign === true;
+        const sign = showSign && percentValue > 0 ? '+' : '';
+        return `${sign}${percentValue.toFixed(2)}%`;
+    }
+
+    function formatPercentFromPercent(value, options = {}) {
+        if (value === null || value === undefined) {
+            return options.fallback ?? '-';
+        }
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return options.fallback ?? '-';
+        }
+        const showSign = options.showSign === true;
+        const sign = showSign && numericValue > 0 ? '+' : '';
+        return `${sign}${numericValue.toFixed(2)}%`;
+    }
+
+    function formatPercentDisplay(value, options = {}) {
+        if (value === null || value === undefined) {
+            return options.fallback ?? '-';
+        }
         const multiplier = Number(options.multiplier ?? 1);
         if (!Number.isFinite(multiplier)) {
             return options.fallback ?? '-';
         }
-        return `${(numericValue * multiplier).toFixed(2)}%`;
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return options.fallback ?? '-';
+        }
+        return formatPercentFromPercent(numericValue * multiplier, options);
     }
 
     function formatGrowthPercentFromEndingBalance(totalReturn, endingBalance) {
@@ -347,7 +453,9 @@
         const diffDisplay = diffInfo.diffAmount === null ? '-' : formatMoney(diffInfo.diffAmount);
         return {
             diffDisplay,
-            diffClassName: diffInfo.diffClass ? `gpv-diff-cell ${diffInfo.diffClass}` : 'gpv-diff-cell'
+            diffClassName: diffInfo.diffClass
+                ? `${CLASS_NAMES.diffCell} ${diffInfo.diffClass}`
+                : CLASS_NAMES.diffCell
         };
     }
 
@@ -355,11 +463,11 @@
         if (!target || typeof target.closest !== 'function') {
             return null;
         }
-        const targetInput = target.closest('.gpv-target-input');
+        const targetInput = target.closest(`.${CLASS_NAMES.targetInput}`);
         if (targetInput) {
             return { type: 'target', element: targetInput };
         }
-        const fixedToggle = target.closest('.gpv-fixed-toggle-input');
+        const fixedToggle = target.closest(`.${CLASS_NAMES.fixedToggleInput}`);
         if (fixedToggle) {
             return { type: 'fixed', element: fixedToggle };
         }
@@ -491,16 +599,16 @@
                         projectedAmount,
                         adjustedTotal,
                         remainingTargetPercent: allocationModel.remainingTargetPercent,
-                        remainingTargetDisplay: formatPercentDisplay(allocationModel.remainingTargetPercent),
+                        remainingTargetDisplay: formatPercentFromPercent(allocationModel.remainingTargetPercent),
                         remainingTargetIsHigh: isRemainingTargetAboveThreshold(allocationModel.remainingTargetPercent),
                         goals: allocationModel.goalModels.map(goal => ({
                             ...goal,
                             endingBalanceDisplay: formatMoney(goal.endingBalanceAmount),
-                            percentOfTypeDisplay: formatPercentDisplay(goal.percentOfType),
+                            percentOfTypeDisplay: formatPercentFromPercent(goal.percentOfType),
                             targetDisplay: goal.targetPercent !== null ? goal.targetPercent.toFixed(2) : '',
                             diffDisplay: goal.diffAmount === null ? '-' : formatMoney(goal.diffAmount),
                             returnDisplay: formatMoney(goal.returnValue),
-                            returnPercentDisplay: formatPercentDisplay(goal.returnPercent, { multiplier: 100 }),
+                            returnPercentDisplay: formatPercentFromRatio(goal.returnPercent, { showSign: false }),
                             returnClass: getReturnClass(goal.returnValue)
                         }))
                     };
@@ -579,7 +687,7 @@
         performanceData.forEach(perf => {
             const invest = investibleMap[perf.goalId] || {};
             const summary = summaryMap[perf.goalId] || {};
-            const goalName = invest.goalName || summary.goalName || '';
+            const goalName = normalizeGoalName(invest.goalName || summary.goalName || '');
             // Extract bucket name using "Bucket Name - Goal Description" convention
             const goalBucket = extractBucketName(goalName);
             // Note: investible API `totalInvestmentAmount` is misnamed and represents ending balance.
@@ -600,7 +708,7 @@
                 goalId: perf.goalId,
                 goalName: goalName,
                 goalBucket: goalBucket,
-                goalType: invest.investmentGoalType || summary.investmentGoalType || '',
+                goalType: normalizeGoalType(invest.investmentGoalType || summary.investmentGoalType || ''),
                 endingBalanceAmount: Number.isFinite(endingBalanceAmount) ? endingBalanceAmount : null,
                 totalCumulativeReturn: Number.isFinite(cumulativeReturn) ? cumulativeReturn : null,
                 simpleRateOfReturnPercent: Number.isFinite(perf.simpleRateOfReturnPercent)
@@ -647,7 +755,7 @@
     };
 
     function getPerformanceCacheKey(goalId) {
-        return `gpv_performance_${goalId}`;
+        return `${STORAGE_KEY_PREFIXES.performanceCache}${goalId}`;
     }
 
     function isCacheFresh(fetchedAt, maxAgeMs, nowMs = Date.now()) {
@@ -670,15 +778,7 @@
     }
 
     function formatPercentage(value) {
-        if (value === null || value === undefined) {
-            return '-';
-        }
-        const numericValue = Number(value);
-        if (!Number.isFinite(numericValue)) {
-            return '-';
-        }
-        const sign = numericValue > 0 ? '+' : '';
-        return `${sign}${(numericValue * 100).toFixed(2)}%`;
+        return formatPercentFromRatio(value, { showSign: true });
     }
 
     function normalizeTimeSeriesData(timeSeriesData) {
@@ -924,6 +1024,17 @@
         return null;
     }
 
+    function parseJsonSafely(rawText) {
+        if (typeof rawText !== 'string' || !rawText.trim()) {
+            return null;
+        }
+        try {
+            return JSON.parse(rawText);
+        } catch (_error) {
+            return null;
+        }
+    }
+
     function calculateWeightedAverage(values, weights) {
         if (!Array.isArray(values) || !Array.isArray(weights) || values.length !== weights.length) {
             return null;
@@ -945,7 +1056,9 @@
     }
 
     function calculateWeightedWindowReturns(performanceResponses) {
-        const responses = Array.isArray(performanceResponses) ? performanceResponses : [];
+        const responses = Array.isArray(performanceResponses)
+            ? performanceResponses.map(normalizePerformanceResponse)
+            : [];
         const windowKeys = Object.values(PERFORMANCE_WINDOWS).map(window => window.key);
         const valuesByWindow = {};
         const weightsByWindow = {};
@@ -987,7 +1100,9 @@
     }
 
     function summarizePerformanceMetrics(performanceResponses, mergedTimeSeries) {
-        const responses = Array.isArray(performanceResponses) ? performanceResponses : [];
+        const responses = Array.isArray(performanceResponses)
+            ? performanceResponses.map(normalizePerformanceResponse)
+            : [];
         const netInvestments = [];
         const totalReturns = [];
         const simpleReturns = [];
@@ -1118,12 +1233,12 @@
     const ENDPOINT_HANDLERS = {
         performance: data => {
             apiData.performance = data;
-            GM_setValue('api_performance', JSON.stringify(data));
+            GM_setValue(STORAGE_KEYS.performance, JSON.stringify(data));
             logDebug('[Goal Portfolio Viewer] Intercepted performance data');
         },
         investible: data => {
             apiData.investible = data;
-            GM_setValue('api_investible', JSON.stringify(data));
+            GM_setValue(STORAGE_KEYS.investible, JSON.stringify(data));
             logDebug('[Goal Portfolio Viewer] Intercepted investible data');
         },
         summary: data => {
@@ -1131,7 +1246,7 @@
                 return;
             }
             apiData.summary = data;
-            GM_setValue('api_summary', JSON.stringify(data));
+            GM_setValue(STORAGE_KEYS.summary, JSON.stringify(data));
             logDebug('[Goal Portfolio Viewer] Intercepted summary data');
         }
     };
@@ -1140,13 +1255,13 @@
         if (typeof url !== 'string') {
             return null;
         }
-        if (url.includes('/v1/goals/performance')) {
+        if (url.includes(ENDPOINT_PATHS.performance)) {
             return 'performance';
         }
-        if (url.includes('/v2/goals/investible')) {
+        if (url.includes(ENDPOINT_PATHS.investible)) {
             return 'investible';
         }
-        if (url.match(/\/v1\/goals(?:[?#]|$)/)) {
+        if (url.match(SUMMARY_ENDPOINT_REGEX)) {
             return 'summary';
         }
         return null;
@@ -1163,6 +1278,9 @@
         }
         try {
             const data = await readData();
+            if (data === null || data === undefined) {
+                return;
+            }
             handler(data);
         } catch (error) {
             console.error('[Goal Portfolio Viewer] Error parsing API response:', error);
@@ -1237,7 +1355,7 @@
         
         if (url && typeof url === 'string') {
             this.addEventListener('load', function() {
-                handleInterceptedResponse(url, () => Promise.resolve(JSON.parse(this.responseText)));
+                handleInterceptedResponse(url, () => Promise.resolve(parseJsonSafely(this.responseText)));
             });
         }
         
@@ -1323,9 +1441,9 @@
      */
     function loadStoredData(apiDataState) {
         try {
-            const storedPerformance = GM_getValue('api_performance', null);
-            const storedInvestible = GM_getValue('api_investible', null);
-            const storedSummary = GM_getValue('api_summary', null);
+            const storedPerformance = GM_getValue(STORAGE_KEYS.performance, null);
+            const storedInvestible = GM_getValue(STORAGE_KEYS.investible, null);
+            const storedSummary = GM_getValue(STORAGE_KEYS.summary, null);
             
             if (storedPerformance) {
                 const parsed = JSON.parse(storedPerformance);
@@ -1333,7 +1451,7 @@
                     apiDataState.performance = parsed;
                     logDebug('[Goal Portfolio Viewer] Loaded performance data from storage');
                 } else {
-                    GM_deleteValue('api_performance');
+                    GM_deleteValue(STORAGE_KEYS.performance);
                 }
             }
             if (storedInvestible) {
@@ -1342,7 +1460,7 @@
                     apiDataState.investible = parsed;
                     logDebug('[Goal Portfolio Viewer] Loaded investible data from storage');
                 } else {
-                    GM_deleteValue('api_investible');
+                    GM_deleteValue(STORAGE_KEYS.investible);
                 }
             }
             if (storedSummary) {
@@ -1351,7 +1469,7 @@
                     apiDataState.summary = parsed;
                     logDebug('[Goal Portfolio Viewer] Loaded summary data from storage');
                 } else {
-                    GM_deleteValue('api_summary');
+                    GM_deleteValue(STORAGE_KEYS.summary);
                 }
             }
         } catch (e) {
@@ -1547,11 +1665,19 @@
         const deviceId = getHeaderValue(headers, 'device-id');
 
         if (authorization || clientId || deviceId) {
-            performanceRequestHeaders = {
+            if (!performanceRequestHeaders || typeof performanceRequestHeaders !== 'object') {
+                performanceRequestHeaders = {};
+            }
+            const nextHeaders = {
                 authorization,
                 'client-id': clientId,
                 'device-id': deviceId
             };
+            Object.entries(nextHeaders).forEach(([key, value]) => {
+                if (value) {
+                    performanceRequestHeaders[key] = value;
+                }
+            });
         }
     }
 
@@ -1618,7 +1744,7 @@
         if (!cached) {
             return null;
         }
-        return cached.response || null;
+        return cached.response ? normalizePerformanceResponse(cached.response) : null;
     }
     testExports.getCachedPerformanceResponse = getCachedPerformanceResponse;
 
@@ -1676,9 +1802,10 @@
         const queueResults = await performanceRequestQueue(idsToFetch, async goalId => {
             try {
                 const data = await fetchPerformanceForGoal(goalId);
-                writePerformanceCache(goalId, data);
-                goalPerformanceData[goalId] = data;
-                return data;
+                const normalized = normalizePerformanceResponse(data);
+                writePerformanceCache(goalId, normalized);
+                goalPerformanceData[goalId] = normalized;
+                return normalized;
             } catch (error) {
                 console.warn('[Goal Portfolio Viewer] Performance fetch failed:', error);
                 return null;
@@ -1695,15 +1822,18 @@
     }
 
     function buildGoalTypePerformanceSummary(performanceResponses) {
-        if (!performanceResponses.length) {
+        const responses = Array.isArray(performanceResponses)
+            ? performanceResponses.map(normalizePerformanceResponse)
+            : [];
+        if (!responses.length) {
             return null;
         }
-        const normalizedSeriesCollection = performanceResponses.map(response =>
+        const normalizedSeriesCollection = responses.map(response =>
             normalizeTimeSeriesData(response?.timeSeries?.data || [])
         );
         const mergedSeries = mergeTimeSeriesByDate(normalizedSeriesCollection, true);
         const normalizedMergedSeries = normalizeTimeSeriesData(mergedSeries);
-        const primaryPerformanceDates = performanceResponses[0]?.performanceDates;
+        const primaryPerformanceDates = responses[0]?.performanceDates;
         const windowStart = getWindowStartDate(
             PERFORMANCE_CHART_WINDOW,
             normalizedMergedSeries,
@@ -1711,15 +1841,15 @@
             true
         );
         const windowSeries = getTimeSeriesWindow(normalizedMergedSeries, windowStart, true);
-        const windowReturns = performanceResponses.length === 1
+        const windowReturns = responses.length === 1
             ? derivePerformanceWindows(
-                performanceResponses[0]?.returnsTable,
+                responses[0]?.returnsTable,
                 primaryPerformanceDates,
-                performanceResponses[0]?.timeSeries?.data || []
+                responses[0]?.timeSeries?.data || []
             )
-            : calculateWeightedWindowReturns(performanceResponses);
+            : calculateWeightedWindowReturns(responses);
 
-        const metrics = summarizePerformanceMetrics(performanceResponses, normalizedMergedSeries);
+        const metrics = summarizePerformanceMetrics(responses, normalizedMergedSeries);
 
         return {
             mergedSeries,
@@ -1770,6 +1900,8 @@
     const PERFORMANCE_CHART_MIN_WIDTH = 240;
     const PERFORMANCE_CHART_MIN_HEIGHT = 90;
     const PERFORMANCE_CHART_MAX_HEIGHT = 180;
+    const PERFORMANCE_CHART_LEFT_PADDING = 100;
+    const PERFORMANCE_CHART_RIGHT_PADDING = 50;
     // Aspect ratio tuned for typical container widths (≈240–800px) to keep charts readable
     // while staying within PERFORMANCE_CHART_MIN_HEIGHT and PERFORMANCE_CHART_MAX_HEIGHT.
     const PERFORMANCE_CHART_ASPECT_RATIO = 0.28;
@@ -1862,92 +1994,108 @@
         };
     }
 
-    function createLineChartSvg(series, chartWidth, chartHeight) {
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    function getChartLayout(chartWidth, chartHeight) {
         const widthValue = Math.max(PERFORMANCE_CHART_MIN_WIDTH, Number(chartWidth) || PERFORMANCE_CHART_DEFAULT_WIDTH);
         const heightValue = Math.max(PERFORMANCE_CHART_MIN_HEIGHT, Number(chartHeight) || PERFORMANCE_CHART_DEFAULT_HEIGHT);
-        // Add 100px left padding and 50px right padding for proper spacing
-        const leftPadding = 100;
-        const rightPadding = 50;
-        const totalHorizontalPadding = leftPadding + rightPadding;
-        // ViewBox shows full width since we now handle padding internally
-        const viewBoxWidth = widthValue;
-        svg.setAttribute('viewBox', `0 0 ${viewBoxWidth} ${heightValue}`);
-        svg.setAttribute('class', 'gpv-performance-chart');
+        const padding = getChartPadding(widthValue, heightValue);
+        const plotWidth = Math.max(
+            1,
+            widthValue - PERFORMANCE_CHART_LEFT_PADDING - PERFORMANCE_CHART_RIGHT_PADDING - padding * 2
+        );
+        const plotHeight = Math.max(1, heightValue - padding * 2);
+        return {
+            widthValue,
+            heightValue,
+            padding,
+            plotWidth,
+            plotHeight,
+            leftPadding: PERFORMANCE_CHART_LEFT_PADDING,
+            rightPadding: PERFORMANCE_CHART_RIGHT_PADDING
+        };
+    }
 
-        if (!Array.isArray(series) || series.length < 2) {
-            const emptyText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            // Position at center of viewBox (accounting for left and right padding)
-            emptyText.setAttribute('x', `${leftPadding + (viewBoxWidth - totalHorizontalPadding) / 2}`);
-            emptyText.setAttribute('y', `${heightValue / 2}`);
-            emptyText.setAttribute('text-anchor', 'middle');
-            emptyText.setAttribute('class', 'gpv-performance-chart-empty');
-            emptyText.textContent = 'No chart data';
-            svg.appendChild(emptyText);
-            return svg;
-        }
-
+    function getChartSeriesStats(series) {
         const amounts = series.map(point => Number(point.amount)).filter(val => Number.isFinite(val));
         if (amounts.length < 2) {
-            return svg;
+            return null;
         }
-
         const minValue = Math.min(...amounts);
         const maxValue = Math.max(...amounts);
-        const range = maxValue - minValue || 1;
-        // Use full width for padding calculation
-        const padding = getChartPadding(widthValue, heightValue);
-        // Chart dimensions account for left padding, right padding, and internal padding
-        const width = Math.max(1, widthValue - leftPadding - rightPadding - padding * 2);
-        const height = Math.max(1, heightValue - padding * 2);
+        return {
+            amounts,
+            minValue,
+            maxValue,
+            range: maxValue - minValue || 1
+        };
+    }
 
+    function getChartPoint(series, index, layout, minValue, range) {
+        const x = layout.leftPadding + layout.padding + (index / (series.length - 1)) * layout.plotWidth;
+        const y = layout.padding + layout.plotHeight - ((series[index].amount - minValue) / range) * layout.plotHeight;
+        return { x, y };
+    }
+
+    function formatChartDateLabel(dateString) {
+        const date = new Date(dateString);
+        if (!Number.isFinite(date.getTime())) {
+            return dateString;
+        }
+        return date.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' });
+    }
+
+    function appendChartXAxisLabels(axisGroup, series, layout) {
+        const xLabels = [
+            { value: series[0].date, anchor: 'start', x: layout.leftPadding + layout.padding },
+            {
+                value: series[series.length - 1].date,
+                anchor: 'end',
+                x: layout.leftPadding + layout.padding + layout.plotWidth
+            }
+        ];
+
+        xLabels.forEach(labelInfo => {
+            const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            label.setAttribute('x', `${labelInfo.x}`);
+            const labelY = Math.min(layout.heightValue - 6, layout.padding + layout.plotHeight + 12);
+            label.setAttribute('y', `${labelY}`);
+            label.setAttribute('text-anchor', labelInfo.anchor);
+            label.setAttribute('class', 'gpv-performance-chart-label');
+            label.textContent = formatChartDateLabel(labelInfo.value);
+            axisGroup.appendChild(label);
+        });
+    }
+
+    function buildChartAxisGroup(layout, minValue, maxValue, range, series) {
         const axisGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         axisGroup.setAttribute('class', 'gpv-performance-chart-axis');
 
         const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        xAxis.setAttribute('x1', `${leftPadding + padding}`);
-        xAxis.setAttribute('x2', `${leftPadding + padding + width}`);
-        xAxis.setAttribute('y1', `${padding + height}`);
-        xAxis.setAttribute('y2', `${padding + height}`);
+        xAxis.setAttribute('x1', `${layout.leftPadding + layout.padding}`);
+        xAxis.setAttribute('x2', `${layout.leftPadding + layout.padding + layout.plotWidth}`);
+        xAxis.setAttribute('y1', `${layout.padding + layout.plotHeight}`);
+        xAxis.setAttribute('y2', `${layout.padding + layout.plotHeight}`);
         axisGroup.appendChild(xAxis);
 
         const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        yAxis.setAttribute('x1', `${leftPadding + padding}`);
-        yAxis.setAttribute('x2', `${leftPadding + padding}`);
-        yAxis.setAttribute('y1', `${padding}`);
-        yAxis.setAttribute('y2', `${padding + height}`);
+        yAxis.setAttribute('x1', `${layout.leftPadding + layout.padding}`);
+        yAxis.setAttribute('x2', `${layout.leftPadding + layout.padding}`);
+        yAxis.setAttribute('y1', `${layout.padding}`);
+        yAxis.setAttribute('y2', `${layout.padding + layout.plotHeight}`);
         axisGroup.appendChild(yAxis);
-
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        const trendPositive = amounts[amounts.length - 1] >= amounts[0];
-        const strokeColor = trendPositive ? '#10b981' : '#ef4444';
-
-        const points = series.map((point, index) => {
-            const x = leftPadding + padding + (index / (series.length - 1)) * width;
-            const y = padding + height - ((point.amount - minValue) / range) * height;
-            return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
-        });
-
-        path.setAttribute('d', points.join(' '));
-        path.setAttribute('fill', 'none');
-        path.setAttribute('stroke', strokeColor);
-        path.setAttribute('stroke-width', '2.5');
-        path.setAttribute('stroke-linecap', 'round');
-        path.setAttribute('stroke-linejoin', 'round');
 
         const tickValues = [maxValue, (maxValue + minValue) / 2, minValue];
         tickValues.forEach((value, index) => {
-            const y = padding + height - ((value - minValue) / range) * height;
+            const y = layout.padding + layout.plotHeight - ((value - minValue) / range) * layout.plotHeight;
             const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            tick.setAttribute('x1', `${leftPadding + padding - 3}`);
-            tick.setAttribute('x2', `${leftPadding + padding}`);
+            tick.setAttribute('x1', `${layout.leftPadding + layout.padding - 3}`);
+            tick.setAttribute('x2', `${layout.leftPadding + layout.padding}`);
             tick.setAttribute('y1', `${y}`);
             tick.setAttribute('y2', `${y}`);
             tick.setAttribute('class', 'gpv-performance-chart-tick');
             axisGroup.appendChild(tick);
 
             const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            label.setAttribute('x', `${leftPadding + padding - 6}`);
+            label.setAttribute('x', `${layout.leftPadding + layout.padding - 6}`);
             label.setAttribute('y', `${y + 3}`);
             label.setAttribute('text-anchor', 'end');
             label.setAttribute('class', 'gpv-performance-chart-label');
@@ -1956,8 +2104,8 @@
 
             if (index === 1) {
                 const grid = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                grid.setAttribute('x1', `${leftPadding + padding}`);
-                grid.setAttribute('x2', `${leftPadding + padding + width}`);
+                grid.setAttribute('x1', `${layout.leftPadding + layout.padding}`);
+                grid.setAttribute('x2', `${layout.leftPadding + layout.padding + layout.plotWidth}`);
                 grid.setAttribute('y1', `${y}`);
                 grid.setAttribute('y2', `${y}`);
                 grid.setAttribute('class', 'gpv-performance-chart-grid');
@@ -1965,44 +2113,31 @@
             }
         });
 
-        const formatDateLabel = dateString => {
-            const date = new Date(dateString);
-            if (!Number.isFinite(date.getTime())) {
-                return dateString;
-            }
-            return date.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' });
-        };
+        appendChartXAxisLabels(axisGroup, series, layout);
 
-        const xLabels = [
-            { value: series[0].date, anchor: 'start', x: leftPadding + padding },
-            { value: series[series.length - 1].date, anchor: 'end', x: leftPadding + padding + width }
-        ];
+        return axisGroup;
+    }
 
-        xLabels.forEach(labelInfo => {
-            const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            label.setAttribute('x', `${labelInfo.x}`);
-            const labelY = Math.min(heightValue - 6, padding + height + 12);
-            label.setAttribute('y', `${labelY}`);
-            label.setAttribute('text-anchor', labelInfo.anchor);
-            label.setAttribute('class', 'gpv-performance-chart-label');
-            label.textContent = formatDateLabel(labelInfo.value);
-            axisGroup.appendChild(label);
+    function buildChartPath(series, layout, minValue, range) {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const trendPositive = series[series.length - 1].amount >= series[0].amount;
+        const strokeColor = trendPositive ? '#10b981' : '#ef4444';
+
+        const points = series.map((point, index) => {
+            const coords = getChartPoint(series, index, layout, minValue, range);
+            return `${index === 0 ? 'M' : 'L'} ${coords.x.toFixed(2)} ${coords.y.toFixed(2)}`;
         });
 
-        const axisTitleX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        axisTitleX.setAttribute('x', `${leftPadding + padding + width / 2}`);
-        axisTitleX.setAttribute('y', `${Math.min(heightValue - 2, padding + height + 20)}`);
-        axisTitleX.setAttribute('text-anchor', 'middle');
-        axisTitleX.setAttribute('class', 'gpv-performance-chart-title');
-        axisTitleX.textContent = 'Date';
+        path.setAttribute('d', points.join(' '));
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', strokeColor);
+        path.setAttribute('stroke-width', '2.5');
+        path.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('stroke-linejoin', 'round');
+        return path;
+    }
 
-        const axisTitleY = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        axisTitleY.setAttribute('x', `${Math.max(leftPadding + 4, leftPadding + padding - 10)}`);
-        axisTitleY.setAttribute('y', `${Math.max(12, padding - 6)}`);
-        axisTitleY.setAttribute('text-anchor', 'start');
-        axisTitleY.setAttribute('class', 'gpv-performance-chart-title');
-        axisTitleY.textContent = 'Value (SGD)';
-
+    function buildChartPointGroup(series, layout, minValue, range) {
         const highlightIndices = [0, Math.floor(series.length / 2), series.length - 1];
         const pointGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         pointGroup.setAttribute('class', 'gpv-performance-chart-points');
@@ -2011,19 +2146,67 @@
             if (!point) {
                 return;
             }
-            const x = leftPadding + padding + (index / (series.length - 1)) * width;
-            const y = padding + height - ((point.amount - minValue) / range) * height;
+            const coords = getChartPoint(series, index, layout, minValue, range);
             const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            circle.setAttribute('cx', `${x}`);
-            circle.setAttribute('cy', `${y}`);
+            circle.setAttribute('cx', `${coords.x}`);
+            circle.setAttribute('cy', `${coords.y}`);
             circle.setAttribute('r', '2.5');
             circle.setAttribute('class', 'gpv-performance-chart-point');
             pointGroup.appendChild(circle);
         });
+        return pointGroup;
+    }
+
+    function buildChartAxisTitles(layout) {
+        const axisTitleX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        axisTitleX.setAttribute('x', `${layout.leftPadding + layout.padding + layout.plotWidth / 2}`);
+        axisTitleX.setAttribute('y', `${Math.min(layout.heightValue - 2, layout.padding + layout.plotHeight + 20)}`);
+        axisTitleX.setAttribute('text-anchor', 'middle');
+        axisTitleX.setAttribute('class', 'gpv-performance-chart-title');
+        axisTitleX.textContent = 'Date';
+
+        const axisTitleY = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        axisTitleY.setAttribute('x', `${Math.max(layout.leftPadding + 4, layout.leftPadding + layout.padding - 10)}`);
+        axisTitleY.setAttribute('y', `${Math.max(12, layout.padding - 6)}`);
+        axisTitleY.setAttribute('text-anchor', 'start');
+        axisTitleY.setAttribute('class', 'gpv-performance-chart-title');
+        axisTitleY.textContent = 'Value (SGD)';
+
+        return { axisTitleX, axisTitleY };
+    }
+
+    function createLineChartSvg(series, chartWidth, chartHeight) {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        const layout = getChartLayout(chartWidth, chartHeight);
+        const totalHorizontalPadding = layout.leftPadding + layout.rightPadding;
+        svg.setAttribute('viewBox', `0 0 ${layout.widthValue} ${layout.heightValue}`);
+        svg.setAttribute('class', 'gpv-performance-chart');
+
+        if (!Array.isArray(series) || series.length < 2) {
+            const emptyText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            // Position at center of viewBox (accounting for left and right padding)
+            emptyText.setAttribute('x', `${layout.leftPadding + (layout.widthValue - totalHorizontalPadding) / 2}`);
+            emptyText.setAttribute('y', `${layout.heightValue / 2}`);
+            emptyText.setAttribute('text-anchor', 'middle');
+            emptyText.setAttribute('class', 'gpv-performance-chart-empty');
+            emptyText.textContent = 'No chart data';
+            svg.appendChild(emptyText);
+            return svg;
+        }
+
+        const stats = getChartSeriesStats(series);
+        if (!stats) {
+            return svg;
+        }
+
+        const axisGroup = buildChartAxisGroup(layout, stats.minValue, stats.maxValue, stats.range, series);
+        const path = buildChartPath(series, layout, stats.minValue, stats.range);
+        const pointGroup = buildChartPointGroup(series, layout, stats.minValue, stats.range);
+        const axisTitles = buildChartAxisTitles(layout);
 
         svg.appendChild(axisGroup);
-        svg.appendChild(axisTitleX);
-        svg.appendChild(axisTitleY);
+        svg.appendChild(axisTitles.axisTitleX);
+        svg.appendChild(axisTitles.axisTitleY);
         svg.appendChild(path);
         svg.appendChild(pointGroup);
         return svg;
@@ -2052,7 +2235,7 @@
 
             const value = document.createElement('div');
             value.className = 'gpv-performance-window-value';
-            value.textContent = formatPercentage(item.value);
+            value.textContent = formatPercentFromRatio(item.value, { showSign: true });
             if (typeof item.value === 'number') {
                 value.classList.add(item.value >= 0 ? 'positive' : 'negative');
             }
@@ -2072,9 +2255,9 @@
 
         const tbody = document.createElement('tbody');
         const rows = [
-            { label: 'Total Return %', value: formatPercentage(metrics?.totalReturnPercent) },
-            { label: 'TWR %', value: formatPercentage(metrics?.twrPercent) },
-            { label: 'Annualised IRR', value: formatPercentage(metrics?.annualisedIrrPercent) },
+            { label: 'Total Return %', value: formatPercentFromRatio(metrics?.totalReturnPercent, { showSign: true }) },
+            { label: 'TWR %', value: formatPercentFromRatio(metrics?.twrPercent, { showSign: true }) },
+            { label: 'Annualised IRR', value: formatPercentFromRatio(metrics?.annualisedIrrPercent, { showSign: true }) },
             { label: 'Gain / Loss', value: formatMoney(metrics?.totalReturnAmount) },
             { label: 'Net Fees', value: formatMoney(metrics?.netFeesAmount) },
             { label: 'Net Investment', value: formatMoney(metrics?.netInvestmentAmount) },
@@ -2391,7 +2574,7 @@
 
             const projectedInput = document.createElement('input');
             projectedInput.type = 'number';
-            projectedInput.className = 'gpv-projected-input';
+            projectedInput.className = CLASS_NAMES.projectedInput;
             projectedInput.step = '100';
             projectedInput.value = currentProjectedInvestment > 0 ? String(currentProjectedInvestment) : '';
             projectedInput.placeholder = 'Enter amount';
@@ -2416,7 +2599,7 @@
             });
 
             const table = document.createElement('table');
-            table.className = 'gpv-table gpv-goal-table';
+            table.className = `gpv-table ${CLASS_NAMES.goalTable}`;
             const thead = document.createElement('thead');
             const headerRow = document.createElement('tr');
 
@@ -2428,11 +2611,12 @@
             const targetHeader = document.createElement('th');
             targetHeader.className = 'gpv-target-header';
             targetHeader.appendChild(createElement('div', null, 'Target %'));
+            const remainingTargetClass = goalTypeModel.remainingTargetIsHigh
+                ? `${CLASS_NAMES.remainingTarget} ${CLASS_NAMES.remainingAlert}`
+                : CLASS_NAMES.remainingTarget;
             const remainingTarget = createElement(
                 'div',
-                goalTypeModel.remainingTargetIsHigh
-                    ? 'gpv-remaining-target gpv-remaining-alert'
-                    : 'gpv-remaining-target',
+                remainingTargetClass,
                 `Remaining: ${goalTypeModel.remainingTargetDisplay}`
             );
             targetHeader.appendChild(remainingTarget);
@@ -2465,7 +2649,7 @@
                 const fixedLabel = createElement('label', 'gpv-fixed-toggle');
                 const fixedInput = document.createElement('input');
                 fixedInput.type = 'checkbox';
-                fixedInput.className = 'gpv-fixed-toggle-input';
+                fixedInput.className = CLASS_NAMES.fixedToggleInput;
                 fixedInput.dataset.goalId = goalModel.goalId;
                 fixedInput.checked = goalModel.isFixed === true;
                 const fixedSlider = createElement('span', 'gpv-toggle-slider');
@@ -2478,7 +2662,7 @@
                 targetCell.className = 'gpv-target-cell';
                 const targetInput = document.createElement('input');
                 targetInput.type = 'number';
-                targetInput.className = 'gpv-target-input';
+                targetInput.className = CLASS_NAMES.targetInput;
                 targetInput.min = '0';
                 targetInput.max = '100';
                 targetInput.step = '0.01';
@@ -2491,8 +2675,8 @@
                 tr.appendChild(targetCell);
 
                 const diffClassName = goalModel.diffClass
-                    ? `gpv-diff-cell ${goalModel.diffClass}`
-                    : 'gpv-diff-cell';
+                    ? `${CLASS_NAMES.diffCell} ${goalModel.diffClass}`
+                    : CLASS_NAMES.diffCell;
                 tr.appendChild(createElement('td', diffClassName, goalModel.diffDisplay));
                 tr.appendChild(createElement('td', goalModel.returnClass || null, goalModel.returnDisplay));
                 tr.appendChild(createElement('td', goalModel.returnClass || null, goalModel.returnPercentDisplay));
@@ -2593,19 +2777,19 @@
         if (!snapshot) {
             return;
         }
-        const remainingTarget = typeSection.querySelector('.gpv-remaining-target');
+        const remainingTarget = typeSection.querySelector(`.${CLASS_NAMES.remainingTarget}`);
         if (remainingTarget) {
-            remainingTarget.textContent = `Remaining: ${formatPercentDisplay(snapshot.remainingTargetPercent)}`;
+            remainingTarget.textContent = `Remaining: ${formatPercentFromPercent(snapshot.remainingTargetPercent)}`;
             remainingTarget.classList.toggle(
-                'gpv-remaining-alert',
+                CLASS_NAMES.remainingAlert,
                 isRemainingTargetAboveThreshold(snapshot.remainingTargetPercent)
             );
         }
-        const rows = typeSection.querySelectorAll('.gpv-goal-table tbody tr');
+        const rows = typeSection.querySelectorAll(`.${CLASS_NAMES.goalTable} tbody tr`);
         const forceTargetRefresh = options.forceTargetRefresh === true;
         rows.forEach(row => {
-            const targetInput = row.querySelector('.gpv-target-input');
-            const diffCell = row.querySelector('.gpv-diff-cell');
+            const targetInput = row.querySelector(`.${CLASS_NAMES.targetInput}`);
+            const diffCell = row.querySelector(`.${CLASS_NAMES.diffCell}`);
             if (!targetInput) {
                 return;
             }
@@ -2622,8 +2806,8 @@
             if (diffCell) {
                 diffCell.textContent = goalModel.diffAmount === null ? '-' : formatMoney(goalModel.diffAmount);
                 diffCell.className = goalModel.diffClass
-                    ? `gpv-diff-cell ${goalModel.diffClass}`
-                    : 'gpv-diff-cell';
+                    ? `${CLASS_NAMES.diffCell} ${goalModel.diffClass}`
+                    : CLASS_NAMES.diffCell;
             }
         });
     }
@@ -2655,13 +2839,13 @@
         }
         const value = input.value;
         const row = input.closest('tr');
-        const diffCell = row.querySelector('.gpv-diff-cell');
+        const diffCell = row.querySelector(`.${CLASS_NAMES.diffCell}`);
         
         if (value === '') {
             // Clear the target if input is empty
             GoalTargetStore.clearTarget(goalId);
             diffCell.textContent = '-';
-            diffCell.className = 'gpv-diff-cell';
+            diffCell.className = CLASS_NAMES.diffCell;
             refreshGoalTypeSection(
                 typeSection,
                 bucket,
@@ -2675,7 +2859,7 @@
         const targetPercent = parseFloat(value);
         
         // Validate input
-        if (isNaN(targetPercent)) {
+        if (!Number.isFinite(targetPercent)) {
             // Invalid number - show error feedback
             input.style.borderColor = '#dc2626';
             setTimeout(() => {
@@ -2686,6 +2870,13 @@
         
         // Save to storage (this will clamp to 0-100 automatically)
         const savedValue = GoalTargetStore.setTarget(goalId, targetPercent);
+        if (!Number.isFinite(savedValue)) {
+            input.style.borderColor = '#dc2626';
+            setTimeout(() => {
+                input.style.borderColor = '';
+            }, 1000);
+            return;
+        }
         
         // Check if value was clamped and provide feedback
         if (savedValue !== targetPercent) {
@@ -2789,7 +2980,7 @@
         }
         
         // Recalculate all diffs in this goal type section
-        const tbody = typeSection.querySelector('.gpv-goal-table tbody');
+        const tbody = typeSection.querySelector(`.${CLASS_NAMES.goalTable} tbody`);
         if (tbody) {
             refreshGoalTypeSection(
                 typeSection,
@@ -3813,6 +4004,25 @@
             updateButtonVisibility();
         }
     }
+
+    function wrapHistoryMethod(methodName, onChange) {
+        const original = history[methodName];
+        if (typeof original !== 'function') {
+            return () => {};
+        }
+        const wrapped = function(...args) {
+            const result = original.apply(this, args);
+            onChange();
+            return result;
+        };
+        wrapped.__gpvOriginal = original;
+        history[methodName] = wrapped;
+        return () => {
+            if (history[methodName] === wrapped) {
+                history[methodName] = original;
+            }
+        };
+    }
     
     function startUrlMonitoring() {
         if (window.__gpvUrlMonitorCleanup) {
@@ -3834,21 +4044,8 @@
         // Listen to popstate event for browser back/forward navigation
         window.addEventListener('popstate', handleUrlChange);
 
-        // Override pushState to detect programmatic navigation
-        const originalPushState = history.pushState;
-        history.pushState = function(...args) {
-            const result = originalPushState.apply(this, args);
-            handleUrlChange();
-            return result;
-        };
-
-        // Override replaceState to detect programmatic navigation
-        const originalReplaceState = history.replaceState;
-        history.replaceState = function(...args) {
-            const result = originalReplaceState.apply(this, args);
-            handleUrlChange();
-            return result;
-        };
+        const restorePushState = wrapHistoryMethod('pushState', handleUrlChange);
+        const restoreReplaceState = wrapHistoryMethod('replaceState', handleUrlChange);
 
         const intervalId = window.setInterval(handleUrlChange, 500);
 
@@ -3868,8 +4065,8 @@
 
         window.__gpvUrlMonitorCleanup = () => {
             window.removeEventListener('popstate', handleUrlChange);
-            history.pushState = originalPushState;
-            history.replaceState = originalReplaceState;
+            restorePushState();
+            restoreReplaceState();
             window.clearInterval(intervalId);
             if (observer) {
                 observer.disconnect();
@@ -3928,6 +4125,8 @@
             getDisplayGoalType,
             sortGoalTypes,
             formatMoney,
+            formatPercentFromRatio,
+            formatPercentFromPercent,
             formatPercentDisplay,
             formatGrowthPercentFromEndingBalance,
             getReturnClass,
@@ -3953,6 +4152,7 @@
             isCacheRefreshAllowed,
             formatPercentage,
             normalizeTimeSeriesData,
+            normalizePerformanceResponse,
             getLatestTimeSeriesPoint,
             findNearestPointOnOrBefore,
             getPerformanceDate,

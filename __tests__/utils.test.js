@@ -13,6 +13,8 @@ const {
     getDisplayGoalType,
     sortGoalTypes,
     formatMoney,
+    formatPercentFromRatio,
+    formatPercentFromPercent,
     formatPercentDisplay,
     formatGrowthPercentFromEndingBalance,
     calculateGoalDiff,
@@ -27,6 +29,7 @@ const {
     formatPercentage,
     isDashboardRoute,
     normalizeTimeSeriesData,
+    normalizePerformanceResponse,
     getLatestTimeSeriesPoint,
     findNearestPointOnOrBefore,
     getPerformanceDate,
@@ -70,6 +73,11 @@ describe('getProjectedInvestmentKey', () => {
         expect(getProjectedInvestmentKey('Emergency-Fund', 'CASH_MANAGEMENT'))
             .toBe('Emergency-Fund|CASH_MANAGEMENT');
     });
+
+    test('should encode separator characters', () => {
+        expect(getProjectedInvestmentKey('Bucket|Name', 'TYPE|A'))
+            .toBe('Bucket%7CName|TYPE%7CA');
+    });
 });
 
 describe('extractBucketName', () => {
@@ -111,7 +119,7 @@ describe('getDisplayGoalType', () => {
     });
 
     test('should handle empty string', () => {
-        expect(getDisplayGoalType('')).toBe('');
+        expect(getDisplayGoalType('')).toBe('Unknown');
     });
 });
 
@@ -206,6 +214,33 @@ describe('formatPercentDisplay', () => {
 
     test('should format with custom multiplier', () => {
         expect(formatPercentDisplay(0.1234, { multiplier: 100 })).toBe('12.34%');
+    });
+});
+
+describe('formatPercentFromRatio', () => {
+    test('should format ratio with sign when enabled', () => {
+        expect(formatPercentFromRatio(0.1, { showSign: true })).toBe('+10.00%');
+        expect(formatPercentFromRatio(-0.025, { showSign: true })).toBe('-2.50%');
+    });
+
+    test('should format ratio without sign by default', () => {
+        expect(formatPercentFromRatio(0.1)).toBe('10.00%');
+        expect(formatPercentFromRatio(0)).toBe('0.00%');
+    });
+
+    test('should return fallback for invalid ratios', () => {
+        expect(formatPercentFromRatio('invalid')).toBe('-');
+    });
+});
+
+describe('formatPercentFromPercent', () => {
+    test('should format percent with optional sign', () => {
+        expect(formatPercentFromPercent(12.5)).toBe('12.50%');
+        expect(formatPercentFromPercent(12.5, { showSign: true })).toBe('+12.50%');
+    });
+
+    test('should return fallback for invalid percents', () => {
+        expect(formatPercentFromPercent(null, { fallback: 'n/a' })).toBe('n/a');
     });
 });
 
@@ -553,6 +588,27 @@ describe('normalizeTimeSeriesData', () => {
             { date: '2024-06-01', amount: null }
         ]);
         expect(result).toEqual([]);
+    });
+});
+
+describe('normalizePerformanceResponse', () => {
+    test('should provide default nested objects', () => {
+        const normalized = normalizePerformanceResponse(null);
+        expect(normalized.returnsTable).toEqual({});
+        expect(normalized.performanceDates).toEqual({});
+        expect(normalized.timeSeries.data).toEqual([]);
+    });
+
+    test('should preserve existing nested data', () => {
+        const response = {
+            returnsTable: { twr: { oneMonthValue: 0.1 } },
+            performanceDates: { ytd: '2024-01-01' },
+            timeSeries: { data: [{ date: '2024-01-01', amount: 100 }] }
+        };
+        const normalized = normalizePerformanceResponse(response);
+        expect(normalized.returnsTable.twr.oneMonthValue).toBe(0.1);
+        expect(normalized.performanceDates.ytd).toBe('2024-01-01');
+        expect(normalized.timeSeries.data).toHaveLength(1);
     });
 });
 
@@ -1369,9 +1425,9 @@ describe('buildMergedInvestmentData', () => {
         const result = buildMergedInvestmentData(performanceData, investibleData, summaryData);
 
         expect(result).toBeDefined();
-        expect(result.Test['']).toBeDefined();
-        expect(result.Test[''].goals[0].endingBalanceAmount).toBeNull();
-        expect(result.Test[''].goals[0].totalCumulativeReturn).toBeNull();
+        expect(result.Test.UNKNOWN_GOAL_TYPE).toBeDefined();
+        expect(result.Test.UNKNOWN_GOAL_TYPE.goals[0].endingBalanceAmount).toBeNull();
+        expect(result.Test.UNKNOWN_GOAL_TYPE.goals[0].totalCumulativeReturn).toBeNull();
     });
 
     test('should fallback to summary data if investible data missing fields', () => {
