@@ -119,7 +119,7 @@
 
     function normalizeGoalType(goalType) {
         const normalized = normalizeString(goalType, UNKNOWN_GOAL_TYPE);
-        return normalized || UNKNOWN_GOAL_TYPE;
+        return normalized;
     }
 
     function normalizeGoalName(goalName) {
@@ -1393,10 +1393,11 @@
                 const key = getGoalTargetKey(goalId);
                 GM_setValue(key, validPercentage);
                 logDebug(`[Goal Portfolio Viewer] Saved goal target percentage for ${goalId}: ${validPercentage}%`);
+                return validPercentage;
             } catch (e) {
                 console.error('[Goal Portfolio Viewer] Error saving goal target percentage:', e);
+                return null;
             }
-            return validPercentage;
         },
         clearTarget(goalId) {
             try {
@@ -2408,9 +2409,9 @@
 
     function createStatItem(label, value, valueClass) {
         const item = createElement('div', 'gpv-stat-item');
-        item.appendChild(createElement('span', 'gpv-stat-label', label));
+        appendTextSpan(item, 'gpv-stat-label', label);
         const valueClassName = valueClass ? `gpv-stat-value ${valueClass}` : 'gpv-stat-value';
-        item.appendChild(createElement('span', valueClassName, value));
+        appendTextSpan(item, valueClassName, value);
         return item;
     }
 
@@ -2567,10 +2568,8 @@
             const projectedInputContainer = document.createElement('div');
             projectedInputContainer.className = 'gpv-projected-input-container';
             const projectedLabel = createElement('label', 'gpv-projected-label');
-            const projectedIcon = createElement('span', 'gpv-projected-icon', '💡');
-            const projectedText = createElement('span', null, 'Add Projected Investment (simulation only):');
-            projectedLabel.appendChild(projectedIcon);
-            projectedLabel.appendChild(projectedText);
+            appendTextSpan(projectedLabel, 'gpv-projected-icon', '💡');
+            appendTextSpan(projectedLabel, null, 'Add Projected Investment (simulation only):');
 
             const projectedInput = document.createElement('input');
             projectedInput.type = 'number';
@@ -2652,9 +2651,8 @@
                 fixedInput.className = CLASS_NAMES.fixedToggleInput;
                 fixedInput.dataset.goalId = goalModel.goalId;
                 fixedInput.checked = goalModel.isFixed === true;
-                const fixedSlider = createElement('span', 'gpv-toggle-slider');
                 fixedLabel.appendChild(fixedInput);
-                fixedLabel.appendChild(fixedSlider);
+                appendTextSpan(fixedLabel, 'gpv-toggle-slider');
                 fixedCell.appendChild(fixedLabel);
                 tr.appendChild(fixedCell);
 
@@ -4012,10 +4010,13 @@
         }
         const wrapped = function(...args) {
             const result = original.apply(this, args);
-            onChange();
+            try {
+                onChange();
+            } catch (error) {
+                console.warn('[Goal Portfolio Viewer] URL monitoring error:', error);
+            }
             return result;
         };
-        wrapped.__gpvOriginal = original;
         history[methodName] = wrapped;
         return () => {
             if (history[methodName] === wrapped) {
@@ -4118,6 +4119,9 @@
     // Pattern: Keep all logic in ONE place (this file), test the real implementation.
     if (typeof module !== 'undefined' && module.exports) {
         const baseExports = {
+            normalizeString,
+            normalizeGoalType,
+            normalizeGoalName,
             getGoalTargetKey,
             getGoalFixedKey,
             getProjectedInvestmentKey,
@@ -4162,6 +4166,7 @@
             mergeTimeSeriesByDate,
             getTimeSeriesWindow,
             extractAmount,
+            parseJsonSafely,
             calculateWeightedAverage,
             calculateWeightedWindowReturns,
             summarizePerformanceMetrics,

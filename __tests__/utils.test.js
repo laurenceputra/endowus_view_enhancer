@@ -7,6 +7,9 @@
  */
 
 const {
+    normalizeString,
+    normalizeGoalType,
+    normalizeGoalName,
     getGoalTargetKey,
     getProjectedInvestmentKey,
     extractBucketName,
@@ -42,7 +45,8 @@ const {
     calculateWeightedAverage,
     calculateWeightedWindowReturns,
     summarizePerformanceMetrics,
-    derivePerformanceWindows
+    derivePerformanceWindows,
+    parseJsonSafely
 } = require('../tampermonkey/goal_portfolio_viewer.user.js');
 
 describe('getGoalTargetKey', () => {
@@ -56,6 +60,43 @@ describe('getGoalTargetKey', () => {
 
     test('should handle special characters', () => {
         expect(getGoalTargetKey('goal-123-abc')).toBe('goal_target_pct_goal-123-abc');
+    });
+});
+
+describe('normalizeString', () => {
+    test('should return fallback for null/undefined', () => {
+        expect(normalizeString(null, 'fallback')).toBe('fallback');
+        expect(normalizeString(undefined, 'fallback')).toBe('fallback');
+    });
+
+    test('should trim strings and collapse whitespace-only to fallback', () => {
+        expect(normalizeString('  Hello  ', 'fallback')).toBe('Hello');
+        expect(normalizeString('   ', 'fallback')).toBe('fallback');
+    });
+
+    test('should coerce non-string types', () => {
+        expect(normalizeString(123)).toBe('123');
+        expect(normalizeString(false)).toBe('false');
+        expect(normalizeString({ key: 'value' })).toBe('[object Object]');
+    });
+});
+
+describe('normalizeGoalType', () => {
+    test('should return UNKNOWN_GOAL_TYPE for missing values', () => {
+        expect(normalizeGoalType(null)).toBe('UNKNOWN_GOAL_TYPE');
+        expect(normalizeGoalType('')).toBe('UNKNOWN_GOAL_TYPE');
+        expect(normalizeGoalType('   ')).toBe('UNKNOWN_GOAL_TYPE');
+    });
+
+    test('should trim and return valid values', () => {
+        expect(normalizeGoalType(' CASH_MANAGEMENT ')).toBe('CASH_MANAGEMENT');
+    });
+});
+
+describe('normalizeGoalName', () => {
+    test('should trim names and allow empty fallback', () => {
+        expect(normalizeGoalName(' Retirement ')).toBe('Retirement');
+        expect(normalizeGoalName('   ')).toBe('');
     });
 });
 
@@ -609,6 +650,26 @@ describe('normalizePerformanceResponse', () => {
         expect(normalized.returnsTable.twr.oneMonthValue).toBe(0.1);
         expect(normalized.performanceDates.ytd).toBe('2024-01-01');
         expect(normalized.timeSeries.data).toHaveLength(1);
+    });
+});
+
+describe('parseJsonSafely', () => {
+    test('should parse valid JSON', () => {
+        expect(parseJsonSafely('{\"ok\":true}')).toEqual({ ok: true });
+    });
+
+    test('should return null for invalid JSON', () => {
+        expect(parseJsonSafely('{invalid')).toBeNull();
+    });
+
+    test('should return null for empty or whitespace input', () => {
+        expect(parseJsonSafely('')).toBeNull();
+        expect(parseJsonSafely('   ')).toBeNull();
+    });
+
+    test('should return null for null or undefined', () => {
+        expect(parseJsonSafely(null)).toBeNull();
+        expect(parseJsonSafely(undefined)).toBeNull();
     });
 });
 
