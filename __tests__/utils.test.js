@@ -655,7 +655,7 @@ describe('normalizePerformanceResponse', () => {
 
 describe('parseJsonSafely', () => {
     test('should parse valid JSON', () => {
-        expect(parseJsonSafely('{\"ok\":true}')).toEqual({ ok: true });
+        expect(parseJsonSafely('{"ok":true}')).toEqual({ ok: true });
     });
 
     test('should return null for invalid JSON', () => {
