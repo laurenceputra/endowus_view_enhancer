@@ -206,7 +206,7 @@ function buildMergedInvestmentData(performanceData, investibleData, summaryData)
             goalId: perf.goalId,
             goalName,
             goalBucket,
-            goalType: invest.investmentGoalType || summary.investmentGoalType || '',
+            goalType: normalizeGoalType(invest.investmentGoalType || summary.investmentGoalType || ''),
             // Note: investible API `totalInvestmentAmount` is misnamed and represents ending balance.
             // When available, use performance total investment value plus pending processing amount.
             endingBalanceAmount: Number.isFinite(endingBalanceAmount) ? endingBalanceAmount : null,
@@ -373,6 +373,8 @@ The `summaryViewModel` contains:
 Summary cards display the three headline stats: Balance, Return, and Growth.
 
 Growth percentages are calculated as `cumulativeReturn / (endingBalance - cumulativeReturn) * 100`, because ending balance is derived from performance totals (including pending processing amounts when available) or the investible API’s `totalInvestmentAmount`, which is misnamed and actually represents ending balance.
+
+Goals missing an `investmentGoalType` are normalized to `UNKNOWN_GOAL_TYPE` and shown as **Unknown** in the UI. This is defensive only; the platform is expected to provide goal types.
 
 #### Detail View Rendering
 

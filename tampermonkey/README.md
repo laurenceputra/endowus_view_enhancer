@@ -11,7 +11,7 @@ Managing multiple financial goals on the platform can be overwhelming when you h
 This Tampermonkey script automatically organizes your portfolio into custom buckets, providing instant insights into:
 - Ending balance per bucket
 - Cumulative returns and growth percentages
-- Detailed breakdowns by goal type (Investment, Cash, etc.)
+- Detailed breakdowns by goal type (Investment, Cash, etc.), with an **Unknown** fallback if a goal type is missing
 - Individual goal performance within each bucket
 
 Perfect for investors using strategies like Core + Satellite across multiple life goals.
@@ -95,7 +95,7 @@ The script will automatically group all goals starting with the same bucket name
 
 #### Summary View
 - Shows all buckets with their totals, returns, and growth percentages
-- Displays breakdown by goal type (Investment, Cash, etc.) within each bucket
+- Displays breakdown by goal type (Investment, Cash, etc.) within each bucket, using **Unknown** when a type is missing
 - Perfect for a quick overview of your entire portfolio
 - Click any bucket card to jump directly to its detail view (syncs the dropdown selection)
 
