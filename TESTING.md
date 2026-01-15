@@ -59,7 +59,6 @@ npm run test:watch
 npm run test:coverage
 
 # Run layered coverage (userscript vs overall)
-npm run coverage:layers
 ```
 
 ### Test Output
