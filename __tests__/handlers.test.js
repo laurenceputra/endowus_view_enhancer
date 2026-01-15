@@ -135,6 +135,15 @@ describe('handlers and cache', () => {
         expect(diffCell.className).toContain('gpv-diff-cell');
     });
 
+    test('GoalTargetStore.setTarget returns null for non-finite values', () => {
+        const { GoalTargetStore } = exportsModule;
+        if (!GoalTargetStore) return;
+
+        const result = GoalTargetStore.setTarget('g-nonfinite', Infinity);
+        expect(result).toBeNull();
+        expect(storage.has('goal_target_pct_g-nonfinite')).toBe(false);
+    });
+
     test('handleGoalFixedToggle disables target input and stores flag', () => {
         const { handleGoalFixedToggle } = exportsModule;
         if (typeof handleGoalFixedToggle !== 'function') return;

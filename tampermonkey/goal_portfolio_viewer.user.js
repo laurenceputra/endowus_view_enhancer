@@ -1436,6 +1436,7 @@
             }
         }
     };
+    testExports.GoalTargetStore = GoalTargetStore;
     
     /**
      * Load previously intercepted API data from Tampermonkey storage
@@ -1677,6 +1678,8 @@
             Object.entries(nextHeaders).forEach(([key, value]) => {
                 if (value) {
                     performanceRequestHeaders[key] = value;
+                } else if (DEBUG_AUTH && value === '') {
+                    logAuthDebug('[Goal Portfolio Viewer][DEBUG_AUTH] Skipped empty auth header:', { key });
                 }
             });
         }
@@ -2407,6 +2410,20 @@
         return span;
     }
 
+    function appendLabeledValue(container, wrapperClass, labelText, valueText, options = {}) {
+        const wrapper = createElement('span', wrapperClass);
+        const labelClass = options.labelClass || null;
+        const valueClass = options.valueClass || null;
+        const separator = options.separator ?? ' ';
+        appendTextSpan(wrapper, labelClass, labelText);
+        if (separator) {
+            wrapper.appendChild(document.createTextNode(separator));
+        }
+        appendTextSpan(wrapper, valueClass, valueText);
+        container.appendChild(wrapper);
+        return wrapper;
+    }
+
     function createStatItem(label, value, valueClass) {
         const item = createElement('div', 'gpv-stat-item');
         appendTextSpan(item, 'gpv-stat-label', label);
@@ -2476,20 +2493,23 @@
                 const typeRow = document.createElement('div');
                 typeRow.className = 'gpv-goal-type-row';
                 appendTextSpan(typeRow, 'gpv-goal-type-name', goalTypeModel.displayName);
-                appendTextSpan(
+                appendLabeledValue(
                     typeRow,
                     'gpv-goal-type-stat',
-                    `Balance: ${goalTypeModel.endingBalanceDisplay}`
+                    'Balance:',
+                    goalTypeModel.endingBalanceDisplay
                 );
-                appendTextSpan(
+                appendLabeledValue(
                     typeRow,
                     'gpv-goal-type-stat',
-                    `Return: ${goalTypeModel.returnDisplay}`
+                    'Return:',
+                    goalTypeModel.returnDisplay
                 );
-                appendTextSpan(
+                appendLabeledValue(
                     typeRow,
                     'gpv-goal-type-stat',
-                    `Growth: ${goalTypeModel.growthDisplay}`
+                    'Growth:',
+                    goalTypeModel.growthDisplay
                 );
                 bucketCard.appendChild(typeRow);
             });
@@ -2550,9 +2570,9 @@
             
             const typeTitle = createElement('h3', null, goalTypeModel.displayName);
             const typeSummary = createElement('div', 'gpv-type-summary');
-            appendTextSpan(typeSummary, null, `Balance: ${goalTypeModel.endingBalanceDisplay}`);
-            appendTextSpan(typeSummary, null, `Return: ${goalTypeModel.returnDisplay}`);
-            appendTextSpan(typeSummary, null, `Growth: ${typeGrowth}`);
+            appendLabeledValue(typeSummary, null, 'Balance:', goalTypeModel.endingBalanceDisplay);
+            appendLabeledValue(typeSummary, null, 'Return:', goalTypeModel.returnDisplay);
+            appendLabeledValue(typeSummary, null, 'Growth:', typeGrowth);
             typeHeader.appendChild(typeTitle);
             typeHeader.appendChild(typeSummary);
             
@@ -2613,11 +2633,10 @@
             const remainingTargetClass = goalTypeModel.remainingTargetIsHigh
                 ? `${CLASS_NAMES.remainingTarget} ${CLASS_NAMES.remainingAlert}`
                 : CLASS_NAMES.remainingTarget;
-            const remainingTarget = createElement(
-                'div',
-                remainingTargetClass,
-                `Remaining: ${goalTypeModel.remainingTargetDisplay}`
-            );
+            const remainingTarget = createElement('div', remainingTargetClass);
+            appendTextSpan(remainingTarget, 'gpv-remaining-label', 'Remaining:');
+            remainingTarget.appendChild(document.createTextNode(' '));
+            appendTextSpan(remainingTarget, 'gpv-remaining-value', goalTypeModel.remainingTargetDisplay);
             targetHeader.appendChild(remainingTarget);
             headerRow.appendChild(targetHeader);
 
@@ -2777,7 +2796,16 @@
         }
         const remainingTarget = typeSection.querySelector(`.${CLASS_NAMES.remainingTarget}`);
         if (remainingTarget) {
-            remainingTarget.textContent = `Remaining: ${formatPercentFromPercent(snapshot.remainingTargetPercent)}`;
+            const remainingValue = remainingTarget.querySelector('.gpv-remaining-value');
+            const displayValue = formatPercentFromPercent(snapshot.remainingTargetPercent);
+            if (remainingValue) {
+                remainingValue.textContent = displayValue;
+            } else {
+                remainingTarget.textContent = '';
+                appendTextSpan(remainingTarget, 'gpv-remaining-label', 'Remaining:');
+                remainingTarget.appendChild(document.createTextNode(' '));
+                appendTextSpan(remainingTarget, 'gpv-remaining-value', displayValue);
+            }
             remainingTarget.classList.toggle(
                 CLASS_NAMES.remainingAlert,
                 isRemainingTargetAboveThreshold(snapshot.remainingTargetPercent)
@@ -2808,6 +2836,16 @@
                     : CLASS_NAMES.diffCell;
             }
         });
+    }
+
+    function flashInputBorder(input, color) {
+        if (!input) {
+            return;
+        }
+        input.style.borderColor = color;
+        setTimeout(() => {
+            input.style.borderColor = '';
+        }, 1000);
     }
 
     /**
@@ -2859,20 +2897,14 @@
         // Validate input
         if (!Number.isFinite(targetPercent)) {
             // Invalid number - show error feedback
-            input.style.borderColor = '#dc2626';
-            setTimeout(() => {
-                input.style.borderColor = '';
-            }, 1000);
+            flashInputBorder(input, '#dc2626');
             return;
         }
         
         // Save to storage (this will clamp to 0-100 automatically)
         const savedValue = GoalTargetStore.setTarget(goalId, targetPercent);
         if (!Number.isFinite(savedValue)) {
-            input.style.borderColor = '#dc2626';
-            setTimeout(() => {
-                input.style.borderColor = '';
-            }, 1000);
+            flashInputBorder(input, '#dc2626');
             return;
         }
         
@@ -2881,10 +2913,7 @@
             // Value was clamped - update input to show actual stored value
             input.value = savedValue.toFixed(2);
             // Show warning briefly
-            input.style.borderColor = '#f59e0b';
-            setTimeout(() => {
-                input.style.borderColor = '';
-            }, 1000);
+            flashInputBorder(input, '#f59e0b');
         }
         
         // Get projected investment and calculate adjusted total
@@ -3891,7 +3920,8 @@
         Object.keys(data).sort().forEach(bucket => {
             const opt = document.createElement('option');
             opt.value = bucket;
-            opt.textContent = `📁 ${bucket}`;
+            opt.appendChild(document.createTextNode('📁 '));
+            opt.appendChild(document.createTextNode(bucket));
             select.appendChild(opt);
         });
 
