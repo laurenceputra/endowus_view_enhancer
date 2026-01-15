@@ -7,12 +7,17 @@
  */
 
 const {
+    normalizeString,
+    normalizeGoalType,
+    normalizeGoalName,
     getGoalTargetKey,
     getProjectedInvestmentKey,
     extractBucketName,
     getDisplayGoalType,
     sortGoalTypes,
     formatMoney,
+    formatPercentFromRatio,
+    formatPercentFromPercent,
     formatPercentDisplay,
     formatGrowthPercentFromEndingBalance,
     calculateGoalDiff,
@@ -27,6 +32,7 @@ const {
     formatPercentage,
     isDashboardRoute,
     normalizeTimeSeriesData,
+    normalizePerformanceResponse,
     getLatestTimeSeriesPoint,
     findNearestPointOnOrBefore,
     getPerformanceDate,
@@ -39,7 +45,8 @@ const {
     calculateWeightedAverage,
     calculateWeightedWindowReturns,
     summarizePerformanceMetrics,
-    derivePerformanceWindows
+    derivePerformanceWindows,
+    parseJsonSafely
 } = require('../tampermonkey/goal_portfolio_viewer.user.js');
 
 describe('getGoalTargetKey', () => {
@@ -56,6 +63,43 @@ describe('getGoalTargetKey', () => {
     });
 });
 
+describe('normalizeString', () => {
+    test('should return fallback for null/undefined', () => {
+        expect(normalizeString(null, 'fallback')).toBe('fallback');
+        expect(normalizeString(undefined, 'fallback')).toBe('fallback');
+    });
+
+    test('should trim strings and collapse whitespace-only to fallback', () => {
+        expect(normalizeString('  Hello  ', 'fallback')).toBe('Hello');
+        expect(normalizeString('   ', 'fallback')).toBe('fallback');
+    });
+
+    test('should coerce non-string types', () => {
+        expect(normalizeString(123)).toBe('123');
+        expect(normalizeString(false)).toBe('false');
+        expect(normalizeString({ key: 'value' })).toBe('[object Object]');
+    });
+});
+
+describe('normalizeGoalType', () => {
+    test('should return UNKNOWN_GOAL_TYPE for missing values', () => {
+        expect(normalizeGoalType(null)).toBe('UNKNOWN_GOAL_TYPE');
+        expect(normalizeGoalType('')).toBe('UNKNOWN_GOAL_TYPE');
+        expect(normalizeGoalType('   ')).toBe('UNKNOWN_GOAL_TYPE');
+    });
+
+    test('should trim and return valid values', () => {
+        expect(normalizeGoalType(' CASH_MANAGEMENT ')).toBe('CASH_MANAGEMENT');
+    });
+});
+
+describe('normalizeGoalName', () => {
+    test('should trim names and allow empty fallback', () => {
+        expect(normalizeGoalName(' Retirement ')).toBe('Retirement');
+        expect(normalizeGoalName('   ')).toBe('');
+    });
+});
+
 describe('getProjectedInvestmentKey', () => {
     test('should generate correct key with pipe separator', () => {
         expect(getProjectedInvestmentKey('Retirement', 'GENERAL_WEALTH_ACCUMULATION'))
@@ -69,6 +113,11 @@ describe('getProjectedInvestmentKey', () => {
     test('should preserve special characters', () => {
         expect(getProjectedInvestmentKey('Emergency-Fund', 'CASH_MANAGEMENT'))
             .toBe('Emergency-Fund|CASH_MANAGEMENT');
+    });
+
+    test('should encode separator characters', () => {
+        expect(getProjectedInvestmentKey('Bucket|Name', 'TYPE|A'))
+            .toBe('Bucket%7CName|TYPE%7CA');
     });
 });
 
@@ -111,7 +160,7 @@ describe('getDisplayGoalType', () => {
     });
 
     test('should handle empty string', () => {
-        expect(getDisplayGoalType('')).toBe('');
+        expect(getDisplayGoalType('')).toBe('Unknown');
     });
 });
 
@@ -178,6 +227,11 @@ describe('formatMoney', () => {
         expect(formatMoney('invalid')).toBe('-');
     });
 
+    test('should return dash for non-finite numbers', () => {
+        expect(formatMoney(Infinity)).toBe('-');
+        expect(formatMoney(-Infinity)).toBe('-');
+    });
+
     test('should handle very large numbers', () => {
         const result = formatMoney(1000000000);
         expect(result).toMatch(/1,000,000,000\.00/);
@@ -201,6 +255,33 @@ describe('formatPercentDisplay', () => {
 
     test('should format with custom multiplier', () => {
         expect(formatPercentDisplay(0.1234, { multiplier: 100 })).toBe('12.34%');
+    });
+});
+
+describe('formatPercentFromRatio', () => {
+    test('should format ratio with sign when enabled', () => {
+        expect(formatPercentFromRatio(0.1, { showSign: true })).toBe('+10.00%');
+        expect(formatPercentFromRatio(-0.025, { showSign: true })).toBe('-2.50%');
+    });
+
+    test('should format ratio without sign by default', () => {
+        expect(formatPercentFromRatio(0.1)).toBe('10.00%');
+        expect(formatPercentFromRatio(0)).toBe('0.00%');
+    });
+
+    test('should return fallback for invalid ratios', () => {
+        expect(formatPercentFromRatio('invalid')).toBe('-');
+    });
+});
+
+describe('formatPercentFromPercent', () => {
+    test('should format percent with optional sign', () => {
+        expect(formatPercentFromPercent(12.5)).toBe('12.50%');
+        expect(formatPercentFromPercent(12.5, { showSign: true })).toBe('+12.50%');
+    });
+
+    test('should return fallback for invalid percents', () => {
+        expect(formatPercentFromPercent(null, { fallback: 'n/a' })).toBe('n/a');
     });
 });
 
@@ -548,6 +629,47 @@ describe('normalizeTimeSeriesData', () => {
             { date: '2024-06-01', amount: null }
         ]);
         expect(result).toEqual([]);
+    });
+});
+
+describe('normalizePerformanceResponse', () => {
+    test('should provide default nested objects', () => {
+        const normalized = normalizePerformanceResponse(null);
+        expect(normalized.returnsTable).toEqual({});
+        expect(normalized.performanceDates).toEqual({});
+        expect(normalized.timeSeries.data).toEqual([]);
+    });
+
+    test('should preserve existing nested data', () => {
+        const response = {
+            returnsTable: { twr: { oneMonthValue: 0.1 } },
+            performanceDates: { ytd: '2024-01-01' },
+            timeSeries: { data: [{ date: '2024-01-01', amount: 100 }] }
+        };
+        const normalized = normalizePerformanceResponse(response);
+        expect(normalized.returnsTable.twr.oneMonthValue).toBe(0.1);
+        expect(normalized.performanceDates.ytd).toBe('2024-01-01');
+        expect(normalized.timeSeries.data).toHaveLength(1);
+    });
+});
+
+describe('parseJsonSafely', () => {
+    test('should parse valid JSON', () => {
+        expect(parseJsonSafely('{"ok":true}')).toEqual({ ok: true });
+    });
+
+    test('should return null for invalid JSON', () => {
+        expect(parseJsonSafely('{invalid')).toBeNull();
+    });
+
+    test('should return null for empty or whitespace input', () => {
+        expect(parseJsonSafely('')).toBeNull();
+        expect(parseJsonSafely('   ')).toBeNull();
+    });
+
+    test('should return null for null or undefined', () => {
+        expect(parseJsonSafely(null)).toBeNull();
+        expect(parseJsonSafely(undefined)).toBeNull();
     });
 });
 
@@ -1364,9 +1486,9 @@ describe('buildMergedInvestmentData', () => {
         const result = buildMergedInvestmentData(performanceData, investibleData, summaryData);
 
         expect(result).toBeDefined();
-        expect(result.Test['']).toBeDefined();
-        expect(result.Test[''].goals[0].endingBalanceAmount).toBeNull();
-        expect(result.Test[''].goals[0].totalCumulativeReturn).toBeNull();
+        expect(result.Test.UNKNOWN_GOAL_TYPE).toBeDefined();
+        expect(result.Test.UNKNOWN_GOAL_TYPE.goals[0].endingBalanceAmount).toBeNull();
+        expect(result.Test.UNKNOWN_GOAL_TYPE.goals[0].totalCumulativeReturn).toBeNull();
     });
 
     test('should fallback to summary data if investible data missing fields', () => {

@@ -135,7 +135,13 @@ describe('view model builders', () => {
         const projected = createProjectedInvestmentFixture();
         const targets = createGoalTargetFixture();
         const fixed = createGoalFixedFixture();
-        const viewModel = buildBucketDetailViewModel('Retirement', bucketMap, projected, targets, fixed);
+        const viewModel = buildBucketDetailViewModel({
+            bucketName: 'Retirement',
+            bucketMap,
+            projectedInvestmentsState: projected,
+            goalTargetById: targets,
+            goalFixedById: fixed
+        });
         expect(viewModel.bucketName).toBe('Retirement');
         const goalTypeModel = viewModel.goalTypes[0];
         expect(goalTypeModel.goals.map(goal => goal.goalName)).toEqual([
@@ -170,7 +176,13 @@ describe('view model builders', () => {
 
     test('should build bucket detail without projected investments or targets', () => {
         const bucketMap = createBucketMapFixture();
-        const viewModel = buildBucketDetailViewModel('Retirement', bucketMap, null, null, null);
+        const viewModel = buildBucketDetailViewModel({
+            bucketName: 'Retirement',
+            bucketMap,
+            projectedInvestmentsState: null,
+            goalTargetById: null,
+            goalFixedById: null
+        });
         const goalTypeModel = viewModel.goalTypes[0];
         expect(goalTypeModel.projectedAmount).toBe(0);
         expect(goalTypeModel.remainingTargetDisplay).toBe('100.00%');
@@ -181,7 +193,13 @@ describe('view model builders', () => {
 
     test('should return null for missing bucket', () => {
         const bucketMap = createBucketMapFixture();
-        expect(buildBucketDetailViewModel('Missing', bucketMap, {}, {})).toBeNull();
+        expect(buildBucketDetailViewModel({
+            bucketName: 'Missing',
+            bucketMap,
+            projectedInvestmentsState: {},
+            goalTargetById: {},
+            goalFixedById: {}
+        })).toBeNull();
     });
 });
 

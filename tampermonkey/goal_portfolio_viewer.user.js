@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.7.0
+// @version      2.7.1
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -24,6 +24,37 @@
     const DEBUG = false;
     const REMAINING_TARGET_ALERT_THRESHOLD = 2;
     const DEBUG_AUTH = false;
+
+    const UNKNOWN_GOAL_TYPE = 'UNKNOWN_GOAL_TYPE';
+    const PROJECTED_KEY_SEPARATOR = '|';
+
+    const ENDPOINT_PATHS = {
+        performance: '/v1/goals/performance',
+        investible: '/v2/goals/investible',
+        summary: '/v1/goals'
+    };
+    const SUMMARY_ENDPOINT_REGEX = /\/v1\/goals(?:[?#]|$)/;
+
+    const STORAGE_KEYS = {
+        performance: 'api_performance',
+        investible: 'api_investible',
+        summary: 'api_summary'
+    };
+    const STORAGE_KEY_PREFIXES = {
+        goalTarget: 'goal_target_pct_',
+        goalFixed: 'goal_fixed_',
+        performanceCache: 'gpv_performance_'
+    };
+
+    const CLASS_NAMES = {
+        goalTable: 'gpv-goal-table',
+        targetInput: 'gpv-target-input',
+        fixedToggleInput: 'gpv-fixed-toggle-input',
+        projectedInput: 'gpv-projected-input',
+        remainingTarget: 'gpv-remaining-target',
+        remainingAlert: 'gpv-remaining-alert',
+        diffCell: 'gpv-diff-cell'
+    };
 
     // Export surface for tests; populated as helpers become available.
     // When set before load, window.__GPV_DISABLE_AUTO_INIT prevents DOM auto-init (used in tests).
@@ -51,7 +82,7 @@
      * @returns {string} Storage key
      */
     function getGoalTargetKey(goalId) {
-        return `goal_target_pct_${goalId}`;
+        return `${STORAGE_KEY_PREFIXES.goalTarget}${goalId}`;
     }
 
     /**
@@ -60,7 +91,7 @@
      * @returns {string} Storage key
      */
     function getGoalFixedKey(goalId) {
-        return `goal_fixed_${goalId}`;
+        return `${STORAGE_KEY_PREFIXES.goalFixed}${goalId}`;
     }
 
     /**
@@ -70,8 +101,61 @@
      * @returns {string} Storage key
      */
     function getProjectedInvestmentKey(bucket, goalType) {
-        return `${bucket}|${goalType}`;
+        const safeBucket = encodeURIComponent(bucket ?? '');
+        const safeGoalType = encodeURIComponent(goalType ?? '');
+        // Keep separator unencoded to preserve a stable split point in storage keys.
+        return `${safeBucket}${PROJECTED_KEY_SEPARATOR}${safeGoalType}`;
     }
+
+    function normalizeString(value, fallback = '') {
+        if (value === null || value === undefined) {
+            return fallback;
+        }
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            return trimmed ? trimmed : fallback;
+        }
+        return String(value);
+    }
+
+    function normalizeGoalType(goalType) {
+        const normalized = normalizeString(goalType, UNKNOWN_GOAL_TYPE);
+        return normalized;
+    }
+
+    function normalizeGoalName(goalName) {
+        return normalizeString(goalName, '');
+    }
+
+    function normalizePerformanceResponse(response) {
+        const safeResponse = response && typeof response === 'object' ? response : {};
+        const returnsTable = safeResponse.returnsTable && typeof safeResponse.returnsTable === 'object'
+            ? safeResponse.returnsTable
+            : {};
+        const performanceDates = safeResponse.performanceDates && typeof safeResponse.performanceDates === 'object'
+            ? safeResponse.performanceDates
+            : {};
+        const timeSeries = safeResponse.timeSeries && typeof safeResponse.timeSeries === 'object'
+            ? safeResponse.timeSeries
+            : {};
+        const timeSeriesData = Array.isArray(timeSeries.data) ? timeSeries.data : [];
+        return {
+            ...safeResponse,
+            returnsTable,
+            performanceDates,
+            timeSeries: {
+                ...timeSeries,
+                data: timeSeriesData
+            }
+        };
+    }
+
+    const Normalization = {
+        normalizeString,
+        normalizeGoalType,
+        normalizeGoalName,
+        normalizePerformanceResponse
+    };
 
     function extractBucketName(goalName) {
         if (!goalName || typeof goalName !== 'string') {
@@ -90,6 +174,9 @@
     }
 
     function getDisplayGoalType(goalType) {
+        if (!goalType || goalType === UNKNOWN_GOAL_TYPE) {
+            return 'Unknown';
+        }
         switch (goalType) {
             case 'GENERAL_WEALTH_ACCUMULATION':
                 return 'Investment';
@@ -122,13 +209,13 @@
     });
 
     function formatMoney(val) {
-        if (typeof val === 'number' && !isNaN(val)) {
+        if (typeof val === 'number' && Number.isFinite(val)) {
             return MONEY_FORMATTER.format(val);
         }
         return '-';
     }
 
-    function formatPercentDisplay(value, options = {}) {
+    function formatPercentFromRatio(value, options = {}) {
         if (value === null || value === undefined) {
             return options.fallback ?? '-';
         }
@@ -136,11 +223,38 @@
         if (!Number.isFinite(numericValue)) {
             return options.fallback ?? '-';
         }
+        const percentValue = numericValue * 100;
+        const showSign = options.showSign === true;
+        const sign = showSign && percentValue > 0 ? '+' : '';
+        return `${sign}${percentValue.toFixed(2)}%`;
+    }
+
+    function formatPercentFromPercent(value, options = {}) {
+        if (value === null || value === undefined) {
+            return options.fallback ?? '-';
+        }
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return options.fallback ?? '-';
+        }
+        const showSign = options.showSign === true;
+        const sign = showSign && numericValue > 0 ? '+' : '';
+        return `${sign}${numericValue.toFixed(2)}%`;
+    }
+
+    function formatPercentDisplay(value, options = {}) {
+        if (value === null || value === undefined) {
+            return options.fallback ?? '-';
+        }
         const multiplier = Number(options.multiplier ?? 1);
         if (!Number.isFinite(multiplier)) {
             return options.fallback ?? '-';
         }
-        return `${(numericValue * multiplier).toFixed(2)}%`;
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return options.fallback ?? '-';
+        }
+        return formatPercentFromPercent(numericValue * multiplier, options);
     }
 
     function formatGrowthPercentFromEndingBalance(totalReturn, endingBalance) {
@@ -347,7 +461,9 @@
         const diffDisplay = diffInfo.diffAmount === null ? '-' : formatMoney(diffInfo.diffAmount);
         return {
             diffDisplay,
-            diffClassName: diffInfo.diffClass ? `gpv-diff-cell ${diffInfo.diffClass}` : 'gpv-diff-cell'
+            diffClassName: diffInfo.diffClass
+                ? `${CLASS_NAMES.diffCell} ${diffInfo.diffClass}`
+                : CLASS_NAMES.diffCell
         };
     }
 
@@ -355,11 +471,11 @@
         if (!target || typeof target.closest !== 'function') {
             return null;
         }
-        const targetInput = target.closest('.gpv-target-input');
+        const targetInput = target.closest(`.${CLASS_NAMES.targetInput}`);
         if (targetInput) {
             return { type: 'target', element: targetInput };
         }
-        const fixedToggle = target.closest('.gpv-fixed-toggle-input');
+        const fixedToggle = target.closest(`.${CLASS_NAMES.fixedToggleInput}`);
         if (fixedToggle) {
             return { type: 'fixed', element: fixedToggle };
         }
@@ -423,13 +539,13 @@
         return { buckets };
     }
 
-    function buildBucketDetailViewModel(
+    function buildBucketDetailViewModel({
         bucketName,
         bucketMap,
         projectedInvestmentsState,
         goalTargetById,
         goalFixedById
-    ) {
+    }) {
         if (!bucketMap || typeof bucketMap !== 'object' || !bucketName) {
             return null;
         }
@@ -491,16 +607,16 @@
                         projectedAmount,
                         adjustedTotal,
                         remainingTargetPercent: allocationModel.remainingTargetPercent,
-                        remainingTargetDisplay: formatPercentDisplay(allocationModel.remainingTargetPercent),
+                        remainingTargetDisplay: formatPercentFromPercent(allocationModel.remainingTargetPercent),
                         remainingTargetIsHigh: isRemainingTargetAboveThreshold(allocationModel.remainingTargetPercent),
                         goals: allocationModel.goalModels.map(goal => ({
                             ...goal,
                             endingBalanceDisplay: formatMoney(goal.endingBalanceAmount),
-                            percentOfTypeDisplay: formatPercentDisplay(goal.percentOfType),
+                            percentOfTypeDisplay: formatPercentFromPercent(goal.percentOfType),
                             targetDisplay: goal.targetPercent !== null ? goal.targetPercent.toFixed(2) : '',
                             diffDisplay: goal.diffAmount === null ? '-' : formatMoney(goal.diffAmount),
                             returnDisplay: formatMoney(goal.returnValue),
-                            returnPercentDisplay: formatPercentDisplay(goal.returnPercent, { multiplier: 100 }),
+                            returnPercentDisplay: formatPercentFromRatio(goal.returnPercent, { showSign: false }),
                             returnClass: getReturnClass(goal.returnValue)
                         }))
                     };
@@ -579,7 +695,7 @@
         performanceData.forEach(perf => {
             const invest = investibleMap[perf.goalId] || {};
             const summary = summaryMap[perf.goalId] || {};
-            const goalName = invest.goalName || summary.goalName || '';
+            const goalName = normalizeGoalName(invest.goalName || summary.goalName || '');
             // Extract bucket name using "Bucket Name - Goal Description" convention
             const goalBucket = extractBucketName(goalName);
             // Note: investible API `totalInvestmentAmount` is misnamed and represents ending balance.
@@ -600,7 +716,7 @@
                 goalId: perf.goalId,
                 goalName: goalName,
                 goalBucket: goalBucket,
-                goalType: invest.investmentGoalType || summary.investmentGoalType || '',
+                goalType: normalizeGoalType(invest.investmentGoalType || summary.investmentGoalType || ''),
                 endingBalanceAmount: Number.isFinite(endingBalanceAmount) ? endingBalanceAmount : null,
                 totalCumulativeReturn: Number.isFinite(cumulativeReturn) ? cumulativeReturn : null,
                 simpleRateOfReturnPercent: Number.isFinite(perf.simpleRateOfReturnPercent)
@@ -634,6 +750,11 @@
         return bucketMap;
     }
 
+    const ViewModels = {
+        buildSummaryViewModel,
+        buildBucketDetailViewModel
+    };
+
     // ============================================
     // Performance Logic
     // ============================================
@@ -647,7 +768,7 @@
     };
 
     function getPerformanceCacheKey(goalId) {
-        return `gpv_performance_${goalId}`;
+        return `${STORAGE_KEY_PREFIXES.performanceCache}${goalId}`;
     }
 
     function isCacheFresh(fetchedAt, maxAgeMs, nowMs = Date.now()) {
@@ -670,15 +791,7 @@
     }
 
     function formatPercentage(value) {
-        if (value === null || value === undefined) {
-            return '-';
-        }
-        const numericValue = Number(value);
-        if (!Number.isFinite(numericValue)) {
-            return '-';
-        }
-        const sign = numericValue > 0 ? '+' : '';
-        return `${sign}${(numericValue * 100).toFixed(2)}%`;
+        return formatPercentFromRatio(value, { showSign: true });
     }
 
     function normalizeTimeSeriesData(timeSeriesData) {
@@ -924,6 +1037,17 @@
         return null;
     }
 
+    function parseJsonSafely(rawText) {
+        if (typeof rawText !== 'string' || !rawText.trim()) {
+            return null;
+        }
+        try {
+            return JSON.parse(rawText);
+        } catch (_error) {
+            return null;
+        }
+    }
+
     function calculateWeightedAverage(values, weights) {
         if (!Array.isArray(values) || !Array.isArray(weights) || values.length !== weights.length) {
             return null;
@@ -945,7 +1069,9 @@
     }
 
     function calculateWeightedWindowReturns(performanceResponses) {
-        const responses = Array.isArray(performanceResponses) ? performanceResponses : [];
+        const responses = Array.isArray(performanceResponses)
+            ? performanceResponses.map(Normalization.normalizePerformanceResponse)
+            : [];
         const windowKeys = Object.values(PERFORMANCE_WINDOWS).map(window => window.key);
         const valuesByWindow = {};
         const weightsByWindow = {};
@@ -987,7 +1113,9 @@
     }
 
     function summarizePerformanceMetrics(performanceResponses, mergedTimeSeries) {
-        const responses = Array.isArray(performanceResponses) ? performanceResponses : [];
+        const responses = Array.isArray(performanceResponses)
+            ? performanceResponses.map(Normalization.normalizePerformanceResponse)
+            : [];
         const netInvestments = [];
         const totalReturns = [];
         const simpleReturns = [];
@@ -1110,28 +1238,57 @@
     // ============================================
     // Adapters/State
     // ============================================
-    const apiData = {
-        performance: null,
-        investible: null,
-        summary: null
+    const PERFORMANCE_ENDPOINT = 'https://bff.prod.silver.endowus.com/v1/performance';
+    const REQUEST_DELAY_MS = 500;
+    const PERFORMANCE_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+    const PERFORMANCE_CACHE_REFRESH_MIN_AGE_MS = 24 * 60 * 60 * 1000;
+    const PERFORMANCE_CHART_WINDOW = PERFORMANCE_WINDOWS.oneYear.key;
+    const PERFORMANCE_REQUEST_TIMEOUT_MS = 10000;
+
+    const state = {
+        apiData: {
+            performance: null,
+            investible: null,
+            summary: null
+        },
+        projectedInvestments: {},
+        performance: {
+            goalData: {},
+            requestQueue: createSequentialRequestQueue({
+                delayMs: REQUEST_DELAY_MS
+            })
+        },
+        auth: {
+            requestHeaders: null,
+            gmCookieAuthToken: null,
+            gmCookieDumped: false
+        },
+        ui: {
+            portfolioButton: null,
+            lastUrl: window.location.href,
+            urlMonitorCleanup: null,
+            urlCheckTimeout: null,
+            observer: null
+        }
     };
+
     const ENDPOINT_HANDLERS = {
         performance: data => {
-            apiData.performance = data;
-            GM_setValue('api_performance', JSON.stringify(data));
+            state.apiData.performance = data;
+            Storage.writeJson(STORAGE_KEYS.performance, data, 'Error saving performance data');
             logDebug('[Goal Portfolio Viewer] Intercepted performance data');
         },
         investible: data => {
-            apiData.investible = data;
-            GM_setValue('api_investible', JSON.stringify(data));
+            state.apiData.investible = data;
+            Storage.writeJson(STORAGE_KEYS.investible, data, 'Error saving investible data');
             logDebug('[Goal Portfolio Viewer] Intercepted investible data');
         },
         summary: data => {
             if (!Array.isArray(data)) {
                 return;
             }
-            apiData.summary = data;
-            GM_setValue('api_summary', JSON.stringify(data));
+            state.apiData.summary = data;
+            Storage.writeJson(STORAGE_KEYS.summary, data, 'Error saving summary data');
             logDebug('[Goal Portfolio Viewer] Intercepted summary data');
         }
     };
@@ -1140,13 +1297,13 @@
         if (typeof url !== 'string') {
             return null;
         }
-        if (url.includes('/v1/goals/performance')) {
+        if (url.includes(ENDPOINT_PATHS.performance)) {
             return 'performance';
         }
-        if (url.includes('/v2/goals/investible')) {
+        if (url.includes(ENDPOINT_PATHS.investible)) {
             return 'investible';
         }
-        if (url.match(/\/v1\/goals(?:[?#]|$)/)) {
+        if (url.match(SUMMARY_ENDPOINT_REGEX)) {
             return 'summary';
         }
         return null;
@@ -1163,6 +1320,9 @@
         }
         try {
             const data = await readData();
+            if (data === null || data === undefined) {
+                return;
+            }
             handler(data);
         } catch (error) {
             console.error('[Goal Portfolio Viewer] Error parsing API response:', error);
@@ -1179,24 +1339,8 @@
         }
         console.log(message);
     }
-    const PERFORMANCE_ENDPOINT = 'https://bff.prod.silver.endowus.com/v1/performance';
-    const REQUEST_DELAY_MS = 500;
-    const PERFORMANCE_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-    const PERFORMANCE_CACHE_REFRESH_MIN_AGE_MS = 24 * 60 * 60 * 1000;
-    const PERFORMANCE_CHART_WINDOW = PERFORMANCE_WINDOWS.oneYear.key;
-    const PERFORMANCE_REQUEST_TIMEOUT_MS = 10000;
-
     // Non-persistent storage for projected investments (resets on reload)
     // Key format: "bucketName|goalType" -> projected amount
-    const projectedInvestments = {};
-
-    const goalPerformanceData = {};
-    let performanceRequestHeaders = null;
-    let gmCookieAuthToken = null;
-    let gmCookieDumped = false;
-    const performanceRequestQueue = createSequentialRequestQueue({
-        delayMs: REQUEST_DELAY_MS
-    });
 
     // ============================================
     // API Interception via Monkey Patching
@@ -1213,7 +1357,7 @@
         extractAuthHeaders(args[0], args[1]);
         const response = await originalFetch.apply(this, args);
         const url = args[0];
-        await handleInterceptedResponse(url, () => response.clone().json());
+        void handleInterceptedResponse(url, () => response.clone().json());
         return response;
     };
 
@@ -1237,7 +1381,7 @@
         
         if (url && typeof url === 'string') {
             this.addEventListener('load', function() {
-                handleInterceptedResponse(url, () => Promise.resolve(JSON.parse(this.responseText)));
+                handleInterceptedResponse(url, () => Promise.resolve(parseJsonSafely(this.responseText)));
             });
         }
         
@@ -1250,105 +1394,133 @@
     // Storage Management
     // ============================================
 
-    const GoalTargetStore = {
-        getTarget(goalId) {
+    const Storage = {
+        get(key, fallback, context) {
             try {
-                const key = getGoalTargetKey(goalId);
-                const value = GM_getValue(key, null);
-                return value !== null ? parseFloat(value) : null;
-            } catch (e) {
-                console.error('[Goal Portfolio Viewer] Error loading goal target percentage:', e);
-                return null;
+                return GM_getValue(key, fallback);
+            } catch (error) {
+                const label = context || 'Error reading storage';
+                console.error(`[Goal Portfolio Viewer] ${label}:`, error);
+                return fallback;
             }
         },
-        setTarget(goalId, percentage) {
+        set(key, value, context) {
             try {
-                const key = getGoalTargetKey(goalId);
-                const validPercentage = Math.max(0, Math.min(100, parseFloat(percentage)));
-                GM_setValue(key, validPercentage);
-                logDebug(`[Goal Portfolio Viewer] Saved goal target percentage for ${goalId}: ${validPercentage}%`);
-                return validPercentage;
-            } catch (e) {
-                console.error('[Goal Portfolio Viewer] Error saving goal target percentage:', e);
-                return Math.max(0, Math.min(100, parseFloat(percentage)));
-            }
-        },
-        clearTarget(goalId) {
-            try {
-                const key = getGoalTargetKey(goalId);
-                GM_deleteValue(key);
-                logDebug(`[Goal Portfolio Viewer] Deleted goal target percentage for ${goalId}`);
-            } catch (e) {
-                console.error('[Goal Portfolio Viewer] Error deleting goal target percentage:', e);
-            }
-        },
-        getFixed(goalId) {
-            try {
-                const key = getGoalFixedKey(goalId);
-                return GM_getValue(key, false) === true;
-            } catch (e) {
-                console.error('[Goal Portfolio Viewer] Error loading goal fixed state:', e);
+                GM_setValue(key, value);
+                return true;
+            } catch (error) {
+                const label = context || 'Error writing storage';
+                console.error(`[Goal Portfolio Viewer] ${label}:`, error);
                 return false;
             }
         },
-        setFixed(goalId, isFixed) {
+        remove(key, context) {
             try {
-                const key = getGoalFixedKey(goalId);
-                GM_setValue(key, isFixed === true);
-                logDebug(`[Goal Portfolio Viewer] Saved goal fixed state for ${goalId}: ${isFixed === true}`);
-            } catch (e) {
-                console.error('[Goal Portfolio Viewer] Error saving goal fixed state:', e);
+                GM_deleteValue(key);
+                return true;
+            } catch (error) {
+                const label = context || 'Error deleting storage';
+                console.error(`[Goal Portfolio Viewer] ${label}:`, error);
+                return false;
             }
         },
-        clearFixed(goalId) {
-            try {
-                const key = getGoalFixedKey(goalId);
-                GM_deleteValue(key);
-                logDebug(`[Goal Portfolio Viewer] Deleted goal fixed state for ${goalId}`);
-            } catch (e) {
-                console.error('[Goal Portfolio Viewer] Error deleting goal fixed state:', e);
+        readJson(key, validateFn, context) {
+            const stored = Storage.get(key, null, context);
+            if (!stored) {
+                return null;
             }
+            const parsed = parseJsonSafely(stored);
+            if (!validateFn(parsed)) {
+                Storage.remove(key, context);
+                return null;
+            }
+            return parsed;
+        },
+        writeJson(key, value, context) {
+            return Storage.set(key, JSON.stringify(value), context);
         }
     };
+
+    const GoalTargetStore = {
+        getTarget(goalId) {
+            const key = getGoalTargetKey(goalId);
+            const value = Storage.get(key, null, 'Error loading goal target percentage');
+            if (value === null) {
+                return null;
+            }
+            const numericValue = parseFloat(value);
+            return Number.isFinite(numericValue) ? numericValue : null;
+        },
+        setTarget(goalId, percentage) {
+            const numericPercentage = parseFloat(percentage);
+            if (!Number.isFinite(numericPercentage)) {
+                return null;
+            }
+            const validPercentage = Math.max(0, Math.min(100, numericPercentage));
+            const key = getGoalTargetKey(goalId);
+            const didSet = Storage.set(key, validPercentage, 'Error saving goal target percentage');
+            if (!didSet) {
+                return null;
+            }
+            logDebug(`[Goal Portfolio Viewer] Saved goal target percentage for ${goalId}: ${validPercentage}%`);
+            return validPercentage;
+        },
+        clearTarget(goalId) {
+            const key = getGoalTargetKey(goalId);
+            Storage.remove(key, 'Error deleting goal target percentage');
+            logDebug(`[Goal Portfolio Viewer] Deleted goal target percentage for ${goalId}`);
+        },
+        getFixed(goalId) {
+            const key = getGoalFixedKey(goalId);
+            return Storage.get(key, false, 'Error loading goal fixed state') === true;
+        },
+        setFixed(goalId, isFixed) {
+            const key = getGoalFixedKey(goalId);
+            Storage.set(key, isFixed === true, 'Error saving goal fixed state');
+            logDebug(`[Goal Portfolio Viewer] Saved goal fixed state for ${goalId}: ${isFixed === true}`);
+        },
+        clearFixed(goalId) {
+            const key = getGoalFixedKey(goalId);
+            Storage.remove(key, 'Error deleting goal fixed state');
+            logDebug(`[Goal Portfolio Viewer] Deleted goal fixed state for ${goalId}`);
+        }
+    };
+    testExports.GoalTargetStore = GoalTargetStore;
     
     /**
      * Load previously intercepted API data from Tampermonkey storage
      */
-    function loadStoredData(apiDataState) {
-        try {
-            const storedPerformance = GM_getValue('api_performance', null);
-            const storedInvestible = GM_getValue('api_investible', null);
-            const storedSummary = GM_getValue('api_summary', null);
-            
-            if (storedPerformance) {
-                const parsed = JSON.parse(storedPerformance);
-                if (parsed && typeof parsed === 'object') {
-                    apiDataState.performance = parsed;
-                    logDebug('[Goal Portfolio Viewer] Loaded performance data from storage');
-                } else {
-                    GM_deleteValue('api_performance');
-                }
-            }
-            if (storedInvestible) {
-                const parsed = JSON.parse(storedInvestible);
-                if (parsed && typeof parsed === 'object') {
-                    apiDataState.investible = parsed;
-                    logDebug('[Goal Portfolio Viewer] Loaded investible data from storage');
-                } else {
-                    GM_deleteValue('api_investible');
-                }
-            }
-            if (storedSummary) {
-                const parsed = JSON.parse(storedSummary);
-                if (Array.isArray(parsed)) {
-                    apiDataState.summary = parsed;
-                    logDebug('[Goal Portfolio Viewer] Loaded summary data from storage');
-                } else {
-                    GM_deleteValue('api_summary');
-                }
-            }
-        } catch (e) {
-            console.error('[Goal Portfolio Viewer] Error loading stored data:', e);
+    function loadStoredData(appState) {
+        const apiDataState = appState?.apiData;
+        if (!apiDataState) {
+            return;
+        }
+        const performance = Storage.readJson(
+            STORAGE_KEYS.performance,
+            data => data && typeof data === 'object',
+            'Error loading performance data'
+        );
+        if (performance) {
+            apiDataState.performance = performance;
+            logDebug('[Goal Portfolio Viewer] Loaded performance data from storage');
+        }
+        const investible = Storage.readJson(
+            STORAGE_KEYS.investible,
+            data => data && typeof data === 'object',
+            'Error loading investible data'
+        );
+        if (investible) {
+            apiDataState.investible = investible;
+            logDebug('[Goal Portfolio Viewer] Loaded investible data from storage');
+        }
+        const summary = Storage.readJson(
+            STORAGE_KEYS.summary,
+            data => Array.isArray(data),
+            'Error loading summary data'
+        );
+        if (summary) {
+            apiDataState.summary = summary;
+            logDebug('[Goal Portfolio Viewer] Loaded summary data from storage');
         }
     }
 
@@ -1446,10 +1618,10 @@
     }
 
     function dumpAvailableCookies() {
-        if (gmCookieDumped || !DEBUG_AUTH) {
+        if (state.auth.gmCookieDumped || !DEBUG_AUTH) {
             return;
         }
-        gmCookieDumped = true;
+        state.auth.gmCookieDumped = true;
         listCookieByQuery({})
             .then(cookies => {
                 // Debug-only: log a safe summary of available GM_cookie entries
@@ -1466,8 +1638,8 @@
     }
 
     function getAuthTokenFromGMCookie() {
-        if (gmCookieAuthToken) {
-            return Promise.resolve(gmCookieAuthToken);
+        if (state.auth.gmCookieAuthToken) {
+            return Promise.resolve(state.auth.gmCookieAuthToken);
         }
         if (typeof GM_cookie === 'undefined' || typeof GM_cookie.list !== 'function') {
             return Promise.resolve(null);
@@ -1489,7 +1661,7 @@
                 listCookieByQuery(queries[index]).then(cookies => {
                     const token = selectAuthCookieToken(cookies) || findCookieValue(cookies, cookieNames[1]);
                     if (token) {
-                        gmCookieAuthToken = token;
+                        state.auth.gmCookieAuthToken = token;
                         resolve(token);
                         return;
                     }
@@ -1540,11 +1712,21 @@
         const deviceId = getHeaderValue(headers, 'device-id');
 
         if (authorization || clientId || deviceId) {
-            performanceRequestHeaders = {
+            if (!state.auth.requestHeaders || typeof state.auth.requestHeaders !== 'object') {
+                state.auth.requestHeaders = {};
+            }
+            const nextHeaders = {
                 authorization,
                 'client-id': clientId,
                 'device-id': deviceId
             };
+            Object.entries(nextHeaders).forEach(([key, value]) => {
+                if (value) {
+                    state.auth.requestHeaders[key] = value;
+                } else if (DEBUG_AUTH && value === '') {
+                    logAuthDebug('[Goal Portfolio Viewer][DEBUG_AUTH] Skipped empty auth header:', { key });
+                }
+            });
         }
     }
 
@@ -1554,8 +1736,8 @@
         const mergedHeaders = {
             ...fallbackHeaders
         };
-        if (performanceRequestHeaders) {
-            Object.entries(performanceRequestHeaders).forEach(([key, value]) => {
+        if (state.auth.requestHeaders) {
+            Object.entries(state.auth.requestHeaders).forEach(([key, value]) => {
                 if (value) {
                     mergedHeaders[key] = value;
                 }
@@ -1570,39 +1752,34 @@
     }
 
     function readPerformanceCache(goalId) {
-        try {
-            const key = getPerformanceCacheKey(goalId);
-            const stored = GM_getValue(key, null);
-            if (!stored) {
-                return null;
-            }
-            const parsed = JSON.parse(stored);
-            const fetchedAt = parsed?.fetchedAt;
-            const response = parsed?.response;
-            const hasValidShape = typeof fetchedAt === 'number' && fetchedAt > 0 && response && typeof response === 'object';
-            if (!parsed || !hasValidShape || !isCacheFresh(fetchedAt, PERFORMANCE_CACHE_MAX_AGE_MS)) {
-                GM_deleteValue(key);
-                return null;
-            }
-            return parsed;
-        } catch (_error) {
-            console.error('[Goal Portfolio Viewer] Error reading performance cache:', _error);
+        const key = getPerformanceCacheKey(goalId);
+        const parsed = Storage.readJson(
+            key,
+            data => {
+                const fetchedAt = data?.fetchedAt;
+                const response = data?.response;
+                return typeof fetchedAt === 'number' && fetchedAt > 0 && response && typeof response === 'object';
+            },
+            'Error reading performance cache'
+        );
+        if (!parsed) {
             return null;
         }
+        if (!isCacheFresh(parsed.fetchedAt, PERFORMANCE_CACHE_MAX_AGE_MS)) {
+            Storage.remove(key, 'Error deleting stale performance cache');
+            return null;
+        }
+        return parsed;
     }
     testExports.readPerformanceCache = readPerformanceCache;
 
     function writePerformanceCache(goalId, responseData) {
-        try {
-            const key = getPerformanceCacheKey(goalId);
-            const payload = {
-                fetchedAt: Date.now(),
-                response: responseData
-            };
-            GM_setValue(key, JSON.stringify(payload));
-        } catch (_error) {
-            console.error('[Goal Portfolio Viewer] Error writing performance cache:', _error);
-        }
+        const key = getPerformanceCacheKey(goalId);
+        const payload = {
+            fetchedAt: Date.now(),
+            response: responseData
+        };
+        Storage.writeJson(key, payload, 'Error writing performance cache');
     }
     testExports.writePerformanceCache = writePerformanceCache;
 
@@ -1611,7 +1788,7 @@
         if (!cached) {
             return null;
         }
-        return cached.response || null;
+        return cached.response ? Normalization.normalizePerformanceResponse(cached.response) : null;
     }
     testExports.getCachedPerformanceResponse = getCachedPerformanceResponse;
 
@@ -1649,13 +1826,13 @@
             if (!goalId) {
                 return;
             }
-            if (goalPerformanceData[goalId]) {
-                results[goalId] = goalPerformanceData[goalId];
+            if (state.performance.goalData[goalId]) {
+                results[goalId] = state.performance.goalData[goalId];
                 return;
             }
             const cached = getCachedPerformanceResponse(goalId);
             if (cached) {
-                goalPerformanceData[goalId] = cached;
+                state.performance.goalData[goalId] = cached;
                 results[goalId] = cached;
             } else {
                 idsToFetch.push(goalId);
@@ -1666,12 +1843,13 @@
             return results;
         }
 
-        const queueResults = await performanceRequestQueue(idsToFetch, async goalId => {
+        const queueResults = await state.performance.requestQueue(idsToFetch, async goalId => {
             try {
                 const data = await fetchPerformanceForGoal(goalId);
-                writePerformanceCache(goalId, data);
-                goalPerformanceData[goalId] = data;
-                return data;
+                const normalized = Normalization.normalizePerformanceResponse(data);
+                writePerformanceCache(goalId, normalized);
+                state.performance.goalData[goalId] = normalized;
+                return normalized;
             } catch (error) {
                 console.warn('[Goal Portfolio Viewer] Performance fetch failed:', error);
                 return null;
@@ -1688,15 +1866,18 @@
     }
 
     function buildGoalTypePerformanceSummary(performanceResponses) {
-        if (!performanceResponses.length) {
+        const responses = Array.isArray(performanceResponses)
+            ? performanceResponses.map(Normalization.normalizePerformanceResponse)
+            : [];
+        if (!responses.length) {
             return null;
         }
-        const normalizedSeriesCollection = performanceResponses.map(response =>
+        const normalizedSeriesCollection = responses.map(response =>
             normalizeTimeSeriesData(response?.timeSeries?.data || [])
         );
         const mergedSeries = mergeTimeSeriesByDate(normalizedSeriesCollection, true);
         const normalizedMergedSeries = normalizeTimeSeriesData(mergedSeries);
-        const primaryPerformanceDates = performanceResponses[0]?.performanceDates;
+        const primaryPerformanceDates = responses[0]?.performanceDates;
         const windowStart = getWindowStartDate(
             PERFORMANCE_CHART_WINDOW,
             normalizedMergedSeries,
@@ -1704,15 +1885,15 @@
             true
         );
         const windowSeries = getTimeSeriesWindow(normalizedMergedSeries, windowStart, true);
-        const windowReturns = performanceResponses.length === 1
+        const windowReturns = responses.length === 1
             ? derivePerformanceWindows(
-                performanceResponses[0]?.returnsTable,
+                responses[0]?.returnsTable,
                 primaryPerformanceDates,
-                performanceResponses[0]?.timeSeries?.data || []
+                responses[0]?.timeSeries?.data || []
             )
-            : calculateWeightedWindowReturns(performanceResponses);
+            : calculateWeightedWindowReturns(responses);
 
-        const metrics = summarizePerformanceMetrics(performanceResponses, normalizedMergedSeries);
+        const metrics = summarizePerformanceMetrics(responses, normalizedMergedSeries);
 
         return {
             mergedSeries,
@@ -1748,8 +1929,8 @@
                 return;
             }
             const key = getPerformanceCacheKey(goalId);
-            GM_deleteValue(key);
-            delete goalPerformanceData[goalId];
+            Storage.remove(key, 'Error deleting performance cache');
+            delete state.performance.goalData[goalId];
         });
     }
     testExports.clearPerformanceCache = clearPerformanceCache;
@@ -1763,6 +1944,8 @@
     const PERFORMANCE_CHART_MIN_WIDTH = 240;
     const PERFORMANCE_CHART_MIN_HEIGHT = 90;
     const PERFORMANCE_CHART_MAX_HEIGHT = 180;
+    const PERFORMANCE_CHART_LEFT_PADDING = 100;
+    const PERFORMANCE_CHART_RIGHT_PADDING = 50;
     // Aspect ratio tuned for typical container widths (≈240–800px) to keep charts readable
     // while staying within PERFORMANCE_CHART_MIN_HEIGHT and PERFORMANCE_CHART_MAX_HEIGHT.
     const PERFORMANCE_CHART_ASPECT_RATIO = 0.28;
@@ -1855,92 +2038,108 @@
         };
     }
 
-    function createLineChartSvg(series, chartWidth, chartHeight) {
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    function getChartLayout(chartWidth, chartHeight) {
         const widthValue = Math.max(PERFORMANCE_CHART_MIN_WIDTH, Number(chartWidth) || PERFORMANCE_CHART_DEFAULT_WIDTH);
         const heightValue = Math.max(PERFORMANCE_CHART_MIN_HEIGHT, Number(chartHeight) || PERFORMANCE_CHART_DEFAULT_HEIGHT);
-        // Add 100px left padding and 50px right padding for proper spacing
-        const leftPadding = 100;
-        const rightPadding = 50;
-        const totalHorizontalPadding = leftPadding + rightPadding;
-        // ViewBox shows full width since we now handle padding internally
-        const viewBoxWidth = widthValue;
-        svg.setAttribute('viewBox', `0 0 ${viewBoxWidth} ${heightValue}`);
-        svg.setAttribute('class', 'gpv-performance-chart');
+        const padding = getChartPadding(widthValue, heightValue);
+        const plotWidth = Math.max(
+            1,
+            widthValue - PERFORMANCE_CHART_LEFT_PADDING - PERFORMANCE_CHART_RIGHT_PADDING - padding * 2
+        );
+        const plotHeight = Math.max(1, heightValue - padding * 2);
+        return {
+            widthValue,
+            heightValue,
+            padding,
+            plotWidth,
+            plotHeight,
+            leftPadding: PERFORMANCE_CHART_LEFT_PADDING,
+            rightPadding: PERFORMANCE_CHART_RIGHT_PADDING
+        };
+    }
 
-        if (!Array.isArray(series) || series.length < 2) {
-            const emptyText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            // Position at center of viewBox (accounting for left and right padding)
-            emptyText.setAttribute('x', `${leftPadding + (viewBoxWidth - totalHorizontalPadding) / 2}`);
-            emptyText.setAttribute('y', `${heightValue / 2}`);
-            emptyText.setAttribute('text-anchor', 'middle');
-            emptyText.setAttribute('class', 'gpv-performance-chart-empty');
-            emptyText.textContent = 'No chart data';
-            svg.appendChild(emptyText);
-            return svg;
-        }
-
+    function getChartSeriesStats(series) {
         const amounts = series.map(point => Number(point.amount)).filter(val => Number.isFinite(val));
         if (amounts.length < 2) {
-            return svg;
+            return null;
         }
-
         const minValue = Math.min(...amounts);
         const maxValue = Math.max(...amounts);
-        const range = maxValue - minValue || 1;
-        // Use full width for padding calculation
-        const padding = getChartPadding(widthValue, heightValue);
-        // Chart dimensions account for left padding, right padding, and internal padding
-        const width = Math.max(1, widthValue - leftPadding - rightPadding - padding * 2);
-        const height = Math.max(1, heightValue - padding * 2);
+        return {
+            amounts,
+            minValue,
+            maxValue,
+            range: maxValue - minValue || 1
+        };
+    }
 
+    function getChartPoint(series, index, layout, minValue, range) {
+        const x = layout.leftPadding + layout.padding + (index / (series.length - 1)) * layout.plotWidth;
+        const y = layout.padding + layout.plotHeight - ((series[index].amount - minValue) / range) * layout.plotHeight;
+        return { x, y };
+    }
+
+    function formatChartDateLabel(dateString) {
+        const date = new Date(dateString);
+        if (!Number.isFinite(date.getTime())) {
+            return dateString;
+        }
+        return date.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' });
+    }
+
+    function appendChartXAxisLabels(axisGroup, series, layout) {
+        const xLabels = [
+            { value: series[0].date, anchor: 'start', x: layout.leftPadding + layout.padding },
+            {
+                value: series[series.length - 1].date,
+                anchor: 'end',
+                x: layout.leftPadding + layout.padding + layout.plotWidth
+            }
+        ];
+
+        xLabels.forEach(labelInfo => {
+            const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            label.setAttribute('x', `${labelInfo.x}`);
+            const labelY = Math.min(layout.heightValue - 6, layout.padding + layout.plotHeight + 12);
+            label.setAttribute('y', `${labelY}`);
+            label.setAttribute('text-anchor', labelInfo.anchor);
+            label.setAttribute('class', 'gpv-performance-chart-label');
+            label.textContent = formatChartDateLabel(labelInfo.value);
+            axisGroup.appendChild(label);
+        });
+    }
+
+    function buildChartAxisGroup(layout, minValue, maxValue, range, series) {
         const axisGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         axisGroup.setAttribute('class', 'gpv-performance-chart-axis');
 
         const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        xAxis.setAttribute('x1', `${leftPadding + padding}`);
-        xAxis.setAttribute('x2', `${leftPadding + padding + width}`);
-        xAxis.setAttribute('y1', `${padding + height}`);
-        xAxis.setAttribute('y2', `${padding + height}`);
+        xAxis.setAttribute('x1', `${layout.leftPadding + layout.padding}`);
+        xAxis.setAttribute('x2', `${layout.leftPadding + layout.padding + layout.plotWidth}`);
+        xAxis.setAttribute('y1', `${layout.padding + layout.plotHeight}`);
+        xAxis.setAttribute('y2', `${layout.padding + layout.plotHeight}`);
         axisGroup.appendChild(xAxis);
 
         const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        yAxis.setAttribute('x1', `${leftPadding + padding}`);
-        yAxis.setAttribute('x2', `${leftPadding + padding}`);
-        yAxis.setAttribute('y1', `${padding}`);
-        yAxis.setAttribute('y2', `${padding + height}`);
+        yAxis.setAttribute('x1', `${layout.leftPadding + layout.padding}`);
+        yAxis.setAttribute('x2', `${layout.leftPadding + layout.padding}`);
+        yAxis.setAttribute('y1', `${layout.padding}`);
+        yAxis.setAttribute('y2', `${layout.padding + layout.plotHeight}`);
         axisGroup.appendChild(yAxis);
-
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        const trendPositive = amounts[amounts.length - 1] >= amounts[0];
-        const strokeColor = trendPositive ? '#10b981' : '#ef4444';
-
-        const points = series.map((point, index) => {
-            const x = leftPadding + padding + (index / (series.length - 1)) * width;
-            const y = padding + height - ((point.amount - minValue) / range) * height;
-            return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
-        });
-
-        path.setAttribute('d', points.join(' '));
-        path.setAttribute('fill', 'none');
-        path.setAttribute('stroke', strokeColor);
-        path.setAttribute('stroke-width', '2.5');
-        path.setAttribute('stroke-linecap', 'round');
-        path.setAttribute('stroke-linejoin', 'round');
 
         const tickValues = [maxValue, (maxValue + minValue) / 2, minValue];
         tickValues.forEach((value, index) => {
-            const y = padding + height - ((value - minValue) / range) * height;
+            const y = layout.padding + layout.plotHeight - ((value - minValue) / range) * layout.plotHeight;
             const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            tick.setAttribute('x1', `${leftPadding + padding - 3}`);
-            tick.setAttribute('x2', `${leftPadding + padding}`);
+            tick.setAttribute('x1', `${layout.leftPadding + layout.padding - 3}`);
+            tick.setAttribute('x2', `${layout.leftPadding + layout.padding}`);
             tick.setAttribute('y1', `${y}`);
             tick.setAttribute('y2', `${y}`);
             tick.setAttribute('class', 'gpv-performance-chart-tick');
             axisGroup.appendChild(tick);
 
             const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            label.setAttribute('x', `${leftPadding + padding - 6}`);
+            label.setAttribute('x', `${layout.leftPadding + layout.padding - 6}`);
             label.setAttribute('y', `${y + 3}`);
             label.setAttribute('text-anchor', 'end');
             label.setAttribute('class', 'gpv-performance-chart-label');
@@ -1949,8 +2148,8 @@
 
             if (index === 1) {
                 const grid = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                grid.setAttribute('x1', `${leftPadding + padding}`);
-                grid.setAttribute('x2', `${leftPadding + padding + width}`);
+                grid.setAttribute('x1', `${layout.leftPadding + layout.padding}`);
+                grid.setAttribute('x2', `${layout.leftPadding + layout.padding + layout.plotWidth}`);
                 grid.setAttribute('y1', `${y}`);
                 grid.setAttribute('y2', `${y}`);
                 grid.setAttribute('class', 'gpv-performance-chart-grid');
@@ -1958,44 +2157,31 @@
             }
         });
 
-        const formatDateLabel = dateString => {
-            const date = new Date(dateString);
-            if (!Number.isFinite(date.getTime())) {
-                return dateString;
-            }
-            return date.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' });
-        };
+        appendChartXAxisLabels(axisGroup, series, layout);
 
-        const xLabels = [
-            { value: series[0].date, anchor: 'start', x: leftPadding + padding },
-            { value: series[series.length - 1].date, anchor: 'end', x: leftPadding + padding + width }
-        ];
+        return axisGroup;
+    }
 
-        xLabels.forEach(labelInfo => {
-            const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            label.setAttribute('x', `${labelInfo.x}`);
-            const labelY = Math.min(heightValue - 6, padding + height + 12);
-            label.setAttribute('y', `${labelY}`);
-            label.setAttribute('text-anchor', labelInfo.anchor);
-            label.setAttribute('class', 'gpv-performance-chart-label');
-            label.textContent = formatDateLabel(labelInfo.value);
-            axisGroup.appendChild(label);
+    function buildChartPath(series, layout, minValue, range) {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const trendPositive = series[series.length - 1].amount >= series[0].amount;
+        const strokeColor = trendPositive ? '#10b981' : '#ef4444';
+
+        const points = series.map((point, index) => {
+            const coords = getChartPoint(series, index, layout, minValue, range);
+            return `${index === 0 ? 'M' : 'L'} ${coords.x.toFixed(2)} ${coords.y.toFixed(2)}`;
         });
 
-        const axisTitleX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        axisTitleX.setAttribute('x', `${leftPadding + padding + width / 2}`);
-        axisTitleX.setAttribute('y', `${Math.min(heightValue - 2, padding + height + 20)}`);
-        axisTitleX.setAttribute('text-anchor', 'middle');
-        axisTitleX.setAttribute('class', 'gpv-performance-chart-title');
-        axisTitleX.textContent = 'Date';
+        path.setAttribute('d', points.join(' '));
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', strokeColor);
+        path.setAttribute('stroke-width', '2.5');
+        path.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('stroke-linejoin', 'round');
+        return path;
+    }
 
-        const axisTitleY = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        axisTitleY.setAttribute('x', `${Math.max(leftPadding + 4, leftPadding + padding - 10)}`);
-        axisTitleY.setAttribute('y', `${Math.max(12, padding - 6)}`);
-        axisTitleY.setAttribute('text-anchor', 'start');
-        axisTitleY.setAttribute('class', 'gpv-performance-chart-title');
-        axisTitleY.textContent = 'Value (SGD)';
-
+    function buildChartPointGroup(series, layout, minValue, range) {
         const highlightIndices = [0, Math.floor(series.length / 2), series.length - 1];
         const pointGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         pointGroup.setAttribute('class', 'gpv-performance-chart-points');
@@ -2004,19 +2190,67 @@
             if (!point) {
                 return;
             }
-            const x = leftPadding + padding + (index / (series.length - 1)) * width;
-            const y = padding + height - ((point.amount - minValue) / range) * height;
+            const coords = getChartPoint(series, index, layout, minValue, range);
             const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            circle.setAttribute('cx', `${x}`);
-            circle.setAttribute('cy', `${y}`);
+            circle.setAttribute('cx', `${coords.x}`);
+            circle.setAttribute('cy', `${coords.y}`);
             circle.setAttribute('r', '2.5');
             circle.setAttribute('class', 'gpv-performance-chart-point');
             pointGroup.appendChild(circle);
         });
+        return pointGroup;
+    }
+
+    function buildChartAxisTitles(layout) {
+        const axisTitleX = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        axisTitleX.setAttribute('x', `${layout.leftPadding + layout.padding + layout.plotWidth / 2}`);
+        axisTitleX.setAttribute('y', `${Math.min(layout.heightValue - 2, layout.padding + layout.plotHeight + 20)}`);
+        axisTitleX.setAttribute('text-anchor', 'middle');
+        axisTitleX.setAttribute('class', 'gpv-performance-chart-title');
+        axisTitleX.textContent = 'Date';
+
+        const axisTitleY = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        axisTitleY.setAttribute('x', `${Math.max(layout.leftPadding + 4, layout.leftPadding + layout.padding - 10)}`);
+        axisTitleY.setAttribute('y', `${Math.max(12, layout.padding - 6)}`);
+        axisTitleY.setAttribute('text-anchor', 'start');
+        axisTitleY.setAttribute('class', 'gpv-performance-chart-title');
+        axisTitleY.textContent = 'Value (SGD)';
+
+        return { axisTitleX, axisTitleY };
+    }
+
+    function createLineChartSvg(series, chartWidth, chartHeight) {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        const layout = getChartLayout(chartWidth, chartHeight);
+        const totalHorizontalPadding = layout.leftPadding + layout.rightPadding;
+        svg.setAttribute('viewBox', `0 0 ${layout.widthValue} ${layout.heightValue}`);
+        svg.setAttribute('class', 'gpv-performance-chart');
+
+        if (!Array.isArray(series) || series.length < 2) {
+            const emptyText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            // Position at center of viewBox (accounting for left and right padding)
+            emptyText.setAttribute('x', `${layout.leftPadding + (layout.widthValue - totalHorizontalPadding) / 2}`);
+            emptyText.setAttribute('y', `${layout.heightValue / 2}`);
+            emptyText.setAttribute('text-anchor', 'middle');
+            emptyText.setAttribute('class', 'gpv-performance-chart-empty');
+            emptyText.textContent = 'No chart data';
+            svg.appendChild(emptyText);
+            return svg;
+        }
+
+        const stats = getChartSeriesStats(series);
+        if (!stats) {
+            return svg;
+        }
+
+        const axisGroup = buildChartAxisGroup(layout, stats.minValue, stats.maxValue, stats.range, series);
+        const path = buildChartPath(series, layout, stats.minValue, stats.range);
+        const pointGroup = buildChartPointGroup(series, layout, stats.minValue, stats.range);
+        const axisTitles = buildChartAxisTitles(layout);
 
         svg.appendChild(axisGroup);
-        svg.appendChild(axisTitleX);
-        svg.appendChild(axisTitleY);
+        svg.appendChild(axisTitles.axisTitleX);
+        svg.appendChild(axisTitles.axisTitleY);
         svg.appendChild(path);
         svg.appendChild(pointGroup);
         return svg;
@@ -2024,8 +2258,7 @@
     testExports.createLineChartSvg = createLineChartSvg;
 
     function buildPerformanceWindowGrid(windowReturns) {
-        const grid = document.createElement('div');
-        grid.className = 'gpv-performance-window-grid';
+        const grid = createElement('div', 'gpv-performance-window-grid');
 
         const items = [
             { label: '1M', value: windowReturns?.oneMonth },
@@ -2036,16 +2269,13 @@
         ];
 
         items.forEach(item => {
-            const tile = document.createElement('div');
-            tile.className = 'gpv-performance-window-tile';
-
-            const label = document.createElement('div');
-            label.className = 'gpv-performance-window-label';
-            label.textContent = item.label;
-
-            const value = document.createElement('div');
-            value.className = 'gpv-performance-window-value';
-            value.textContent = formatPercentage(item.value);
+            const tile = createElement('div', 'gpv-performance-window-tile');
+            const label = createElement('div', 'gpv-performance-window-label', item.label);
+            const value = createElement(
+                'div',
+                'gpv-performance-window-value',
+                formatPercentFromRatio(item.value, { showSign: true })
+            );
             if (typeof item.value === 'number') {
                 value.classList.add(item.value >= 0 ? 'positive' : 'negative');
             }
@@ -2060,14 +2290,12 @@
     testExports.buildPerformanceWindowGrid = buildPerformanceWindowGrid;
 
     function buildPerformanceMetricsTable(metrics) {
-        const table = document.createElement('table');
-        table.className = 'gpv-performance-metrics-table';
-
-        const tbody = document.createElement('tbody');
+        const table = createElement('table', 'gpv-performance-metrics-table');
+        const tbody = createElement('tbody');
         const rows = [
-            { label: 'Total Return %', value: formatPercentage(metrics?.totalReturnPercent) },
-            { label: 'TWR %', value: formatPercentage(metrics?.twrPercent) },
-            { label: 'Annualised IRR', value: formatPercentage(metrics?.annualisedIrrPercent) },
+            { label: 'Total Return %', value: formatPercentFromRatio(metrics?.totalReturnPercent, { showSign: true }) },
+            { label: 'TWR %', value: formatPercentFromRatio(metrics?.twrPercent, { showSign: true }) },
+            { label: 'Annualised IRR', value: formatPercentFromRatio(metrics?.annualisedIrrPercent, { showSign: true }) },
             { label: 'Gain / Loss', value: formatMoney(metrics?.totalReturnAmount) },
             { label: 'Net Fees', value: formatMoney(metrics?.netFeesAmount) },
             { label: 'Net Investment', value: formatMoney(metrics?.netInvestmentAmount) },
@@ -2075,14 +2303,9 @@
         ];
 
         rows.forEach(row => {
-            const tr = document.createElement('tr');
-            const labelCell = document.createElement('td');
-            labelCell.className = 'gpv-performance-metric-label';
-            labelCell.textContent = row.label;
-
-            const valueCell = document.createElement('td');
-            valueCell.className = 'gpv-performance-metric-value';
-            valueCell.textContent = row.value;
+            const tr = createElement('tr');
+            const labelCell = createElement('td', 'gpv-performance-metric-label', row.label);
+            const valueCell = createElement('td', 'gpv-performance-metric-value', row.value);
 
             tr.appendChild(labelCell);
             tr.appendChild(valueCell);
@@ -2094,22 +2317,18 @@
     }
 
     function renderGoalTypePerformance(typeSection, goalIds, cleanupCallbacks) {
-        const performanceContainer = document.createElement('div');
-        performanceContainer.className = 'gpv-performance-container';
-
-        const loading = document.createElement('div');
-        loading.className = 'gpv-performance-loading';
-        loading.textContent = 'Loading performance data...';
+        const performanceContainer = createElement('div', 'gpv-performance-container');
+        const loading = createElement('div', 'gpv-performance-loading', 'Loading performance data...');
         performanceContainer.appendChild(loading);
 
         typeSection.appendChild(performanceContainer);
 
-        const refreshFootnote = document.createElement('div');
-        refreshFootnote.className = 'gpv-performance-cache-note';
-        refreshFootnote.textContent = 'Performance data is cached for 7 days. You can refresh it once every 24 hours.';
-
-        const refreshButton = document.createElement('button');
-        refreshButton.className = 'gpv-performance-refresh-btn';
+        const refreshFootnote = createElement(
+            'div',
+            'gpv-performance-cache-note',
+            'Performance data is cached for 7 days. You can refresh it once every 24 hours.'
+        );
+        const refreshButton = createElement('button', 'gpv-performance-refresh-btn');
         refreshButton.type = 'button';
 
         function setRefreshButtonState(latestFetchedAt) {
@@ -2126,20 +2345,17 @@
 
         function renderPerformanceSummary(summary) {
             const windowGrid = buildPerformanceWindowGrid(summary.windowReturns);
-            const chartWrapper = document.createElement('div');
-            chartWrapper.className = 'gpv-performance-chart-wrapper';
+            const chartWrapper = createElement('div', 'gpv-performance-chart-wrapper');
             const metricsTable = buildPerformanceMetricsTable(summary.metrics);
 
-            const detailRow = document.createElement('div');
-            detailRow.className = 'gpv-performance-detail-row';
+            const detailRow = createElement('div', 'gpv-performance-detail-row');
             detailRow.appendChild(chartWrapper);
             detailRow.appendChild(metricsTable);
 
             performanceContainer.appendChild(windowGrid);
             performanceContainer.appendChild(detailRow);
 
-            const footerRow = document.createElement('div');
-            footerRow.className = 'gpv-performance-footer-row';
+            const footerRow = createElement('div', 'gpv-performance-footer-row');
             footerRow.appendChild(refreshFootnote);
             footerRow.appendChild(refreshButton);
             performanceContainer.appendChild(footerRow);
@@ -2169,9 +2385,7 @@
 
                 performanceContainer.innerHTML = '';
                 if (!summary) {
-                    const emptyState = document.createElement('div');
-                    emptyState.className = 'gpv-performance-loading';
-                    emptyState.textContent = 'Performance data unavailable.';
+                    const emptyState = createElement('div', 'gpv-performance-loading', 'Performance data unavailable.');
                     performanceContainer.appendChild(emptyState);
                     return;
                 }
@@ -2199,38 +2413,66 @@
         loadPerformanceData();
     }
     
-    function buildBucketStatsMarkup({
+    function createElement(tagName, className, textContent) {
+        const element = document.createElement(tagName);
+        if (className) {
+            element.className = className;
+        }
+        if (textContent !== undefined && textContent !== null) {
+            element.textContent = textContent;
+        }
+        return element;
+    }
+
+    function appendTextSpan(container, className, textContent) {
+        const span = createElement('span', className, textContent);
+        container.appendChild(span);
+        return span;
+    }
+
+    function appendLabeledValue(container, wrapperClass, labelText, valueText, options = {}) {
+        const wrapper = createElement('span', wrapperClass);
+        const labelClass = options.labelClass || null;
+        const valueClass = options.valueClass || null;
+        const separator = options.separator ?? ' ';
+        appendTextSpan(wrapper, labelClass, labelText);
+        if (separator) {
+            wrapper.appendChild(document.createTextNode(separator));
+        }
+        appendTextSpan(wrapper, valueClass, valueText);
+        container.appendChild(wrapper);
+        return wrapper;
+    }
+
+    function createStatItem(label, value, valueClass) {
+        const item = createElement('div', 'gpv-stat-item');
+        appendTextSpan(item, 'gpv-stat-label', label);
+        const valueClassName = valueClass ? `gpv-stat-value ${valueClass}` : 'gpv-stat-value';
+        appendTextSpan(item, valueClassName, value);
+        return item;
+    }
+
+    function buildBucketStatsFragment({
         endingBalanceDisplay,
         returnDisplay,
         returnClass,
         growthDisplay,
         returnLabel
     }) {
-        return `
-            <div class="gpv-stat-item">
-                <span class="gpv-stat-label">Balance</span>
-                <span class="gpv-stat-value">${endingBalanceDisplay}</span>
-            </div>
-            <div class="gpv-stat-item">
-                <span class="gpv-stat-label">${returnLabel}</span>
-                <span class="gpv-stat-value ${returnClass}">${returnDisplay}</span>
-            </div>
-            <div class="gpv-stat-item">
-                <span class="gpv-stat-label">Growth</span>
-                <span class="gpv-stat-value ${returnClass}">${growthDisplay}</span>
-            </div>
-        `;
+        const fragment = document.createDocumentFragment();
+        fragment.appendChild(createStatItem('Balance', endingBalanceDisplay));
+        fragment.appendChild(createStatItem(returnLabel, returnDisplay, returnClass));
+        fragment.appendChild(createStatItem('Growth', growthDisplay, returnClass));
+        return fragment;
     }
 
     function renderSummaryView(contentDiv, summaryViewModel, onBucketSelect) {
         contentDiv.innerHTML = '';
 
-        const summaryContainer = document.createElement('div');
-        summaryContainer.className = 'gpv-summary-container';
+        const summaryContainer = createElement('div', 'gpv-summary-container');
 
         summaryViewModel.buckets.forEach(bucketModel => {
-            const bucketCard = document.createElement('div');
-            bucketCard.className = 'gpv-bucket-card';
+            const bucketCard = createElement('div', 'gpv-bucket-card');
             bucketCard.dataset.bucket = bucketModel.bucketName;
             bucketCard.setAttribute('role', 'button');
             bucketCard.setAttribute('tabindex', '0');
@@ -2244,36 +2486,42 @@
                 });
             }
 
-            const bucketHeader = document.createElement('div');
-            bucketHeader.className = 'gpv-bucket-header';
-            
-            const bucketTitle = document.createElement('h2');
-            bucketTitle.className = 'gpv-bucket-title';
-            bucketTitle.textContent = bucketModel.bucketName;
-            
-            const bucketStats = document.createElement('div');
-            bucketStats.className = 'gpv-stats gpv-bucket-stats';
-            bucketStats.innerHTML = buildBucketStatsMarkup({
+            const bucketHeader = createElement('div', 'gpv-bucket-header');
+            const bucketTitle = createElement('h2', 'gpv-bucket-title', bucketModel.bucketName);
+            const bucketStats = createElement('div', 'gpv-stats gpv-bucket-stats');
+            bucketStats.appendChild(buildBucketStatsFragment({
                 endingBalanceDisplay: bucketModel.endingBalanceDisplay,
                 returnDisplay: bucketModel.returnDisplay,
                 returnClass: bucketModel.returnClass,
                 growthDisplay: bucketModel.growthDisplay,
                 returnLabel: 'Return'
-            });
+            }));
             
             bucketHeader.appendChild(bucketTitle);
             bucketHeader.appendChild(bucketStats);
             bucketCard.appendChild(bucketHeader);
 
             bucketModel.goalTypes.forEach(goalTypeModel => {
-                const typeRow = document.createElement('div');
-                typeRow.className = 'gpv-goal-type-row';
-                typeRow.innerHTML = `
-                    <span class="gpv-goal-type-name">${goalTypeModel.displayName}</span>
-                    <span class="gpv-goal-type-stat">Balance: ${goalTypeModel.endingBalanceDisplay}</span>
-                    <span class="gpv-goal-type-stat">Return: ${goalTypeModel.returnDisplay}</span>
-                    <span class="gpv-goal-type-stat">Growth: ${goalTypeModel.growthDisplay}</span>
-                `;
+                const typeRow = createElement('div', 'gpv-goal-type-row');
+                appendTextSpan(typeRow, 'gpv-goal-type-name', goalTypeModel.displayName);
+                appendLabeledValue(
+                    typeRow,
+                    'gpv-goal-type-stat',
+                    'Balance:',
+                    goalTypeModel.endingBalanceDisplay
+                );
+                appendLabeledValue(
+                    typeRow,
+                    'gpv-goal-type-stat',
+                    'Return:',
+                    goalTypeModel.returnDisplay
+                );
+                appendLabeledValue(
+                    typeRow,
+                    'gpv-goal-type-stat',
+                    'Growth:',
+                    goalTypeModel.growthDisplay
+                );
                 bucketCard.appendChild(typeRow);
             });
 
@@ -2284,34 +2532,28 @@
     }
     testExports.renderSummaryView = renderSummaryView;
 
-    function renderBucketView(
+    function renderBucketView({
         contentDiv,
         bucketViewModel,
         mergedInvestmentDataState,
         projectedInvestmentsState,
         cleanupCallbacks
-    ) {
+    }) {
         contentDiv.innerHTML = '';
         if (!bucketViewModel) {
             return;
         }
 
-        const bucketHeader = document.createElement('div');
-        bucketHeader.className = 'gpv-detail-header';
-        
-        const bucketTitle = document.createElement('h2');
-        bucketTitle.className = 'gpv-detail-title';
-        bucketTitle.textContent = bucketViewModel.bucketName;
-        
-        const bucketStats = document.createElement('div');
-        bucketStats.className = 'gpv-stats gpv-detail-stats';
-        bucketStats.innerHTML = buildBucketStatsMarkup({
+        const bucketHeader = createElement('div', 'gpv-detail-header');
+        const bucketTitle = createElement('h2', 'gpv-detail-title', bucketViewModel.bucketName);
+        const bucketStats = createElement('div', 'gpv-stats gpv-detail-stats');
+        bucketStats.appendChild(buildBucketStatsFragment({
             endingBalanceDisplay: bucketViewModel.endingBalanceDisplay,
             returnDisplay: bucketViewModel.returnDisplay,
             returnClass: bucketViewModel.returnClass,
             growthDisplay: bucketViewModel.growthDisplay,
             returnLabel: 'Return'
-        });
+        }));
         
         bucketHeader.appendChild(bucketTitle);
         bucketHeader.appendChild(bucketStats);
@@ -2320,25 +2562,22 @@
         bucketViewModel.goalTypes.forEach(goalTypeModel => {
             const typeGrowth = goalTypeModel.growthDisplay;
             
-            const typeSection = document.createElement('div');
-            typeSection.className = 'gpv-type-section';
+            const typeSection = createElement('div', 'gpv-type-section');
             typeSection.dataset.bucket = bucketViewModel.bucketName;
             typeSection.dataset.goalType = goalTypeModel.goalType;
             
-            const typeHeader = document.createElement('div');
-            typeHeader.className = 'gpv-type-header';
+            const typeHeader = createElement('div', 'gpv-type-header');
             
             // Get current projected investment for this goal type
             const currentProjectedInvestment = goalTypeModel.projectedAmount;
             
-            typeHeader.innerHTML = `
-                <h3>${goalTypeModel.displayName}</h3>
-                <div class="gpv-type-summary">
-                    <span>Balance: ${goalTypeModel.endingBalanceDisplay}</span>
-                    <span>Return: ${goalTypeModel.returnDisplay}</span>
-                    <span>Growth: ${typeGrowth}</span>
-                </div>
-            `;
+            const typeTitle = createElement('h3', null, goalTypeModel.displayName);
+            const typeSummary = createElement('div', 'gpv-type-summary');
+            appendLabeledValue(typeSummary, null, 'Balance:', goalTypeModel.endingBalanceDisplay);
+            appendLabeledValue(typeSummary, null, 'Return:', goalTypeModel.returnDisplay);
+            appendLabeledValue(typeSummary, null, 'Growth:', typeGrowth);
+            typeHeader.appendChild(typeTitle);
+            typeHeader.appendChild(typeSummary);
             
             typeSection.appendChild(typeHeader);
 
@@ -2349,60 +2588,65 @@
             );
 
             // Add projected investment input section as sibling after performance container
-            const projectedInputContainer = document.createElement('div');
-            projectedInputContainer.className = 'gpv-projected-input-container';
-            projectedInputContainer.innerHTML = `
-                <label class="gpv-projected-label">
-                    <span class="gpv-projected-icon">💡</span>
-                    <span>Add Projected Investment (simulation only):</span>
-                </label>
-                <input 
-                    type="number" 
-                    class="gpv-projected-input" 
-                    step="100"
-                    value="${currentProjectedInvestment > 0 ? currentProjectedInvestment : ''}"
-                    placeholder="Enter amount"
-                    data-bucket="${bucketViewModel.bucketName}"
-                    data-goal-type="${goalTypeModel.goalType}"
-                />
-            `;
+            const projectedInputContainer = createElement('div', 'gpv-projected-input-container');
+            const projectedLabel = createElement('label', 'gpv-projected-label');
+            appendTextSpan(projectedLabel, 'gpv-projected-icon', '💡');
+            appendTextSpan(projectedLabel, null, 'Add Projected Investment (simulation only):');
+
+            const projectedInput = createElement('input', CLASS_NAMES.projectedInput);
+            projectedInput.type = 'number';
+            projectedInput.step = '100';
+            projectedInput.value = currentProjectedInvestment > 0 ? String(currentProjectedInvestment) : '';
+            projectedInput.placeholder = 'Enter amount';
+            projectedInput.dataset.bucket = bucketViewModel.bucketName;
+            projectedInput.dataset.goalType = goalTypeModel.goalType;
+
+            projectedInputContainer.appendChild(projectedLabel);
+            projectedInputContainer.appendChild(projectedInput);
             
             typeSection.appendChild(projectedInputContainer);
             
             // Add event listener for projected investment input
-            const projectedInput = projectedInputContainer.querySelector('.gpv-projected-input');
             projectedInput.addEventListener('input', function() {
-                handleProjectedInvestmentChange(
-                    this,
-                    bucketViewModel.bucketName,
-                    goalTypeModel.goalType,
+                EventHandlers.handleProjectedInvestmentChange({
+                    input: this,
+                    bucket: bucketViewModel.bucketName,
+                    goalType: goalTypeModel.goalType,
                     typeSection,
                     mergedInvestmentDataState,
                     projectedInvestmentsState
-                );
+                });
             });
 
-            const table = document.createElement('table');
-            table.className = 'gpv-table gpv-goal-table';
-            table.innerHTML = `
-                <thead>
-                    <tr>
-                        <th class="gpv-goal-name-header">Goal Name</th>
-                        <th>Balance</th>
-                        <th>% of Goal Type</th>
-                        <th class="gpv-fixed-header">Fixed</th>
-                        <th class="gpv-target-header">
-                            <div>Target %</div>
-                            <div class="gpv-remaining-target ${goalTypeModel.remainingTargetIsHigh ? 'gpv-remaining-alert' : ''}">Remaining: ${goalTypeModel.remainingTargetDisplay}</div>
-                        </th>
-                        <th>Diff</th>
-                        <th>Cumulative Return</th>
-                        <th>Return %</th>
-                    </tr>
-                </thead>
-            `;
+            const table = createElement('table', `gpv-table ${CLASS_NAMES.goalTable}`);
+            const thead = createElement('thead');
+            const headerRow = createElement('tr');
 
-            const tbody = document.createElement('tbody');
+            headerRow.appendChild(createElement('th', 'gpv-goal-name-header', 'Goal Name'));
+            headerRow.appendChild(createElement('th', null, 'Balance'));
+            headerRow.appendChild(createElement('th', null, '% of Goal Type'));
+            headerRow.appendChild(createElement('th', 'gpv-fixed-header', 'Fixed'));
+
+            const targetHeader = createElement('th', 'gpv-target-header');
+            targetHeader.appendChild(createElement('div', null, 'Target %'));
+            const remainingTargetClass = goalTypeModel.remainingTargetIsHigh
+                ? `${CLASS_NAMES.remainingTarget} ${CLASS_NAMES.remainingAlert}`
+                : CLASS_NAMES.remainingTarget;
+            const remainingTarget = createElement('div', remainingTargetClass);
+            appendTextSpan(remainingTarget, 'gpv-remaining-label', 'Remaining:');
+            remainingTarget.appendChild(document.createTextNode(' '));
+            appendTextSpan(remainingTarget, 'gpv-remaining-value', goalTypeModel.remainingTargetDisplay);
+            targetHeader.appendChild(remainingTarget);
+            headerRow.appendChild(targetHeader);
+
+            headerRow.appendChild(createElement('th', null, 'Diff'));
+            headerRow.appendChild(createElement('th', null, 'Cumulative Return'));
+            headerRow.appendChild(createElement('th', null, 'Return %'));
+
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = createElement('tbody');
 
             const goalModelsById = goalTypeModel.goals.reduce((acc, goalModel) => {
                 if (goalModel?.goalId) {
@@ -2412,40 +2656,42 @@
             }, {});
 
             goalTypeModel.goals.forEach(goalModel => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="gpv-goal-name">${goalModel.goalName}</td>
-                    <td>${goalModel.endingBalanceDisplay}</td>
-                    <td>${goalModel.percentOfTypeDisplay}</td>
-                    <td class="gpv-fixed-cell">
-                        <label class="gpv-fixed-toggle">
-                            <input 
-                                type="checkbox"
-                                class="gpv-fixed-toggle-input"
-                                data-goal-id="${goalModel.goalId}"
-                                ${goalModel.isFixed ? 'checked' : ''}
-                            />
-                            <span class="gpv-toggle-slider"></span>
-                        </label>
-                    </td>
-                    <td class="gpv-target-cell">
-                        <input 
-                            type="number" 
-                            class="gpv-target-input" 
-                            min="0" 
-                            max="100" 
-                            step="0.01"
-                            value="${goalModel.targetDisplay}"
-                            placeholder="Set target"
-                            data-goal-id="${goalModel.goalId}"
-                            data-fixed="${goalModel.isFixed ? 'true' : 'false'}"
-                            ${goalModel.isFixed ? 'disabled' : ''}
-                        />
-                    </td>
-                    <td class="gpv-diff-cell ${goalModel.diffClass}">${goalModel.diffDisplay}</td>
-                    <td class="${goalModel.returnClass}">${goalModel.returnDisplay}</td>
-                    <td class="${goalModel.returnClass}">${goalModel.returnPercentDisplay}</td>
-                `;
+                const tr = createElement('tr');
+                tr.appendChild(createElement('td', 'gpv-goal-name', goalModel.goalName));
+                tr.appendChild(createElement('td', null, goalModel.endingBalanceDisplay));
+                tr.appendChild(createElement('td', null, goalModel.percentOfTypeDisplay));
+
+                const fixedCell = createElement('td', 'gpv-fixed-cell');
+                const fixedLabel = createElement('label', 'gpv-fixed-toggle');
+                const fixedInput = createElement('input', CLASS_NAMES.fixedToggleInput);
+                fixedInput.type = 'checkbox';
+                fixedInput.dataset.goalId = goalModel.goalId;
+                fixedInput.checked = goalModel.isFixed === true;
+                fixedLabel.appendChild(fixedInput);
+                fixedLabel.appendChild(createElement('span', 'gpv-toggle-slider'));
+                fixedCell.appendChild(fixedLabel);
+                tr.appendChild(fixedCell);
+
+                const targetCell = createElement('td', 'gpv-target-cell');
+                const targetInput = createElement('input', CLASS_NAMES.targetInput);
+                targetInput.type = 'number';
+                targetInput.min = '0';
+                targetInput.max = '100';
+                targetInput.step = '0.01';
+                targetInput.value = goalModel.targetDisplay ?? '';
+                targetInput.placeholder = 'Set target';
+                targetInput.dataset.goalId = goalModel.goalId;
+                targetInput.dataset.fixed = goalModel.isFixed ? 'true' : 'false';
+                targetInput.disabled = goalModel.isFixed === true;
+                targetCell.appendChild(targetInput);
+                tr.appendChild(targetCell);
+
+                const diffClassName = goalModel.diffClass
+                    ? `${CLASS_NAMES.diffCell} ${goalModel.diffClass}`
+                    : CLASS_NAMES.diffCell;
+                tr.appendChild(createElement('td', diffClassName, goalModel.diffDisplay));
+                tr.appendChild(createElement('td', goalModel.returnClass || null, goalModel.returnDisplay));
+                tr.appendChild(createElement('td', goalModel.returnClass || null, goalModel.returnPercentDisplay));
 
                 tbody.appendChild(tr);
             });
@@ -2463,17 +2709,17 @@
                 if (!goalModel) {
                     return;
                 }
-                handleGoalTargetChange(
-                    resolved.element,
-                    goalModel.goalId,
-                    goalModel.endingBalanceAmount,
-                    goalTypeModel.endingBalanceAmount,
-                    bucketViewModel.bucketName,
-                    goalTypeModel.goalType,
+                EventHandlers.handleGoalTargetChange({
+                    input: resolved.element,
+                    goalId: goalModel.goalId,
+                    currentEndingBalance: goalModel.endingBalanceAmount,
+                    totalTypeEndingBalance: goalTypeModel.endingBalanceAmount,
+                    bucket: bucketViewModel.bucketName,
+                    goalType: goalTypeModel.goalType,
                     typeSection,
                     mergedInvestmentDataState,
                     projectedInvestmentsState
-                );
+                });
             });
 
             typeSection.addEventListener('change', event => {
@@ -2485,26 +2731,26 @@
                 if (!goalModelsById[goalId]) {
                     return;
                 }
-                handleGoalFixedToggle(
-                    resolved.element,
+                EventHandlers.handleGoalFixedToggle({
+                    input: resolved.element,
                     goalId,
-                    bucketViewModel.bucketName,
-                    goalTypeModel.goalType,
+                    bucket: bucketViewModel.bucketName,
+                    goalType: goalTypeModel.goalType,
                     typeSection,
                     mergedInvestmentDataState,
                     projectedInvestmentsState
-                );
+                });
             });
             contentDiv.appendChild(typeSection);
         });
     }
 
-    function buildGoalTypeAllocationSnapshot(
+    function buildGoalTypeAllocationSnapshot({
         bucket,
         goalType,
         mergedInvestmentDataState,
         projectedInvestmentsState
-    ) {
+    }) {
         const bucketObj = mergedInvestmentDataState[bucket];
         const group = bucketObj?.[goalType];
         if (!group) {
@@ -2526,36 +2772,45 @@
         );
     }
 
-    function refreshGoalTypeSection(
+    function refreshGoalTypeSection({
         typeSection,
         bucket,
         goalType,
         mergedInvestmentDataState,
         projectedInvestmentsState,
         options = {}
-    ) {
-        const snapshot = buildGoalTypeAllocationSnapshot(
+    }) {
+        const snapshot = buildGoalTypeAllocationSnapshot({
             bucket,
             goalType,
             mergedInvestmentDataState,
             projectedInvestmentsState
-        );
+        });
         if (!snapshot) {
             return;
         }
-        const remainingTarget = typeSection.querySelector('.gpv-remaining-target');
+        const remainingTarget = typeSection.querySelector(`.${CLASS_NAMES.remainingTarget}`);
         if (remainingTarget) {
-            remainingTarget.textContent = `Remaining: ${formatPercentDisplay(snapshot.remainingTargetPercent)}`;
+            const remainingValue = remainingTarget.querySelector('.gpv-remaining-value');
+            const displayValue = formatPercentFromPercent(snapshot.remainingTargetPercent);
+            if (remainingValue) {
+                remainingValue.textContent = displayValue;
+            } else {
+                remainingTarget.textContent = '';
+                appendTextSpan(remainingTarget, 'gpv-remaining-label', 'Remaining:');
+                remainingTarget.appendChild(document.createTextNode(' '));
+                appendTextSpan(remainingTarget, 'gpv-remaining-value', displayValue);
+            }
             remainingTarget.classList.toggle(
-                'gpv-remaining-alert',
+                CLASS_NAMES.remainingAlert,
                 isRemainingTargetAboveThreshold(snapshot.remainingTargetPercent)
             );
         }
-        const rows = typeSection.querySelectorAll('.gpv-goal-table tbody tr');
+        const rows = typeSection.querySelectorAll(`.${CLASS_NAMES.goalTable} tbody tr`);
         const forceTargetRefresh = options.forceTargetRefresh === true;
         rows.forEach(row => {
-            const targetInput = row.querySelector('.gpv-target-input');
-            const diffCell = row.querySelector('.gpv-diff-cell');
+            const targetInput = row.querySelector(`.${CLASS_NAMES.targetInput}`);
+            const diffCell = row.querySelector(`.${CLASS_NAMES.diffCell}`);
             if (!targetInput) {
                 return;
             }
@@ -2572,10 +2827,20 @@
             if (diffCell) {
                 diffCell.textContent = goalModel.diffAmount === null ? '-' : formatMoney(goalModel.diffAmount);
                 diffCell.className = goalModel.diffClass
-                    ? `gpv-diff-cell ${goalModel.diffClass}`
-                    : 'gpv-diff-cell';
+                    ? `${CLASS_NAMES.diffCell} ${goalModel.diffClass}`
+                    : CLASS_NAMES.diffCell;
             }
         });
+    }
+
+    function flashInputBorder(input, color) {
+        if (!input) {
+            return;
+        }
+        input.style.borderColor = color;
+        setTimeout(() => {
+            input.style.borderColor = '';
+        }, 1000);
     }
 
     /**
@@ -2589,7 +2854,7 @@
      * @param {HTMLElement} typeSection - Goal type section container
      * @param {Object} mergedInvestmentDataState - Current merged data map
      */
-    function handleGoalTargetChange(
+    function handleGoalTargetChange({
         input,
         goalId,
         currentEndingBalance,
@@ -2599,53 +2864,51 @@
         typeSection,
         mergedInvestmentDataState,
         projectedInvestmentsState
-    ) {
+    }) {
         if (input.dataset.fixed === 'true') {
             return;
         }
         const value = input.value;
         const row = input.closest('tr');
-        const diffCell = row.querySelector('.gpv-diff-cell');
+        const diffCell = row.querySelector(`.${CLASS_NAMES.diffCell}`);
         
         if (value === '') {
             // Clear the target if input is empty
             GoalTargetStore.clearTarget(goalId);
             diffCell.textContent = '-';
-            diffCell.className = 'gpv-diff-cell';
-            refreshGoalTypeSection(
+            diffCell.className = CLASS_NAMES.diffCell;
+            refreshGoalTypeSection({
                 typeSection,
                 bucket,
                 goalType,
                 mergedInvestmentDataState,
                 projectedInvestmentsState
-            );
+            });
             return;
         }
         
         const targetPercent = parseFloat(value);
         
         // Validate input
-        if (isNaN(targetPercent)) {
+        if (!Number.isFinite(targetPercent)) {
             // Invalid number - show error feedback
-            input.style.borderColor = '#dc2626';
-            setTimeout(() => {
-                input.style.borderColor = '';
-            }, 1000);
+            flashInputBorder(input, '#dc2626');
             return;
         }
         
         // Save to storage (this will clamp to 0-100 automatically)
         const savedValue = GoalTargetStore.setTarget(goalId, targetPercent);
+        if (!Number.isFinite(savedValue)) {
+            flashInputBorder(input, '#dc2626');
+            return;
+        }
         
         // Check if value was clamped and provide feedback
         if (savedValue !== targetPercent) {
             // Value was clamped - update input to show actual stored value
             input.value = savedValue.toFixed(2);
             // Show warning briefly
-            input.style.borderColor = '#f59e0b';
-            setTimeout(() => {
-                input.style.borderColor = '';
-            }, 1000);
+            flashInputBorder(input, '#f59e0b');
         }
         
         // Get projected investment and calculate adjusted total
@@ -2657,17 +2920,17 @@
         diffCell.textContent = diffData.diffDisplay;
         diffCell.className = diffData.diffClassName;
 
-        refreshGoalTypeSection(
+        refreshGoalTypeSection({
             typeSection,
             bucket,
             goalType,
             mergedInvestmentDataState,
             projectedInvestmentsState
-        );
+        });
     }
     testExports.handleGoalTargetChange = handleGoalTargetChange;
 
-    function handleGoalFixedToggle(
+    function handleGoalFixedToggle({
         input,
         goalId,
         bucket,
@@ -2675,7 +2938,7 @@
         typeSection,
         mergedInvestmentDataState,
         projectedInvestmentsState
-    ) {
+    }) {
         const isFixed = input.checked === true;
 
         if (isFixed) {
@@ -2684,14 +2947,14 @@
             GoalTargetStore.clearFixed(goalId);
         }
 
-        refreshGoalTypeSection(
+        refreshGoalTypeSection({
             typeSection,
             bucket,
             goalType,
             mergedInvestmentDataState,
             projectedInvestmentsState,
-            { forceTargetRefresh: true }
-        );
+            options: { forceTargetRefresh: true }
+        });
     }
     testExports.handleGoalFixedToggle = handleGoalFixedToggle;
 
@@ -2702,14 +2965,14 @@
      * @param {string} goalType - Goal type
      * @param {HTMLElement} typeSection - The type section element containing the table
      */
-    function handleProjectedInvestmentChange(
+    function handleProjectedInvestmentChange({
         input,
         bucket,
         goalType,
         typeSection,
         mergedInvestmentDataState,
         projectedInvestmentsState
-    ) {
+    }) {
         const value = input.value;
         
         if (value === '' || value === '0') {
@@ -2739,25 +3002,31 @@
         }
         
         // Recalculate all diffs in this goal type section
-        const tbody = typeSection.querySelector('.gpv-goal-table tbody');
+        const tbody = typeSection.querySelector(`.${CLASS_NAMES.goalTable} tbody`);
         if (tbody) {
-            refreshGoalTypeSection(
+            refreshGoalTypeSection({
                 typeSection,
                 bucket,
                 goalType,
                 mergedInvestmentDataState,
                 projectedInvestmentsState
-            );
+            });
         }
     }
     testExports.handleProjectedInvestmentChange = handleProjectedInvestmentChange;
+
+    const EventHandlers = {
+        handleGoalTargetChange,
+        handleGoalFixedToggle,
+        handleProjectedInvestmentChange
+    };
 
     // ============================================
     // UI: Styles
     // ============================================
     
     function injectStyles() {
-        const style = document.createElement('style');
+        const style = createElement('style');
         style.textContent = `
             /* Modern Portfolio Viewer Styles */
             
@@ -3557,6 +3826,81 @@
     }
 
     // ============================================
+    // Controller: View Pipeline
+    // ============================================
+
+    function buildPortfolioViewModel({
+        selection,
+        mergedInvestmentDataState,
+        projectedInvestmentsState
+    }) {
+        if (!mergedInvestmentDataState || typeof mergedInvestmentDataState !== 'object') {
+            return null;
+        }
+        if (selection === 'SUMMARY') {
+            return {
+                kind: 'SUMMARY',
+                viewModel: ViewModels.buildSummaryViewModel(mergedInvestmentDataState)
+            };
+        }
+        const bucketObj = mergedInvestmentDataState[selection];
+        if (!bucketObj) {
+            return null;
+        }
+        const goalIds = collectGoalIds(bucketObj);
+        const goalTargetById = buildGoalTargetById(goalIds, GoalTargetStore.getTarget);
+        const goalFixedById = buildGoalFixedById(goalIds, GoalTargetStore.getFixed);
+        const viewModel = ViewModels.buildBucketDetailViewModel({
+            bucketName: selection,
+            bucketMap: mergedInvestmentDataState,
+            projectedInvestmentsState,
+            goalTargetById,
+            goalFixedById
+        });
+        if (!viewModel) {
+            return null;
+        }
+        return {
+            kind: 'BUCKET',
+            viewModel
+        };
+    }
+
+    function renderPortfolioView({
+        contentDiv,
+        selection,
+        mergedInvestmentDataState,
+        projectedInvestmentsState,
+        cleanupCallbacks,
+        onBucketSelect
+    }) {
+        const view = buildPortfolioViewModel({
+            selection,
+            mergedInvestmentDataState,
+            projectedInvestmentsState
+        });
+        if (!view) {
+            return;
+        }
+        if (view.kind === 'SUMMARY') {
+            renderSummaryView(contentDiv, view.viewModel, onBucketSelect);
+            return;
+        }
+        renderBucketView({
+            contentDiv,
+            bucketViewModel: view.viewModel,
+            mergedInvestmentDataState,
+            projectedInvestmentsState,
+            cleanupCallbacks
+        });
+    }
+
+    const ViewPipeline = {
+        buildViewModel: buildPortfolioViewModel,
+        render: renderPortfolioView
+    };
+
+    // ============================================
     // Controller
     // ============================================
 
@@ -3574,37 +3918,29 @@
             old.remove();
         }
 
-        const data = buildMergedInvestmentData(
-            apiData.performance,
-            apiData.investible,
-            apiData.summary
+        const mergedInvestmentDataState = buildMergedInvestmentData(
+            state.apiData.performance,
+            state.apiData.investible,
+            state.apiData.summary
         );
-        if (!data) {
+        if (!mergedInvestmentDataState) {
             logDebug('[Goal Portfolio Viewer] Not all API data available yet');
             alert('Please wait for portfolio data to load, then try again.');
             return;
         }
         logDebug('[Goal Portfolio Viewer] Data merged successfully');
 
-        const overlay = document.createElement('div');
+        const overlay = createElement('div', 'gpv-overlay');
         overlay.id = 'gpv-overlay';
-        overlay.className = 'gpv-overlay';
 
-        const container = document.createElement('div');
-        container.className = 'gpv-container';
+        const container = createElement('div', 'gpv-container');
         const cleanupCallbacks = [];
         container.gpvCleanupCallbacks = cleanupCallbacks;
         overlay.gpvCleanupCallbacks = cleanupCallbacks;
 
-        const header = document.createElement('div');
-        header.className = 'gpv-header';
-        
-        const title = document.createElement('h1');
-        title.textContent = 'Portfolio Viewer';
-        
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'gpv-close-btn';
-        closeBtn.innerHTML = '✕';
+        const header = createElement('div', 'gpv-header');
+        const title = createElement('h1', null, 'Portfolio Viewer');
+        const closeBtn = createElement('button', 'gpv-close-btn', '✕');
         function teardownOverlay() {
             if (!overlay.isConnected) {
                 return;
@@ -3634,25 +3970,16 @@
         header.appendChild(closeBtn);
         container.appendChild(header);
 
-        const controls = document.createElement('div');
-        controls.className = 'gpv-controls';
-        
-        const selectLabel = document.createElement('label');
-        selectLabel.textContent = 'View:';
-        selectLabel.className = 'gpv-select-label';
-        
-        const select = document.createElement('select');
-        select.className = 'gpv-select';
-        
-        const summaryOption = document.createElement('option');
+        const controls = createElement('div', 'gpv-controls');
+        const selectLabel = createElement('label', 'gpv-select-label', 'View:');
+        const select = createElement('select', 'gpv-select');
+        const summaryOption = createElement('option', null, '📊 Summary View');
         summaryOption.value = 'SUMMARY';
-        summaryOption.textContent = '📊 Summary View';
         select.appendChild(summaryOption);
 
-        Object.keys(data).sort().forEach(bucket => {
-            const opt = document.createElement('option');
+        Object.keys(mergedInvestmentDataState).sort().forEach(bucket => {
+            const opt = createElement('option', null, `📁 ${bucket}`);
             opt.value = bucket;
-            opt.textContent = `📁 ${bucket}`;
             select.appendChild(opt);
         });
 
@@ -3660,38 +3987,22 @@
         controls.appendChild(select);
         container.appendChild(controls);
 
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'gpv-content';
+        const contentDiv = createElement('div', 'gpv-content');
         container.appendChild(contentDiv);
 
         function renderView(value) {
-            if (value === 'SUMMARY') {
-                const summaryViewModel = buildSummaryViewModel(data);
-                renderSummaryView(contentDiv, summaryViewModel, onBucketSelect);
-                return;
-            }
-            const bucketObj = data[value];
-            const goalIds = collectGoalIds(bucketObj);
-            const goalTargetById = buildGoalTargetById(goalIds, GoalTargetStore.getTarget);
-            const goalFixedById = buildGoalFixedById(goalIds, GoalTargetStore.getFixed);
-            const bucketViewModel = buildBucketDetailViewModel(
-                value,
-                data,
-                projectedInvestments,
-                goalTargetById,
-                goalFixedById
-            );
-            renderBucketView(
+            ViewPipeline.render({
                 contentDiv,
-                bucketViewModel,
-                data,
-                projectedInvestments,
-                cleanupCallbacks
-            );
+                selection: value,
+                mergedInvestmentDataState,
+                projectedInvestmentsState: state.projectedInvestments,
+                cleanupCallbacks,
+                onBucketSelect
+            });
         }
 
         function onBucketSelect(bucket) {
-            if (!bucket || !data[bucket]) {
+            if (!bucket || !mergedInvestmentDataState[bucket]) {
                 return;
             }
             select.value = bucket;
@@ -3719,29 +4030,24 @@
     // ============================================
     // Controller: Initialization
     // ============================================
-    
-    let portfolioButton = null;
-    let lastUrl = window.location.href;
-    
+
     function shouldShowButton() {
         return isDashboardRoute(window.location.href, window.location.origin);
     }
     
     function createButton() {
-        if (!portfolioButton) {
-            portfolioButton = document.createElement('button');
-            portfolioButton.className = 'gpv-trigger-btn';
-            portfolioButton.textContent = '📊 Portfolio Viewer';
-            portfolioButton.onclick = showOverlay;
+        if (!state.ui.portfolioButton) {
+            state.ui.portfolioButton = createElement('button', 'gpv-trigger-btn', '📊 Portfolio Viewer');
+            state.ui.portfolioButton.onclick = showOverlay;
         }
-        return portfolioButton;
+        return state.ui.portfolioButton;
     }
     
     function updateButtonVisibility() {
         if (!document.body) return;
         
         const shouldShow = shouldShowButton();
-        const buttonExists = portfolioButton && portfolioButton.parentNode;
+        const buttonExists = state.ui.portfolioButton && state.ui.portfolioButton.parentNode;
         
         if (shouldShow && !buttonExists) {
             // Show button
@@ -3750,94 +4056,104 @@
             logDebug('[Goal Portfolio Viewer] Button shown on dashboard');
         } else if (!shouldShow && buttonExists) {
             // Hide button
-            portfolioButton.remove();
+            state.ui.portfolioButton.remove();
             logDebug('[Goal Portfolio Viewer] Button hidden (not on dashboard)');
         }
     }
     
     function handleUrlChange() {
         const currentUrl = window.location.href;
-        if (currentUrl !== lastUrl) {
-            lastUrl = currentUrl;
+        if (currentUrl !== state.ui.lastUrl) {
+            state.ui.lastUrl = currentUrl;
             logDebug('[Goal Portfolio Viewer] URL changed to:', { url: currentUrl });
             updateButtonVisibility();
         }
     }
+
+    function wrapHistoryMethod(methodName, onChange) {
+        const original = history[methodName];
+        if (typeof original !== 'function') {
+            return () => {};
+        }
+        const wrapped = function(...args) {
+            const result = original.apply(this, args);
+            try {
+                onChange();
+            } catch (error) {
+                console.warn('[Goal Portfolio Viewer] URL monitoring error:', error);
+            }
+            return result;
+        };
+        history[methodName] = wrapped;
+        return () => {
+            if (history[methodName] === wrapped) {
+                history[methodName] = original;
+            }
+        };
+    }
     
     function startUrlMonitoring() {
-        if (window.__gpvUrlMonitorCleanup) {
+        if (state.ui.urlMonitorCleanup) {
+            state.ui.urlMonitorCleanup();
+        } else if (window.__gpvUrlMonitorCleanup) {
             window.__gpvUrlMonitorCleanup();
         }
 
-        lastUrl = window.location.href;
+        state.ui.lastUrl = window.location.href;
         updateButtonVisibility();
 
         // Debounce function to limit how often handleUrlChange can be called
-        let urlCheckTimeout = null;
         const debouncedUrlCheck = () => {
-            if (urlCheckTimeout) {
-                clearTimeout(urlCheckTimeout);
+            if (state.ui.urlCheckTimeout) {
+                clearTimeout(state.ui.urlCheckTimeout);
             }
-            urlCheckTimeout = setTimeout(handleUrlChange, 100);
+            state.ui.urlCheckTimeout = setTimeout(handleUrlChange, 100);
         };
 
         // Listen to popstate event for browser back/forward navigation
         window.addEventListener('popstate', handleUrlChange);
 
-        // Override pushState to detect programmatic navigation
-        const originalPushState = history.pushState;
-        history.pushState = function(...args) {
-            const result = originalPushState.apply(this, args);
-            handleUrlChange();
-            return result;
-        };
-
-        // Override replaceState to detect programmatic navigation
-        const originalReplaceState = history.replaceState;
-        history.replaceState = function(...args) {
-            const result = originalReplaceState.apply(this, args);
-            handleUrlChange();
-            return result;
-        };
+        const restorePushState = wrapHistoryMethod('pushState', handleUrlChange);
+        const restoreReplaceState = wrapHistoryMethod('replaceState', handleUrlChange);
 
         const intervalId = window.setInterval(handleUrlChange, 500);
 
         const appRoot = document.querySelector('#root')
             || document.querySelector('#app')
             || document.querySelector('main');
-        let observer = null;
-
         if (appRoot) {
             // Use MutationObserver as a fallback for navigation patterns not caught by History API
-            observer = new MutationObserver(debouncedUrlCheck);
-            observer.observe(appRoot, {
+            state.ui.observer = new MutationObserver(debouncedUrlCheck);
+            state.ui.observer.observe(appRoot, {
                 childList: true,
                 subtree: true
             });
         }
 
-        window.__gpvUrlMonitorCleanup = () => {
+        state.ui.urlMonitorCleanup = () => {
             window.removeEventListener('popstate', handleUrlChange);
-            history.pushState = originalPushState;
-            history.replaceState = originalReplaceState;
+            restorePushState();
+            restoreReplaceState();
             window.clearInterval(intervalId);
-            if (observer) {
-                observer.disconnect();
-                observer = null;
+            if (state.ui.observer) {
+                state.ui.observer.disconnect();
+                state.ui.observer = null;
             }
-            if (urlCheckTimeout) {
-                clearTimeout(urlCheckTimeout);
-                urlCheckTimeout = null;
+            if (state.ui.urlCheckTimeout) {
+                clearTimeout(state.ui.urlCheckTimeout);
+                state.ui.urlCheckTimeout = null;
             }
+            state.ui.urlMonitorCleanup = null;
             window.__gpvUrlMonitorCleanup = null;
         };
+        window.__gpvUrlMonitorCleanup = state.ui.urlMonitorCleanup;
 
         logDebug('[Goal Portfolio Viewer] URL monitoring started with History API hooks');
     }
     
     function init() {
         // Load stored API data
-        loadStoredData(apiData);
+        loadStoredData(state);
 
         if (DEBUG_AUTH) {
             getAuthTokenFromGMCookie();
@@ -3871,6 +4187,9 @@
     // Pattern: Keep all logic in ONE place (this file), test the real implementation.
     if (typeof module !== 'undefined' && module.exports) {
         const baseExports = {
+            normalizeString,
+            normalizeGoalType,
+            normalizeGoalName,
             getGoalTargetKey,
             getGoalFixedKey,
             getProjectedInvestmentKey,
@@ -3878,6 +4197,8 @@
             getDisplayGoalType,
             sortGoalTypes,
             formatMoney,
+            formatPercentFromRatio,
+            formatPercentFromPercent,
             formatPercentDisplay,
             formatGrowthPercentFromEndingBalance,
             getReturnClass,
@@ -3903,6 +4224,7 @@
             isCacheRefreshAllowed,
             formatPercentage,
             normalizeTimeSeriesData,
+            normalizePerformanceResponse,
             getLatestTimeSeriesPoint,
             findNearestPointOnOrBefore,
             getPerformanceDate,
@@ -3912,6 +4234,7 @@
             mergeTimeSeriesByDate,
             getTimeSeriesWindow,
             extractAmount,
+            parseJsonSafely,
             calculateWeightedAverage,
             calculateWeightedWindowReturns,
             summarizePerformanceMetrics,
