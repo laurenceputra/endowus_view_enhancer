@@ -77,8 +77,13 @@ const originalSend = XMLHttpRequest.prototype.send;
 XMLHttpRequest.prototype.send = function(...args) {
     this.addEventListener('load', function() {
         if (this._url.includes('/v1/goals/performance')) {
-            const data = JSON.parse(this.responseText);
-            // Process data
+            let data = null;
+            try {
+                data = JSON.parse(this.responseText);
+            } catch (_error) {
+                data = null;
+            }
+            // Process data if available
         }
     });
     return originalSend.apply(this, args);
@@ -95,6 +100,12 @@ XMLHttpRequest.prototype.send = function(...args) {
 - Must run in page context
 - Can be affected by Content Security Policy
 - Requires careful handling to avoid infinite loops
+
+#### Interception Safety Notes
+
+- Fetch interception is **non-blocking**: the script returns the original response immediately and processes clones asynchronously.
+- XHR responses are parsed defensively; invalid JSON is ignored without breaking the page flow.
+- Captured auth headers are **merged** into prior values so partial captures (e.g., missing `authorization`) do not erase previously known headers.
 
 ### Performance API Contract
 
@@ -241,6 +252,16 @@ function buildMergedInvestmentData(performanceData, investibleData, summaryData)
 }
 ```
 
+### Normalization & Formatting Helpers
+
+- Goal names and types are normalized before use:
+  - `normalizeGoalName(...)` trims and coalesces missing names.
+  - `normalizeGoalType(...)` maps missing/blank types to `UNKNOWN_GOAL_TYPE`, displayed as **Unknown** in UI.
+- Percentage formatting is split by intent:
+  - `formatPercentFromRatio(...)` expects a ratio (0.10 → `10.00%`).
+  - `formatPercentFromPercent(...)` expects an actual percent (10 → `10.00%`).
+- Projected investment storage keys encode bucket/type values to avoid collisions when names contain separator characters.
+
 ### Bucket Extraction
 
 Buckets are derived from the portion of the goal name before the `" - "` separator.
@@ -375,6 +396,12 @@ Summary cards display the three headline stats: Balance, Return, and Growth.
 Growth percentages are calculated as `cumulativeReturn / (endingBalance - cumulativeReturn) * 100`, because ending balance is derived from performance totals (including pending processing amounts when available) or the investible API’s `totalInvestmentAmount`, which is misnamed and actually represents ending balance.
 
 Goals missing an `investmentGoalType` are normalized to `UNKNOWN_GOAL_TYPE` and shown as **Unknown** in the UI. This is defensive only; the platform is expected to provide goal types.
+
+#### Chart Rendering
+
+Performance charts are rendered via lightweight SVG helpers:
+- Layout and scaling are computed in dedicated helpers (`getChartLayout`, `getChartSeriesStats`).
+- Axis, labels, paths, and point groups are built by focused functions to keep `createLineChartSvg` maintainable.
 
 #### Detail View Rendering
 
