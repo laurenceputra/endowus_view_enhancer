@@ -118,17 +118,17 @@ describe('handlers and cache', () => {
         const { typeSection, targetInput, diffCell } = createTypeSection(goalId);
         targetInput.value = '50';
 
-        handleGoalTargetChange(
-            targetInput,
+        handleGoalTargetChange({
+            input: targetInput,
             goalId,
-            600,
-            1000,
+            currentEndingBalance: 600,
+            totalTypeEndingBalance: 1000,
             bucket,
             goalType,
             typeSection,
             mergedInvestmentDataState,
             projectedInvestmentsState
-        );
+        });
 
         expect(storage.get('goal_target_pct_g1')).toBe(50);
         expect(diffCell.textContent).toMatch(/100\.00/);
@@ -174,15 +174,15 @@ describe('handlers and cache', () => {
         checkbox.checked = true;
         checkbox.dataset.goalId = goalId;
 
-        handleGoalFixedToggle(
-            checkbox,
+        handleGoalFixedToggle({
+            input: checkbox,
             goalId,
             bucket,
             goalType,
             typeSection,
             mergedInvestmentDataState,
             projectedInvestmentsState
-        );
+        });
 
         expect(storage.get('goal_fixed_g1')).toBe(true);
         expect(targetInput.disabled).toBe(true);
@@ -210,25 +210,25 @@ describe('handlers and cache', () => {
         input.className = 'gpv-projected-input';
         input.value = '200';
 
-        handleProjectedInvestmentChange(
+        handleProjectedInvestmentChange({
             input,
             bucket,
             goalType,
             typeSection,
             mergedInvestmentDataState,
             projectedInvestmentsState
-        );
+        });
         expect(projectedInvestmentsState[`${bucket}|${goalType}`]).toBe(200);
 
         input.value = '';
-        handleProjectedInvestmentChange(
+        handleProjectedInvestmentChange({
             input,
             bucket,
             goalType,
             typeSection,
             mergedInvestmentDataState,
             projectedInvestmentsState
-        );
+        });
         expect(projectedInvestmentsState[`${bucket}|${goalType}`]).toBeUndefined();
     });
 

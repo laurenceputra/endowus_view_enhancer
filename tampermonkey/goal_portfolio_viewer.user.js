@@ -103,6 +103,7 @@
     function getProjectedInvestmentKey(bucket, goalType) {
         const safeBucket = encodeURIComponent(bucket ?? '');
         const safeGoalType = encodeURIComponent(goalType ?? '');
+        // Keep separator unencoded to preserve a stable split point in storage keys.
         return `${safeBucket}${PROJECTED_KEY_SEPARATOR}${safeGoalType}`;
     }
 
@@ -148,6 +149,13 @@
             }
         };
     }
+
+    const Normalization = {
+        normalizeString,
+        normalizeGoalType,
+        normalizeGoalName,
+        normalizePerformanceResponse
+    };
 
     function extractBucketName(goalName) {
         if (!goalName || typeof goalName !== 'string') {
@@ -531,13 +539,13 @@
         return { buckets };
     }
 
-    function buildBucketDetailViewModel(
+    function buildBucketDetailViewModel({
         bucketName,
         bucketMap,
         projectedInvestmentsState,
         goalTargetById,
         goalFixedById
-    ) {
+    }) {
         if (!bucketMap || typeof bucketMap !== 'object' || !bucketName) {
             return null;
         }
@@ -741,6 +749,11 @@
 
         return bucketMap;
     }
+
+    const ViewModels = {
+        buildSummaryViewModel,
+        buildBucketDetailViewModel
+    };
 
     // ============================================
     // Performance Logic
@@ -1057,7 +1070,7 @@
 
     function calculateWeightedWindowReturns(performanceResponses) {
         const responses = Array.isArray(performanceResponses)
-            ? performanceResponses.map(normalizePerformanceResponse)
+            ? performanceResponses.map(Normalization.normalizePerformanceResponse)
             : [];
         const windowKeys = Object.values(PERFORMANCE_WINDOWS).map(window => window.key);
         const valuesByWindow = {};
@@ -1101,7 +1114,7 @@
 
     function summarizePerformanceMetrics(performanceResponses, mergedTimeSeries) {
         const responses = Array.isArray(performanceResponses)
-            ? performanceResponses.map(normalizePerformanceResponse)
+            ? performanceResponses.map(Normalization.normalizePerformanceResponse)
             : [];
         const netInvestments = [];
         const totalReturns = [];
@@ -1225,28 +1238,57 @@
     // ============================================
     // Adapters/State
     // ============================================
-    const apiData = {
-        performance: null,
-        investible: null,
-        summary: null
+    const PERFORMANCE_ENDPOINT = 'https://bff.prod.silver.endowus.com/v1/performance';
+    const REQUEST_DELAY_MS = 500;
+    const PERFORMANCE_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+    const PERFORMANCE_CACHE_REFRESH_MIN_AGE_MS = 24 * 60 * 60 * 1000;
+    const PERFORMANCE_CHART_WINDOW = PERFORMANCE_WINDOWS.oneYear.key;
+    const PERFORMANCE_REQUEST_TIMEOUT_MS = 10000;
+
+    const state = {
+        apiData: {
+            performance: null,
+            investible: null,
+            summary: null
+        },
+        projectedInvestments: {},
+        performance: {
+            goalData: {},
+            requestQueue: createSequentialRequestQueue({
+                delayMs: REQUEST_DELAY_MS
+            })
+        },
+        auth: {
+            requestHeaders: null,
+            gmCookieAuthToken: null,
+            gmCookieDumped: false
+        },
+        ui: {
+            portfolioButton: null,
+            lastUrl: window.location.href,
+            urlMonitorCleanup: null,
+            urlCheckTimeout: null,
+            observer: null
+        }
     };
+
     const ENDPOINT_HANDLERS = {
         performance: data => {
-            apiData.performance = data;
-            GM_setValue(STORAGE_KEYS.performance, JSON.stringify(data));
+            state.apiData.performance = data;
+            Storage.writeJson(STORAGE_KEYS.performance, data, 'Error saving performance data');
             logDebug('[Goal Portfolio Viewer] Intercepted performance data');
         },
         investible: data => {
-            apiData.investible = data;
-            GM_setValue(STORAGE_KEYS.investible, JSON.stringify(data));
+            state.apiData.investible = data;
+            Storage.writeJson(STORAGE_KEYS.investible, data, 'Error saving investible data');
             logDebug('[Goal Portfolio Viewer] Intercepted investible data');
         },
         summary: data => {
             if (!Array.isArray(data)) {
                 return;
             }
-            apiData.summary = data;
-            GM_setValue(STORAGE_KEYS.summary, JSON.stringify(data));
+            state.apiData.summary = data;
+            Storage.writeJson(STORAGE_KEYS.summary, data, 'Error saving summary data');
             logDebug('[Goal Portfolio Viewer] Intercepted summary data');
         }
     };
@@ -1297,24 +1339,8 @@
         }
         console.log(message);
     }
-    const PERFORMANCE_ENDPOINT = 'https://bff.prod.silver.endowus.com/v1/performance';
-    const REQUEST_DELAY_MS = 500;
-    const PERFORMANCE_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-    const PERFORMANCE_CACHE_REFRESH_MIN_AGE_MS = 24 * 60 * 60 * 1000;
-    const PERFORMANCE_CHART_WINDOW = PERFORMANCE_WINDOWS.oneYear.key;
-    const PERFORMANCE_REQUEST_TIMEOUT_MS = 10000;
-
     // Non-persistent storage for projected investments (resets on reload)
     // Key format: "bucketName|goalType" -> projected amount
-    const projectedInvestments = {};
-
-    const goalPerformanceData = {};
-    let performanceRequestHeaders = null;
-    let gmCookieAuthToken = null;
-    let gmCookieDumped = false;
-    const performanceRequestQueue = createSequentialRequestQueue({
-        delayMs: REQUEST_DELAY_MS
-    });
 
     // ============================================
     // API Interception via Monkey Patching
@@ -1368,20 +1394,62 @@
     // Storage Management
     // ============================================
 
-    const GoalTargetStore = {
-        getTarget(goalId) {
+    const Storage = {
+        get(key, fallback, context) {
             try {
-                const key = getGoalTargetKey(goalId);
-                const value = GM_getValue(key, null);
-                if (value === null) {
-                    return null;
-                }
-                const numericValue = parseFloat(value);
-                return Number.isFinite(numericValue) ? numericValue : null;
-            } catch (e) {
-                console.error('[Goal Portfolio Viewer] Error loading goal target percentage:', e);
+                return GM_getValue(key, fallback);
+            } catch (error) {
+                const label = context || 'Error reading storage';
+                console.error(`[Goal Portfolio Viewer] ${label}:`, error);
+                return fallback;
+            }
+        },
+        set(key, value, context) {
+            try {
+                GM_setValue(key, value);
+                return true;
+            } catch (error) {
+                const label = context || 'Error writing storage';
+                console.error(`[Goal Portfolio Viewer] ${label}:`, error);
+                return false;
+            }
+        },
+        remove(key, context) {
+            try {
+                GM_deleteValue(key);
+                return true;
+            } catch (error) {
+                const label = context || 'Error deleting storage';
+                console.error(`[Goal Portfolio Viewer] ${label}:`, error);
+                return false;
+            }
+        },
+        readJson(key, validateFn, context) {
+            const stored = Storage.get(key, null, context);
+            if (!stored) {
                 return null;
             }
+            const parsed = parseJsonSafely(stored);
+            if (!validateFn(parsed)) {
+                Storage.remove(key, context);
+                return null;
+            }
+            return parsed;
+        },
+        writeJson(key, value, context) {
+            return Storage.set(key, JSON.stringify(value), context);
+        }
+    };
+
+    const GoalTargetStore = {
+        getTarget(goalId) {
+            const key = getGoalTargetKey(goalId);
+            const value = Storage.get(key, null, 'Error loading goal target percentage');
+            if (value === null) {
+                return null;
+            }
+            const numericValue = parseFloat(value);
+            return Number.isFinite(numericValue) ? numericValue : null;
         },
         setTarget(goalId, percentage) {
             const numericPercentage = parseFloat(percentage);
@@ -1389,51 +1457,32 @@
                 return null;
             }
             const validPercentage = Math.max(0, Math.min(100, numericPercentage));
-            try {
-                const key = getGoalTargetKey(goalId);
-                GM_setValue(key, validPercentage);
-                logDebug(`[Goal Portfolio Viewer] Saved goal target percentage for ${goalId}: ${validPercentage}%`);
-                return validPercentage;
-            } catch (e) {
-                console.error('[Goal Portfolio Viewer] Error saving goal target percentage:', e);
+            const key = getGoalTargetKey(goalId);
+            const didSet = Storage.set(key, validPercentage, 'Error saving goal target percentage');
+            if (!didSet) {
                 return null;
             }
+            logDebug(`[Goal Portfolio Viewer] Saved goal target percentage for ${goalId}: ${validPercentage}%`);
+            return validPercentage;
         },
         clearTarget(goalId) {
-            try {
-                const key = getGoalTargetKey(goalId);
-                GM_deleteValue(key);
-                logDebug(`[Goal Portfolio Viewer] Deleted goal target percentage for ${goalId}`);
-            } catch (e) {
-                console.error('[Goal Portfolio Viewer] Error deleting goal target percentage:', e);
-            }
+            const key = getGoalTargetKey(goalId);
+            Storage.remove(key, 'Error deleting goal target percentage');
+            logDebug(`[Goal Portfolio Viewer] Deleted goal target percentage for ${goalId}`);
         },
         getFixed(goalId) {
-            try {
-                const key = getGoalFixedKey(goalId);
-                return GM_getValue(key, false) === true;
-            } catch (e) {
-                console.error('[Goal Portfolio Viewer] Error loading goal fixed state:', e);
-                return false;
-            }
+            const key = getGoalFixedKey(goalId);
+            return Storage.get(key, false, 'Error loading goal fixed state') === true;
         },
         setFixed(goalId, isFixed) {
-            try {
-                const key = getGoalFixedKey(goalId);
-                GM_setValue(key, isFixed === true);
-                logDebug(`[Goal Portfolio Viewer] Saved goal fixed state for ${goalId}: ${isFixed === true}`);
-            } catch (e) {
-                console.error('[Goal Portfolio Viewer] Error saving goal fixed state:', e);
-            }
+            const key = getGoalFixedKey(goalId);
+            Storage.set(key, isFixed === true, 'Error saving goal fixed state');
+            logDebug(`[Goal Portfolio Viewer] Saved goal fixed state for ${goalId}: ${isFixed === true}`);
         },
         clearFixed(goalId) {
-            try {
-                const key = getGoalFixedKey(goalId);
-                GM_deleteValue(key);
-                logDebug(`[Goal Portfolio Viewer] Deleted goal fixed state for ${goalId}`);
-            } catch (e) {
-                console.error('[Goal Portfolio Viewer] Error deleting goal fixed state:', e);
-            }
+            const key = getGoalFixedKey(goalId);
+            Storage.remove(key, 'Error deleting goal fixed state');
+            logDebug(`[Goal Portfolio Viewer] Deleted goal fixed state for ${goalId}`);
         }
     };
     testExports.GoalTargetStore = GoalTargetStore;
@@ -1441,41 +1490,37 @@
     /**
      * Load previously intercepted API data from Tampermonkey storage
      */
-    function loadStoredData(apiDataState) {
-        try {
-            const storedPerformance = GM_getValue(STORAGE_KEYS.performance, null);
-            const storedInvestible = GM_getValue(STORAGE_KEYS.investible, null);
-            const storedSummary = GM_getValue(STORAGE_KEYS.summary, null);
-            
-            if (storedPerformance) {
-                const parsed = JSON.parse(storedPerformance);
-                if (parsed && typeof parsed === 'object') {
-                    apiDataState.performance = parsed;
-                    logDebug('[Goal Portfolio Viewer] Loaded performance data from storage');
-                } else {
-                    GM_deleteValue(STORAGE_KEYS.performance);
-                }
-            }
-            if (storedInvestible) {
-                const parsed = JSON.parse(storedInvestible);
-                if (parsed && typeof parsed === 'object') {
-                    apiDataState.investible = parsed;
-                    logDebug('[Goal Portfolio Viewer] Loaded investible data from storage');
-                } else {
-                    GM_deleteValue(STORAGE_KEYS.investible);
-                }
-            }
-            if (storedSummary) {
-                const parsed = JSON.parse(storedSummary);
-                if (Array.isArray(parsed)) {
-                    apiDataState.summary = parsed;
-                    logDebug('[Goal Portfolio Viewer] Loaded summary data from storage');
-                } else {
-                    GM_deleteValue(STORAGE_KEYS.summary);
-                }
-            }
-        } catch (e) {
-            console.error('[Goal Portfolio Viewer] Error loading stored data:', e);
+    function loadStoredData(appState) {
+        const apiDataState = appState?.apiData;
+        if (!apiDataState) {
+            return;
+        }
+        const performance = Storage.readJson(
+            STORAGE_KEYS.performance,
+            data => data && typeof data === 'object',
+            'Error loading performance data'
+        );
+        if (performance) {
+            apiDataState.performance = performance;
+            logDebug('[Goal Portfolio Viewer] Loaded performance data from storage');
+        }
+        const investible = Storage.readJson(
+            STORAGE_KEYS.investible,
+            data => data && typeof data === 'object',
+            'Error loading investible data'
+        );
+        if (investible) {
+            apiDataState.investible = investible;
+            logDebug('[Goal Portfolio Viewer] Loaded investible data from storage');
+        }
+        const summary = Storage.readJson(
+            STORAGE_KEYS.summary,
+            data => Array.isArray(data),
+            'Error loading summary data'
+        );
+        if (summary) {
+            apiDataState.summary = summary;
+            logDebug('[Goal Portfolio Viewer] Loaded summary data from storage');
         }
     }
 
@@ -1573,10 +1618,10 @@
     }
 
     function dumpAvailableCookies() {
-        if (gmCookieDumped || !DEBUG_AUTH) {
+        if (state.auth.gmCookieDumped || !DEBUG_AUTH) {
             return;
         }
-        gmCookieDumped = true;
+        state.auth.gmCookieDumped = true;
         listCookieByQuery({})
             .then(cookies => {
                 // Debug-only: log a safe summary of available GM_cookie entries
@@ -1593,8 +1638,8 @@
     }
 
     function getAuthTokenFromGMCookie() {
-        if (gmCookieAuthToken) {
-            return Promise.resolve(gmCookieAuthToken);
+        if (state.auth.gmCookieAuthToken) {
+            return Promise.resolve(state.auth.gmCookieAuthToken);
         }
         if (typeof GM_cookie === 'undefined' || typeof GM_cookie.list !== 'function') {
             return Promise.resolve(null);
@@ -1616,7 +1661,7 @@
                 listCookieByQuery(queries[index]).then(cookies => {
                     const token = selectAuthCookieToken(cookies) || findCookieValue(cookies, cookieNames[1]);
                     if (token) {
-                        gmCookieAuthToken = token;
+                        state.auth.gmCookieAuthToken = token;
                         resolve(token);
                         return;
                     }
@@ -1667,8 +1712,8 @@
         const deviceId = getHeaderValue(headers, 'device-id');
 
         if (authorization || clientId || deviceId) {
-            if (!performanceRequestHeaders || typeof performanceRequestHeaders !== 'object') {
-                performanceRequestHeaders = {};
+            if (!state.auth.requestHeaders || typeof state.auth.requestHeaders !== 'object') {
+                state.auth.requestHeaders = {};
             }
             const nextHeaders = {
                 authorization,
@@ -1677,7 +1722,7 @@
             };
             Object.entries(nextHeaders).forEach(([key, value]) => {
                 if (value) {
-                    performanceRequestHeaders[key] = value;
+                    state.auth.requestHeaders[key] = value;
                 } else if (DEBUG_AUTH && value === '') {
                     logAuthDebug('[Goal Portfolio Viewer][DEBUG_AUTH] Skipped empty auth header:', { key });
                 }
@@ -1691,8 +1736,8 @@
         const mergedHeaders = {
             ...fallbackHeaders
         };
-        if (performanceRequestHeaders) {
-            Object.entries(performanceRequestHeaders).forEach(([key, value]) => {
+        if (state.auth.requestHeaders) {
+            Object.entries(state.auth.requestHeaders).forEach(([key, value]) => {
                 if (value) {
                     mergedHeaders[key] = value;
                 }
@@ -1707,39 +1752,34 @@
     }
 
     function readPerformanceCache(goalId) {
-        try {
-            const key = getPerformanceCacheKey(goalId);
-            const stored = GM_getValue(key, null);
-            if (!stored) {
-                return null;
-            }
-            const parsed = JSON.parse(stored);
-            const fetchedAt = parsed?.fetchedAt;
-            const response = parsed?.response;
-            const hasValidShape = typeof fetchedAt === 'number' && fetchedAt > 0 && response && typeof response === 'object';
-            if (!parsed || !hasValidShape || !isCacheFresh(fetchedAt, PERFORMANCE_CACHE_MAX_AGE_MS)) {
-                GM_deleteValue(key);
-                return null;
-            }
-            return parsed;
-        } catch (_error) {
-            console.error('[Goal Portfolio Viewer] Error reading performance cache:', _error);
+        const key = getPerformanceCacheKey(goalId);
+        const parsed = Storage.readJson(
+            key,
+            data => {
+                const fetchedAt = data?.fetchedAt;
+                const response = data?.response;
+                return typeof fetchedAt === 'number' && fetchedAt > 0 && response && typeof response === 'object';
+            },
+            'Error reading performance cache'
+        );
+        if (!parsed) {
             return null;
         }
+        if (!isCacheFresh(parsed.fetchedAt, PERFORMANCE_CACHE_MAX_AGE_MS)) {
+            Storage.remove(key, 'Error deleting stale performance cache');
+            return null;
+        }
+        return parsed;
     }
     testExports.readPerformanceCache = readPerformanceCache;
 
     function writePerformanceCache(goalId, responseData) {
-        try {
-            const key = getPerformanceCacheKey(goalId);
-            const payload = {
-                fetchedAt: Date.now(),
-                response: responseData
-            };
-            GM_setValue(key, JSON.stringify(payload));
-        } catch (_error) {
-            console.error('[Goal Portfolio Viewer] Error writing performance cache:', _error);
-        }
+        const key = getPerformanceCacheKey(goalId);
+        const payload = {
+            fetchedAt: Date.now(),
+            response: responseData
+        };
+        Storage.writeJson(key, payload, 'Error writing performance cache');
     }
     testExports.writePerformanceCache = writePerformanceCache;
 
@@ -1748,7 +1788,7 @@
         if (!cached) {
             return null;
         }
-        return cached.response ? normalizePerformanceResponse(cached.response) : null;
+        return cached.response ? Normalization.normalizePerformanceResponse(cached.response) : null;
     }
     testExports.getCachedPerformanceResponse = getCachedPerformanceResponse;
 
@@ -1786,13 +1826,13 @@
             if (!goalId) {
                 return;
             }
-            if (goalPerformanceData[goalId]) {
-                results[goalId] = goalPerformanceData[goalId];
+            if (state.performance.goalData[goalId]) {
+                results[goalId] = state.performance.goalData[goalId];
                 return;
             }
             const cached = getCachedPerformanceResponse(goalId);
             if (cached) {
-                goalPerformanceData[goalId] = cached;
+                state.performance.goalData[goalId] = cached;
                 results[goalId] = cached;
             } else {
                 idsToFetch.push(goalId);
@@ -1803,12 +1843,12 @@
             return results;
         }
 
-        const queueResults = await performanceRequestQueue(idsToFetch, async goalId => {
+        const queueResults = await state.performance.requestQueue(idsToFetch, async goalId => {
             try {
                 const data = await fetchPerformanceForGoal(goalId);
-                const normalized = normalizePerformanceResponse(data);
+                const normalized = Normalization.normalizePerformanceResponse(data);
                 writePerformanceCache(goalId, normalized);
-                goalPerformanceData[goalId] = normalized;
+                state.performance.goalData[goalId] = normalized;
                 return normalized;
             } catch (error) {
                 console.warn('[Goal Portfolio Viewer] Performance fetch failed:', error);
@@ -1827,7 +1867,7 @@
 
     function buildGoalTypePerformanceSummary(performanceResponses) {
         const responses = Array.isArray(performanceResponses)
-            ? performanceResponses.map(normalizePerformanceResponse)
+            ? performanceResponses.map(Normalization.normalizePerformanceResponse)
             : [];
         if (!responses.length) {
             return null;
@@ -1889,8 +1929,8 @@
                 return;
             }
             const key = getPerformanceCacheKey(goalId);
-            GM_deleteValue(key);
-            delete goalPerformanceData[goalId];
+            Storage.remove(key, 'Error deleting performance cache');
+            delete state.performance.goalData[goalId];
         });
     }
     testExports.clearPerformanceCache = clearPerformanceCache;
@@ -2218,8 +2258,7 @@
     testExports.createLineChartSvg = createLineChartSvg;
 
     function buildPerformanceWindowGrid(windowReturns) {
-        const grid = document.createElement('div');
-        grid.className = 'gpv-performance-window-grid';
+        const grid = createElement('div', 'gpv-performance-window-grid');
 
         const items = [
             { label: '1M', value: windowReturns?.oneMonth },
@@ -2230,16 +2269,13 @@
         ];
 
         items.forEach(item => {
-            const tile = document.createElement('div');
-            tile.className = 'gpv-performance-window-tile';
-
-            const label = document.createElement('div');
-            label.className = 'gpv-performance-window-label';
-            label.textContent = item.label;
-
-            const value = document.createElement('div');
-            value.className = 'gpv-performance-window-value';
-            value.textContent = formatPercentFromRatio(item.value, { showSign: true });
+            const tile = createElement('div', 'gpv-performance-window-tile');
+            const label = createElement('div', 'gpv-performance-window-label', item.label);
+            const value = createElement(
+                'div',
+                'gpv-performance-window-value',
+                formatPercentFromRatio(item.value, { showSign: true })
+            );
             if (typeof item.value === 'number') {
                 value.classList.add(item.value >= 0 ? 'positive' : 'negative');
             }
@@ -2254,10 +2290,8 @@
     testExports.buildPerformanceWindowGrid = buildPerformanceWindowGrid;
 
     function buildPerformanceMetricsTable(metrics) {
-        const table = document.createElement('table');
-        table.className = 'gpv-performance-metrics-table';
-
-        const tbody = document.createElement('tbody');
+        const table = createElement('table', 'gpv-performance-metrics-table');
+        const tbody = createElement('tbody');
         const rows = [
             { label: 'Total Return %', value: formatPercentFromRatio(metrics?.totalReturnPercent, { showSign: true }) },
             { label: 'TWR %', value: formatPercentFromRatio(metrics?.twrPercent, { showSign: true }) },
@@ -2269,14 +2303,9 @@
         ];
 
         rows.forEach(row => {
-            const tr = document.createElement('tr');
-            const labelCell = document.createElement('td');
-            labelCell.className = 'gpv-performance-metric-label';
-            labelCell.textContent = row.label;
-
-            const valueCell = document.createElement('td');
-            valueCell.className = 'gpv-performance-metric-value';
-            valueCell.textContent = row.value;
+            const tr = createElement('tr');
+            const labelCell = createElement('td', 'gpv-performance-metric-label', row.label);
+            const valueCell = createElement('td', 'gpv-performance-metric-value', row.value);
 
             tr.appendChild(labelCell);
             tr.appendChild(valueCell);
@@ -2288,22 +2317,18 @@
     }
 
     function renderGoalTypePerformance(typeSection, goalIds, cleanupCallbacks) {
-        const performanceContainer = document.createElement('div');
-        performanceContainer.className = 'gpv-performance-container';
-
-        const loading = document.createElement('div');
-        loading.className = 'gpv-performance-loading';
-        loading.textContent = 'Loading performance data...';
+        const performanceContainer = createElement('div', 'gpv-performance-container');
+        const loading = createElement('div', 'gpv-performance-loading', 'Loading performance data...');
         performanceContainer.appendChild(loading);
 
         typeSection.appendChild(performanceContainer);
 
-        const refreshFootnote = document.createElement('div');
-        refreshFootnote.className = 'gpv-performance-cache-note';
-        refreshFootnote.textContent = 'Performance data is cached for 7 days. You can refresh it once every 24 hours.';
-
-        const refreshButton = document.createElement('button');
-        refreshButton.className = 'gpv-performance-refresh-btn';
+        const refreshFootnote = createElement(
+            'div',
+            'gpv-performance-cache-note',
+            'Performance data is cached for 7 days. You can refresh it once every 24 hours.'
+        );
+        const refreshButton = createElement('button', 'gpv-performance-refresh-btn');
         refreshButton.type = 'button';
 
         function setRefreshButtonState(latestFetchedAt) {
@@ -2320,20 +2345,17 @@
 
         function renderPerformanceSummary(summary) {
             const windowGrid = buildPerformanceWindowGrid(summary.windowReturns);
-            const chartWrapper = document.createElement('div');
-            chartWrapper.className = 'gpv-performance-chart-wrapper';
+            const chartWrapper = createElement('div', 'gpv-performance-chart-wrapper');
             const metricsTable = buildPerformanceMetricsTable(summary.metrics);
 
-            const detailRow = document.createElement('div');
-            detailRow.className = 'gpv-performance-detail-row';
+            const detailRow = createElement('div', 'gpv-performance-detail-row');
             detailRow.appendChild(chartWrapper);
             detailRow.appendChild(metricsTable);
 
             performanceContainer.appendChild(windowGrid);
             performanceContainer.appendChild(detailRow);
 
-            const footerRow = document.createElement('div');
-            footerRow.className = 'gpv-performance-footer-row';
+            const footerRow = createElement('div', 'gpv-performance-footer-row');
             footerRow.appendChild(refreshFootnote);
             footerRow.appendChild(refreshButton);
             performanceContainer.appendChild(footerRow);
@@ -2363,9 +2385,7 @@
 
                 performanceContainer.innerHTML = '';
                 if (!summary) {
-                    const emptyState = document.createElement('div');
-                    emptyState.className = 'gpv-performance-loading';
-                    emptyState.textContent = 'Performance data unavailable.';
+                    const emptyState = createElement('div', 'gpv-performance-loading', 'Performance data unavailable.');
                     performanceContainer.appendChild(emptyState);
                     return;
                 }
@@ -2449,12 +2469,10 @@
     function renderSummaryView(contentDiv, summaryViewModel, onBucketSelect) {
         contentDiv.innerHTML = '';
 
-        const summaryContainer = document.createElement('div');
-        summaryContainer.className = 'gpv-summary-container';
+        const summaryContainer = createElement('div', 'gpv-summary-container');
 
         summaryViewModel.buckets.forEach(bucketModel => {
-            const bucketCard = document.createElement('div');
-            bucketCard.className = 'gpv-bucket-card';
+            const bucketCard = createElement('div', 'gpv-bucket-card');
             bucketCard.dataset.bucket = bucketModel.bucketName;
             bucketCard.setAttribute('role', 'button');
             bucketCard.setAttribute('tabindex', '0');
@@ -2468,15 +2486,9 @@
                 });
             }
 
-            const bucketHeader = document.createElement('div');
-            bucketHeader.className = 'gpv-bucket-header';
-            
-            const bucketTitle = document.createElement('h2');
-            bucketTitle.className = 'gpv-bucket-title';
-            bucketTitle.textContent = bucketModel.bucketName;
-            
-            const bucketStats = document.createElement('div');
-            bucketStats.className = 'gpv-stats gpv-bucket-stats';
+            const bucketHeader = createElement('div', 'gpv-bucket-header');
+            const bucketTitle = createElement('h2', 'gpv-bucket-title', bucketModel.bucketName);
+            const bucketStats = createElement('div', 'gpv-stats gpv-bucket-stats');
             bucketStats.appendChild(buildBucketStatsFragment({
                 endingBalanceDisplay: bucketModel.endingBalanceDisplay,
                 returnDisplay: bucketModel.returnDisplay,
@@ -2490,8 +2502,7 @@
             bucketCard.appendChild(bucketHeader);
 
             bucketModel.goalTypes.forEach(goalTypeModel => {
-                const typeRow = document.createElement('div');
-                typeRow.className = 'gpv-goal-type-row';
+                const typeRow = createElement('div', 'gpv-goal-type-row');
                 appendTextSpan(typeRow, 'gpv-goal-type-name', goalTypeModel.displayName);
                 appendLabeledValue(
                     typeRow,
@@ -2521,27 +2532,21 @@
     }
     testExports.renderSummaryView = renderSummaryView;
 
-    function renderBucketView(
+    function renderBucketView({
         contentDiv,
         bucketViewModel,
         mergedInvestmentDataState,
         projectedInvestmentsState,
         cleanupCallbacks
-    ) {
+    }) {
         contentDiv.innerHTML = '';
         if (!bucketViewModel) {
             return;
         }
 
-        const bucketHeader = document.createElement('div');
-        bucketHeader.className = 'gpv-detail-header';
-        
-        const bucketTitle = document.createElement('h2');
-        bucketTitle.className = 'gpv-detail-title';
-        bucketTitle.textContent = bucketViewModel.bucketName;
-        
-        const bucketStats = document.createElement('div');
-        bucketStats.className = 'gpv-stats gpv-detail-stats';
+        const bucketHeader = createElement('div', 'gpv-detail-header');
+        const bucketTitle = createElement('h2', 'gpv-detail-title', bucketViewModel.bucketName);
+        const bucketStats = createElement('div', 'gpv-stats gpv-detail-stats');
         bucketStats.appendChild(buildBucketStatsFragment({
             endingBalanceDisplay: bucketViewModel.endingBalanceDisplay,
             returnDisplay: bucketViewModel.returnDisplay,
@@ -2557,13 +2562,11 @@
         bucketViewModel.goalTypes.forEach(goalTypeModel => {
             const typeGrowth = goalTypeModel.growthDisplay;
             
-            const typeSection = document.createElement('div');
-            typeSection.className = 'gpv-type-section';
+            const typeSection = createElement('div', 'gpv-type-section');
             typeSection.dataset.bucket = bucketViewModel.bucketName;
             typeSection.dataset.goalType = goalTypeModel.goalType;
             
-            const typeHeader = document.createElement('div');
-            typeHeader.className = 'gpv-type-header';
+            const typeHeader = createElement('div', 'gpv-type-header');
             
             // Get current projected investment for this goal type
             const currentProjectedInvestment = goalTypeModel.projectedAmount;
@@ -2585,15 +2588,13 @@
             );
 
             // Add projected investment input section as sibling after performance container
-            const projectedInputContainer = document.createElement('div');
-            projectedInputContainer.className = 'gpv-projected-input-container';
+            const projectedInputContainer = createElement('div', 'gpv-projected-input-container');
             const projectedLabel = createElement('label', 'gpv-projected-label');
             appendTextSpan(projectedLabel, 'gpv-projected-icon', '💡');
             appendTextSpan(projectedLabel, null, 'Add Projected Investment (simulation only):');
 
-            const projectedInput = document.createElement('input');
+            const projectedInput = createElement('input', CLASS_NAMES.projectedInput);
             projectedInput.type = 'number';
-            projectedInput.className = CLASS_NAMES.projectedInput;
             projectedInput.step = '100';
             projectedInput.value = currentProjectedInvestment > 0 ? String(currentProjectedInvestment) : '';
             projectedInput.placeholder = 'Enter amount';
@@ -2607,28 +2608,26 @@
             
             // Add event listener for projected investment input
             projectedInput.addEventListener('input', function() {
-                handleProjectedInvestmentChange(
-                    this,
-                    bucketViewModel.bucketName,
-                    goalTypeModel.goalType,
+                EventHandlers.handleProjectedInvestmentChange({
+                    input: this,
+                    bucket: bucketViewModel.bucketName,
+                    goalType: goalTypeModel.goalType,
                     typeSection,
                     mergedInvestmentDataState,
                     projectedInvestmentsState
-                );
+                });
             });
 
-            const table = document.createElement('table');
-            table.className = `gpv-table ${CLASS_NAMES.goalTable}`;
-            const thead = document.createElement('thead');
-            const headerRow = document.createElement('tr');
+            const table = createElement('table', `gpv-table ${CLASS_NAMES.goalTable}`);
+            const thead = createElement('thead');
+            const headerRow = createElement('tr');
 
             headerRow.appendChild(createElement('th', 'gpv-goal-name-header', 'Goal Name'));
             headerRow.appendChild(createElement('th', null, 'Balance'));
             headerRow.appendChild(createElement('th', null, '% of Goal Type'));
             headerRow.appendChild(createElement('th', 'gpv-fixed-header', 'Fixed'));
 
-            const targetHeader = document.createElement('th');
-            targetHeader.className = 'gpv-target-header';
+            const targetHeader = createElement('th', 'gpv-target-header');
             targetHeader.appendChild(createElement('div', null, 'Target %'));
             const remainingTargetClass = goalTypeModel.remainingTargetIsHigh
                 ? `${CLASS_NAMES.remainingTarget} ${CLASS_NAMES.remainingAlert}`
@@ -2647,7 +2646,7 @@
             thead.appendChild(headerRow);
             table.appendChild(thead);
 
-            const tbody = document.createElement('tbody');
+            const tbody = createElement('tbody');
 
             const goalModelsById = goalTypeModel.goals.reduce((acc, goalModel) => {
                 if (goalModel?.goalId) {
@@ -2657,29 +2656,25 @@
             }, {});
 
             goalTypeModel.goals.forEach(goalModel => {
-                const tr = document.createElement('tr');
+                const tr = createElement('tr');
                 tr.appendChild(createElement('td', 'gpv-goal-name', goalModel.goalName));
                 tr.appendChild(createElement('td', null, goalModel.endingBalanceDisplay));
                 tr.appendChild(createElement('td', null, goalModel.percentOfTypeDisplay));
 
-                const fixedCell = document.createElement('td');
-                fixedCell.className = 'gpv-fixed-cell';
+                const fixedCell = createElement('td', 'gpv-fixed-cell');
                 const fixedLabel = createElement('label', 'gpv-fixed-toggle');
-                const fixedInput = document.createElement('input');
+                const fixedInput = createElement('input', CLASS_NAMES.fixedToggleInput);
                 fixedInput.type = 'checkbox';
-                fixedInput.className = CLASS_NAMES.fixedToggleInput;
                 fixedInput.dataset.goalId = goalModel.goalId;
                 fixedInput.checked = goalModel.isFixed === true;
                 fixedLabel.appendChild(fixedInput);
-                appendTextSpan(fixedLabel, 'gpv-toggle-slider');
+                fixedLabel.appendChild(createElement('span', 'gpv-toggle-slider'));
                 fixedCell.appendChild(fixedLabel);
                 tr.appendChild(fixedCell);
 
-                const targetCell = document.createElement('td');
-                targetCell.className = 'gpv-target-cell';
-                const targetInput = document.createElement('input');
+                const targetCell = createElement('td', 'gpv-target-cell');
+                const targetInput = createElement('input', CLASS_NAMES.targetInput);
                 targetInput.type = 'number';
-                targetInput.className = CLASS_NAMES.targetInput;
                 targetInput.min = '0';
                 targetInput.max = '100';
                 targetInput.step = '0.01';
@@ -2714,17 +2709,17 @@
                 if (!goalModel) {
                     return;
                 }
-                handleGoalTargetChange(
-                    resolved.element,
-                    goalModel.goalId,
-                    goalModel.endingBalanceAmount,
-                    goalTypeModel.endingBalanceAmount,
-                    bucketViewModel.bucketName,
-                    goalTypeModel.goalType,
+                EventHandlers.handleGoalTargetChange({
+                    input: resolved.element,
+                    goalId: goalModel.goalId,
+                    currentEndingBalance: goalModel.endingBalanceAmount,
+                    totalTypeEndingBalance: goalTypeModel.endingBalanceAmount,
+                    bucket: bucketViewModel.bucketName,
+                    goalType: goalTypeModel.goalType,
                     typeSection,
                     mergedInvestmentDataState,
                     projectedInvestmentsState
-                );
+                });
             });
 
             typeSection.addEventListener('change', event => {
@@ -2736,26 +2731,26 @@
                 if (!goalModelsById[goalId]) {
                     return;
                 }
-                handleGoalFixedToggle(
-                    resolved.element,
+                EventHandlers.handleGoalFixedToggle({
+                    input: resolved.element,
                     goalId,
-                    bucketViewModel.bucketName,
-                    goalTypeModel.goalType,
+                    bucket: bucketViewModel.bucketName,
+                    goalType: goalTypeModel.goalType,
                     typeSection,
                     mergedInvestmentDataState,
                     projectedInvestmentsState
-                );
+                });
             });
             contentDiv.appendChild(typeSection);
         });
     }
 
-    function buildGoalTypeAllocationSnapshot(
+    function buildGoalTypeAllocationSnapshot({
         bucket,
         goalType,
         mergedInvestmentDataState,
         projectedInvestmentsState
-    ) {
+    }) {
         const bucketObj = mergedInvestmentDataState[bucket];
         const group = bucketObj?.[goalType];
         if (!group) {
@@ -2777,20 +2772,20 @@
         );
     }
 
-    function refreshGoalTypeSection(
+    function refreshGoalTypeSection({
         typeSection,
         bucket,
         goalType,
         mergedInvestmentDataState,
         projectedInvestmentsState,
         options = {}
-    ) {
-        const snapshot = buildGoalTypeAllocationSnapshot(
+    }) {
+        const snapshot = buildGoalTypeAllocationSnapshot({
             bucket,
             goalType,
             mergedInvestmentDataState,
             projectedInvestmentsState
-        );
+        });
         if (!snapshot) {
             return;
         }
@@ -2859,7 +2854,7 @@
      * @param {HTMLElement} typeSection - Goal type section container
      * @param {Object} mergedInvestmentDataState - Current merged data map
      */
-    function handleGoalTargetChange(
+    function handleGoalTargetChange({
         input,
         goalId,
         currentEndingBalance,
@@ -2869,7 +2864,7 @@
         typeSection,
         mergedInvestmentDataState,
         projectedInvestmentsState
-    ) {
+    }) {
         if (input.dataset.fixed === 'true') {
             return;
         }
@@ -2882,13 +2877,13 @@
             GoalTargetStore.clearTarget(goalId);
             diffCell.textContent = '-';
             diffCell.className = CLASS_NAMES.diffCell;
-            refreshGoalTypeSection(
+            refreshGoalTypeSection({
                 typeSection,
                 bucket,
                 goalType,
                 mergedInvestmentDataState,
                 projectedInvestmentsState
-            );
+            });
             return;
         }
         
@@ -2925,17 +2920,17 @@
         diffCell.textContent = diffData.diffDisplay;
         diffCell.className = diffData.diffClassName;
 
-        refreshGoalTypeSection(
+        refreshGoalTypeSection({
             typeSection,
             bucket,
             goalType,
             mergedInvestmentDataState,
             projectedInvestmentsState
-        );
+        });
     }
     testExports.handleGoalTargetChange = handleGoalTargetChange;
 
-    function handleGoalFixedToggle(
+    function handleGoalFixedToggle({
         input,
         goalId,
         bucket,
@@ -2943,7 +2938,7 @@
         typeSection,
         mergedInvestmentDataState,
         projectedInvestmentsState
-    ) {
+    }) {
         const isFixed = input.checked === true;
 
         if (isFixed) {
@@ -2952,14 +2947,14 @@
             GoalTargetStore.clearFixed(goalId);
         }
 
-        refreshGoalTypeSection(
+        refreshGoalTypeSection({
             typeSection,
             bucket,
             goalType,
             mergedInvestmentDataState,
             projectedInvestmentsState,
-            { forceTargetRefresh: true }
-        );
+            options: { forceTargetRefresh: true }
+        });
     }
     testExports.handleGoalFixedToggle = handleGoalFixedToggle;
 
@@ -2970,14 +2965,14 @@
      * @param {string} goalType - Goal type
      * @param {HTMLElement} typeSection - The type section element containing the table
      */
-    function handleProjectedInvestmentChange(
+    function handleProjectedInvestmentChange({
         input,
         bucket,
         goalType,
         typeSection,
         mergedInvestmentDataState,
         projectedInvestmentsState
-    ) {
+    }) {
         const value = input.value;
         
         if (value === '' || value === '0') {
@@ -3009,23 +3004,29 @@
         // Recalculate all diffs in this goal type section
         const tbody = typeSection.querySelector(`.${CLASS_NAMES.goalTable} tbody`);
         if (tbody) {
-            refreshGoalTypeSection(
+            refreshGoalTypeSection({
                 typeSection,
                 bucket,
                 goalType,
                 mergedInvestmentDataState,
                 projectedInvestmentsState
-            );
+            });
         }
     }
     testExports.handleProjectedInvestmentChange = handleProjectedInvestmentChange;
+
+    const EventHandlers = {
+        handleGoalTargetChange,
+        handleGoalFixedToggle,
+        handleProjectedInvestmentChange
+    };
 
     // ============================================
     // UI: Styles
     // ============================================
     
     function injectStyles() {
-        const style = document.createElement('style');
+        const style = createElement('style');
         style.textContent = `
             /* Modern Portfolio Viewer Styles */
             
@@ -3825,6 +3826,81 @@
     }
 
     // ============================================
+    // Controller: View Pipeline
+    // ============================================
+
+    function buildPortfolioViewModel({
+        selection,
+        mergedInvestmentDataState,
+        projectedInvestmentsState
+    }) {
+        if (!mergedInvestmentDataState || typeof mergedInvestmentDataState !== 'object') {
+            return null;
+        }
+        if (selection === 'SUMMARY') {
+            return {
+                kind: 'SUMMARY',
+                viewModel: ViewModels.buildSummaryViewModel(mergedInvestmentDataState)
+            };
+        }
+        const bucketObj = mergedInvestmentDataState[selection];
+        if (!bucketObj) {
+            return null;
+        }
+        const goalIds = collectGoalIds(bucketObj);
+        const goalTargetById = buildGoalTargetById(goalIds, GoalTargetStore.getTarget);
+        const goalFixedById = buildGoalFixedById(goalIds, GoalTargetStore.getFixed);
+        const viewModel = ViewModels.buildBucketDetailViewModel({
+            bucketName: selection,
+            bucketMap: mergedInvestmentDataState,
+            projectedInvestmentsState,
+            goalTargetById,
+            goalFixedById
+        });
+        if (!viewModel) {
+            return null;
+        }
+        return {
+            kind: 'BUCKET',
+            viewModel
+        };
+    }
+
+    function renderPortfolioView({
+        contentDiv,
+        selection,
+        mergedInvestmentDataState,
+        projectedInvestmentsState,
+        cleanupCallbacks,
+        onBucketSelect
+    }) {
+        const view = buildPortfolioViewModel({
+            selection,
+            mergedInvestmentDataState,
+            projectedInvestmentsState
+        });
+        if (!view) {
+            return;
+        }
+        if (view.kind === 'SUMMARY') {
+            renderSummaryView(contentDiv, view.viewModel, onBucketSelect);
+            return;
+        }
+        renderBucketView({
+            contentDiv,
+            bucketViewModel: view.viewModel,
+            mergedInvestmentDataState,
+            projectedInvestmentsState,
+            cleanupCallbacks
+        });
+    }
+
+    const ViewPipeline = {
+        buildViewModel: buildPortfolioViewModel,
+        render: renderPortfolioView
+    };
+
+    // ============================================
     // Controller
     // ============================================
 
@@ -3842,37 +3918,29 @@
             old.remove();
         }
 
-        const data = buildMergedInvestmentData(
-            apiData.performance,
-            apiData.investible,
-            apiData.summary
+        const mergedInvestmentDataState = buildMergedInvestmentData(
+            state.apiData.performance,
+            state.apiData.investible,
+            state.apiData.summary
         );
-        if (!data) {
+        if (!mergedInvestmentDataState) {
             logDebug('[Goal Portfolio Viewer] Not all API data available yet');
             alert('Please wait for portfolio data to load, then try again.');
             return;
         }
         logDebug('[Goal Portfolio Viewer] Data merged successfully');
 
-        const overlay = document.createElement('div');
+        const overlay = createElement('div', 'gpv-overlay');
         overlay.id = 'gpv-overlay';
-        overlay.className = 'gpv-overlay';
 
-        const container = document.createElement('div');
-        container.className = 'gpv-container';
+        const container = createElement('div', 'gpv-container');
         const cleanupCallbacks = [];
         container.gpvCleanupCallbacks = cleanupCallbacks;
         overlay.gpvCleanupCallbacks = cleanupCallbacks;
 
-        const header = document.createElement('div');
-        header.className = 'gpv-header';
-        
-        const title = document.createElement('h1');
-        title.textContent = 'Portfolio Viewer';
-        
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'gpv-close-btn';
-        closeBtn.textContent = '✕';
+        const header = createElement('div', 'gpv-header');
+        const title = createElement('h1', null, 'Portfolio Viewer');
+        const closeBtn = createElement('button', 'gpv-close-btn', '✕');
         function teardownOverlay() {
             if (!overlay.isConnected) {
                 return;
@@ -3902,26 +3970,16 @@
         header.appendChild(closeBtn);
         container.appendChild(header);
 
-        const controls = document.createElement('div');
-        controls.className = 'gpv-controls';
-        
-        const selectLabel = document.createElement('label');
-        selectLabel.textContent = 'View:';
-        selectLabel.className = 'gpv-select-label';
-        
-        const select = document.createElement('select');
-        select.className = 'gpv-select';
-        
-        const summaryOption = document.createElement('option');
+        const controls = createElement('div', 'gpv-controls');
+        const selectLabel = createElement('label', 'gpv-select-label', 'View:');
+        const select = createElement('select', 'gpv-select');
+        const summaryOption = createElement('option', null, '📊 Summary View');
         summaryOption.value = 'SUMMARY';
-        summaryOption.textContent = '📊 Summary View';
         select.appendChild(summaryOption);
 
-        Object.keys(data).sort().forEach(bucket => {
-            const opt = document.createElement('option');
+        Object.keys(mergedInvestmentDataState).sort().forEach(bucket => {
+            const opt = createElement('option', null, `📁 ${bucket}`);
             opt.value = bucket;
-            opt.appendChild(document.createTextNode('📁 '));
-            opt.appendChild(document.createTextNode(bucket));
             select.appendChild(opt);
         });
 
@@ -3929,38 +3987,22 @@
         controls.appendChild(select);
         container.appendChild(controls);
 
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'gpv-content';
+        const contentDiv = createElement('div', 'gpv-content');
         container.appendChild(contentDiv);
 
         function renderView(value) {
-            if (value === 'SUMMARY') {
-                const summaryViewModel = buildSummaryViewModel(data);
-                renderSummaryView(contentDiv, summaryViewModel, onBucketSelect);
-                return;
-            }
-            const bucketObj = data[value];
-            const goalIds = collectGoalIds(bucketObj);
-            const goalTargetById = buildGoalTargetById(goalIds, GoalTargetStore.getTarget);
-            const goalFixedById = buildGoalFixedById(goalIds, GoalTargetStore.getFixed);
-            const bucketViewModel = buildBucketDetailViewModel(
-                value,
-                data,
-                projectedInvestments,
-                goalTargetById,
-                goalFixedById
-            );
-            renderBucketView(
+            ViewPipeline.render({
                 contentDiv,
-                bucketViewModel,
-                data,
-                projectedInvestments,
-                cleanupCallbacks
-            );
+                selection: value,
+                mergedInvestmentDataState,
+                projectedInvestmentsState: state.projectedInvestments,
+                cleanupCallbacks,
+                onBucketSelect
+            });
         }
 
         function onBucketSelect(bucket) {
-            if (!bucket || !data[bucket]) {
+            if (!bucket || !mergedInvestmentDataState[bucket]) {
                 return;
             }
             select.value = bucket;
@@ -3988,29 +4030,24 @@
     // ============================================
     // Controller: Initialization
     // ============================================
-    
-    let portfolioButton = null;
-    let lastUrl = window.location.href;
-    
+
     function shouldShowButton() {
         return isDashboardRoute(window.location.href, window.location.origin);
     }
     
     function createButton() {
-        if (!portfolioButton) {
-            portfolioButton = document.createElement('button');
-            portfolioButton.className = 'gpv-trigger-btn';
-            portfolioButton.textContent = '📊 Portfolio Viewer';
-            portfolioButton.onclick = showOverlay;
+        if (!state.ui.portfolioButton) {
+            state.ui.portfolioButton = createElement('button', 'gpv-trigger-btn', '📊 Portfolio Viewer');
+            state.ui.portfolioButton.onclick = showOverlay;
         }
-        return portfolioButton;
+        return state.ui.portfolioButton;
     }
     
     function updateButtonVisibility() {
         if (!document.body) return;
         
         const shouldShow = shouldShowButton();
-        const buttonExists = portfolioButton && portfolioButton.parentNode;
+        const buttonExists = state.ui.portfolioButton && state.ui.portfolioButton.parentNode;
         
         if (shouldShow && !buttonExists) {
             // Show button
@@ -4019,15 +4056,15 @@
             logDebug('[Goal Portfolio Viewer] Button shown on dashboard');
         } else if (!shouldShow && buttonExists) {
             // Hide button
-            portfolioButton.remove();
+            state.ui.portfolioButton.remove();
             logDebug('[Goal Portfolio Viewer] Button hidden (not on dashboard)');
         }
     }
     
     function handleUrlChange() {
         const currentUrl = window.location.href;
-        if (currentUrl !== lastUrl) {
-            lastUrl = currentUrl;
+        if (currentUrl !== state.ui.lastUrl) {
+            state.ui.lastUrl = currentUrl;
             logDebug('[Goal Portfolio Viewer] URL changed to:', { url: currentUrl });
             updateButtonVisibility();
         }
@@ -4056,20 +4093,21 @@
     }
     
     function startUrlMonitoring() {
-        if (window.__gpvUrlMonitorCleanup) {
+        if (state.ui.urlMonitorCleanup) {
+            state.ui.urlMonitorCleanup();
+        } else if (window.__gpvUrlMonitorCleanup) {
             window.__gpvUrlMonitorCleanup();
         }
 
-        lastUrl = window.location.href;
+        state.ui.lastUrl = window.location.href;
         updateButtonVisibility();
 
         // Debounce function to limit how often handleUrlChange can be called
-        let urlCheckTimeout = null;
         const debouncedUrlCheck = () => {
-            if (urlCheckTimeout) {
-                clearTimeout(urlCheckTimeout);
+            if (state.ui.urlCheckTimeout) {
+                clearTimeout(state.ui.urlCheckTimeout);
             }
-            urlCheckTimeout = setTimeout(handleUrlChange, 100);
+            state.ui.urlCheckTimeout = setTimeout(handleUrlChange, 100);
         };
 
         // Listen to popstate event for browser back/forward navigation
@@ -4083,39 +4121,39 @@
         const appRoot = document.querySelector('#root')
             || document.querySelector('#app')
             || document.querySelector('main');
-        let observer = null;
-
         if (appRoot) {
             // Use MutationObserver as a fallback for navigation patterns not caught by History API
-            observer = new MutationObserver(debouncedUrlCheck);
-            observer.observe(appRoot, {
+            state.ui.observer = new MutationObserver(debouncedUrlCheck);
+            state.ui.observer.observe(appRoot, {
                 childList: true,
                 subtree: true
             });
         }
 
-        window.__gpvUrlMonitorCleanup = () => {
+        state.ui.urlMonitorCleanup = () => {
             window.removeEventListener('popstate', handleUrlChange);
             restorePushState();
             restoreReplaceState();
             window.clearInterval(intervalId);
-            if (observer) {
-                observer.disconnect();
-                observer = null;
+            if (state.ui.observer) {
+                state.ui.observer.disconnect();
+                state.ui.observer = null;
             }
-            if (urlCheckTimeout) {
-                clearTimeout(urlCheckTimeout);
-                urlCheckTimeout = null;
+            if (state.ui.urlCheckTimeout) {
+                clearTimeout(state.ui.urlCheckTimeout);
+                state.ui.urlCheckTimeout = null;
             }
+            state.ui.urlMonitorCleanup = null;
             window.__gpvUrlMonitorCleanup = null;
         };
+        window.__gpvUrlMonitorCleanup = state.ui.urlMonitorCleanup;
 
         logDebug('[Goal Portfolio Viewer] URL monitoring started with History API hooks');
     }
     
     function init() {
         // Load stored API data
-        loadStoredData(apiData);
+        loadStoredData(state);
 
         if (DEBUG_AUTH) {
             getAuthTokenFromGMCookie();
