@@ -127,6 +127,21 @@ describe('UI renderers', () => {
         expect(svg.querySelectorAll('text').length).toBeGreaterThan(0);
     });
 
+    test('createLineChartSvg renders empty state for insufficient data', () => {
+        const { createLineChartSvg } = exportsModule;
+        if (typeof createLineChartSvg !== 'function') {
+            return;
+        }
+        const svgEmpty = createLineChartSvg([], 400, 140);
+        const emptyLabel = svgEmpty.querySelector('.gpv-performance-chart-empty');
+        expect(emptyLabel).toBeTruthy();
+        expect(emptyLabel.textContent).toBe('No chart data');
+
+        const svgSingle = createLineChartSvg([{ date: '2024-01-01', amount: 100 }], 400, 140);
+        const singleLabel = svgSingle.querySelector('.gpv-performance-chart-empty');
+        expect(singleLabel).toBeTruthy();
+    });
+
     test('chart dimension helpers clamp sizes', () => {
         const { getChartHeightForWidth, getChartDimensions } = exportsModule;
         if (typeof getChartHeightForWidth !== 'function' || typeof getChartDimensions !== 'function') {
@@ -158,5 +173,23 @@ describe('UI renderers', () => {
         const values = grid.querySelectorAll('.gpv-performance-window-value');
         expect(values[0].textContent).toContain('10.00%');
         expect(values[1].classList.contains('negative')).toBe(true);
+    });
+
+    test('buildPerformanceWindowGrid shows fallback for missing values', () => {
+        const { buildPerformanceWindowGrid } = exportsModule;
+        const grid = buildPerformanceWindowGrid({
+            oneMonth: null,
+            sixMonth: undefined,
+            ytd: 0,
+            oneYear: null,
+            threeYear: undefined
+        });
+
+        const values = grid.querySelectorAll('.gpv-performance-window-value');
+        expect(values[0].textContent).toBe('-');
+        expect(values[0].classList.contains('positive')).toBe(false);
+        expect(values[0].classList.contains('negative')).toBe(false);
+        expect(values[2].textContent).toContain('0.00%');
+        expect(values[2].classList.contains('positive')).toBe(true);
     });
 });

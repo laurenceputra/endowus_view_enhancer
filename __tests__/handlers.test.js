@@ -135,6 +135,190 @@ describe('handlers and cache', () => {
         expect(diffCell.className).toContain('gpv-diff-cell');
     });
 
+    test('handleGoalTargetChange clears target on empty input', () => {
+        const { handleGoalTargetChange } = exportsModule;
+        if (typeof handleGoalTargetChange !== 'function') return;
+
+        const bucket = 'Retirement';
+        const goalType = 'GENERAL_WEALTH_ACCUMULATION';
+        const goalId = 'g1';
+        const mergedInvestmentDataState = {
+            [bucket]: {
+                _meta: { endingBalanceTotal: 1000 },
+                [goalType]: {
+                    endingBalanceAmount: 1000,
+                    totalCumulativeReturn: 0,
+                    goals: [{
+                        goalId,
+                        goalName: 'Retirement - Core',
+                        endingBalanceAmount: 600,
+                        totalCumulativeReturn: 0,
+                        simpleRateOfReturnPercent: 0
+                    }]
+                }
+            }
+        };
+        const projectedInvestmentsState = {};
+        const { typeSection, targetInput, diffCell } = createTypeSection(goalId);
+        storage.set('goal_target_pct_g1', 50);
+        targetInput.value = '';
+
+        handleGoalTargetChange({
+            input: targetInput,
+            goalId,
+            currentEndingBalance: 600,
+            totalTypeEndingBalance: 1000,
+            bucket,
+            goalType,
+            typeSection,
+            mergedInvestmentDataState,
+            projectedInvestmentsState
+        });
+
+        expect(storage.has('goal_target_pct_g1')).toBe(false);
+        expect(diffCell.textContent).toBe('-');
+        expect(diffCell.className).toBe('gpv-diff-cell');
+    });
+
+    test('handleGoalTargetChange clamps target percent to 0-100', () => {
+        const { handleGoalTargetChange } = exportsModule;
+        if (typeof handleGoalTargetChange !== 'function') return;
+
+        jest.useFakeTimers();
+
+        const bucket = 'Retirement';
+        const goalType = 'GENERAL_WEALTH_ACCUMULATION';
+        const goalId = 'g1';
+        const mergedInvestmentDataState = {
+            [bucket]: {
+                _meta: { endingBalanceTotal: 1000 },
+                [goalType]: {
+                    endingBalanceAmount: 1000,
+                    totalCumulativeReturn: 0,
+                    goals: [{
+                        goalId,
+                        goalName: 'Retirement - Core',
+                        endingBalanceAmount: 600,
+                        totalCumulativeReturn: 0,
+                        simpleRateOfReturnPercent: 0
+                    }]
+                }
+            }
+        };
+        const projectedInvestmentsState = {};
+        const { typeSection, targetInput } = createTypeSection(goalId);
+        targetInput.value = '150';
+
+        handleGoalTargetChange({
+            input: targetInput,
+            goalId,
+            currentEndingBalance: 600,
+            totalTypeEndingBalance: 1000,
+            bucket,
+            goalType,
+            typeSection,
+            mergedInvestmentDataState,
+            projectedInvestmentsState
+        });
+
+        expect(storage.get('goal_target_pct_g1')).toBe(100);
+        expect(targetInput.value).toBe('100.00');
+
+        jest.runOnlyPendingTimers();
+        jest.useRealTimers();
+    });
+
+    test('handleGoalTargetChange ignores updates when fixed', () => {
+        const { handleGoalTargetChange } = exportsModule;
+        if (typeof handleGoalTargetChange !== 'function') return;
+
+        const bucket = 'Retirement';
+        const goalType = 'GENERAL_WEALTH_ACCUMULATION';
+        const goalId = 'g1';
+        const mergedInvestmentDataState = {
+            [bucket]: {
+                _meta: { endingBalanceTotal: 1000 },
+                [goalType]: {
+                    endingBalanceAmount: 1000,
+                    totalCumulativeReturn: 0,
+                    goals: [{
+                        goalId,
+                        goalName: 'Retirement - Core',
+                        endingBalanceAmount: 600,
+                        totalCumulativeReturn: 0,
+                        simpleRateOfReturnPercent: 0
+                    }]
+                }
+            }
+        };
+        const projectedInvestmentsState = {};
+        const { typeSection, targetInput } = createTypeSection(goalId);
+        targetInput.value = '25';
+        targetInput.dataset.fixed = 'true';
+
+        handleGoalTargetChange({
+            input: targetInput,
+            goalId,
+            currentEndingBalance: 600,
+            totalTypeEndingBalance: 1000,
+            bucket,
+            goalType,
+            typeSection,
+            mergedInvestmentDataState,
+            projectedInvestmentsState
+        });
+
+        expect(storage.has('goal_target_pct_g1')).toBe(false);
+    });
+
+    test('handleGoalTargetChange shows error on invalid input', () => {
+        const { handleGoalTargetChange } = exportsModule;
+        if (typeof handleGoalTargetChange !== 'function') return;
+
+        jest.useFakeTimers();
+
+        const bucket = 'Retirement';
+        const goalType = 'GENERAL_WEALTH_ACCUMULATION';
+        const goalId = 'g1';
+        const mergedInvestmentDataState = {
+            [bucket]: {
+                _meta: { endingBalanceTotal: 1000 },
+                [goalType]: {
+                    endingBalanceAmount: 1000,
+                    totalCumulativeReturn: 0,
+                    goals: [{
+                        goalId,
+                        goalName: 'Retirement - Core',
+                        endingBalanceAmount: 600,
+                        totalCumulativeReturn: 0,
+                        simpleRateOfReturnPercent: 0
+                    }]
+                }
+            }
+        };
+        const projectedInvestmentsState = {};
+        const { typeSection, targetInput } = createTypeSection(goalId);
+        targetInput.value = 'not-a-number';
+
+        handleGoalTargetChange({
+            input: targetInput,
+            goalId,
+            currentEndingBalance: 600,
+            totalTypeEndingBalance: 1000,
+            bucket,
+            goalType,
+            typeSection,
+            mergedInvestmentDataState,
+            projectedInvestmentsState
+        });
+
+        expect(storage.has('goal_target_pct_g1')).toBe(false);
+        expect(targetInput.style.borderColor).toBe('#dc2626');
+
+        jest.runOnlyPendingTimers();
+        jest.useRealTimers();
+    });
+
     test('GoalTargetStore.setTarget returns null for non-finite values', () => {
         const { GoalTargetStore } = exportsModule;
         if (!GoalTargetStore) return;
@@ -142,6 +326,19 @@ describe('handlers and cache', () => {
         const result = GoalTargetStore.setTarget('g-nonfinite', Infinity);
         expect(result).toBeNull();
         expect(storage.has('goal_target_pct_g-nonfinite')).toBe(false);
+    });
+
+    test('GoalTargetStore.setTarget clamps to 0-100 range', () => {
+        const { GoalTargetStore } = exportsModule;
+        if (!GoalTargetStore) return;
+
+        const above = GoalTargetStore.setTarget('g-above', 150);
+        expect(above).toBe(100);
+        expect(storage.get('goal_target_pct_g-above')).toBe(100);
+
+        const below = GoalTargetStore.setTarget('g-below', -10);
+        expect(below).toBe(0);
+        expect(storage.get('goal_target_pct_g-below')).toBe(0);
     });
 
     test('handleGoalFixedToggle disables target input and stores flag', () => {
@@ -192,6 +389,8 @@ describe('handlers and cache', () => {
         const { handleProjectedInvestmentChange } = exportsModule;
         if (typeof handleProjectedInvestmentChange !== 'function') return;
 
+        jest.useFakeTimers();
+
         const bucket = 'Retirement';
         const goalType = 'GENERAL_WEALTH_ACCUMULATION';
         const mergedInvestmentDataState = {
@@ -230,6 +429,109 @@ describe('handlers and cache', () => {
             projectedInvestmentsState
         });
         expect(projectedInvestmentsState[`${bucket}|${goalType}`]).toBeUndefined();
+
+        jest.runOnlyPendingTimers();
+        jest.useRealTimers();
+    });
+
+    test('handleProjectedInvestmentChange allows negative values', () => {
+        const { handleProjectedInvestmentChange } = exportsModule;
+        if (typeof handleProjectedInvestmentChange !== 'function') return;
+
+        jest.useFakeTimers();
+
+        const bucket = 'Retirement';
+        const goalType = 'GENERAL_WEALTH_ACCUMULATION';
+        const mergedInvestmentDataState = {
+            [bucket]: {
+                _meta: { endingBalanceTotal: 1000 },
+                [goalType]: {
+                    endingBalanceAmount: 1000,
+                    totalCumulativeReturn: 0,
+                    goals: []
+                }
+            }
+        };
+        const projectedInvestmentsState = {};
+        const typeSection = document.createElement('div');
+        const table = document.createElement('table');
+        table.className = 'gpv-goal-table';
+        table.appendChild(document.createElement('tbody'));
+        typeSection.appendChild(table);
+        const input = document.createElement('input');
+        input.className = 'gpv-projected-input';
+        input.value = '-250';
+
+        handleProjectedInvestmentChange({
+            input,
+            bucket,
+            goalType,
+            typeSection,
+            mergedInvestmentDataState,
+            projectedInvestmentsState
+        });
+
+        expect(projectedInvestmentsState[`${bucket}|${goalType}`]).toBe(-250);
+
+        jest.runOnlyPendingTimers();
+        jest.useRealTimers();
+    });
+
+    test('handleProjectedInvestmentChange clears on zero or invalid input', () => {
+        const { handleProjectedInvestmentChange } = exportsModule;
+        if (typeof handleProjectedInvestmentChange !== 'function') return;
+
+        jest.useFakeTimers();
+
+        const bucket = 'Retirement';
+        const goalType = 'GENERAL_WEALTH_ACCUMULATION';
+        const mergedInvestmentDataState = {
+            [bucket]: {
+                _meta: { endingBalanceTotal: 1000 },
+                [goalType]: {
+                    endingBalanceAmount: 1000,
+                    totalCumulativeReturn: 0,
+                    goals: []
+                }
+            }
+        };
+        const projectedInvestmentsState = {
+            [`${bucket}|${goalType}`]: 200
+        };
+        const typeSection = document.createElement('div');
+        const table = document.createElement('table');
+        table.className = 'gpv-goal-table';
+        table.appendChild(document.createElement('tbody'));
+        typeSection.appendChild(table);
+        const input = document.createElement('input');
+        input.className = 'gpv-projected-input';
+
+        input.value = '0';
+        handleProjectedInvestmentChange({
+            input,
+            bucket,
+            goalType,
+            typeSection,
+            mergedInvestmentDataState,
+            projectedInvestmentsState
+        });
+        expect(projectedInvestmentsState[`${bucket}|${goalType}`]).toBeUndefined();
+
+        projectedInvestmentsState[`${bucket}|${goalType}`] = 300;
+        input.value = 'invalid';
+        handleProjectedInvestmentChange({
+            input,
+            bucket,
+            goalType,
+            typeSection,
+            mergedInvestmentDataState,
+            projectedInvestmentsState
+        });
+        expect(projectedInvestmentsState[`${bucket}|${goalType}`]).toBe(300);
+        expect(input.style.borderColor).toBe('#dc2626');
+
+        jest.runOnlyPendingTimers();
+        jest.useRealTimers();
     });
 
     test('performance cache read/write honors TTL', () => {
@@ -251,6 +553,44 @@ describe('handlers and cache', () => {
         const stale = readPerformanceCache('goal-x');
         expect(stale).toBeNull();
         expect(storage.has('gpv_performance_goal-x')).toBe(false);
+    });
+
+    test('performance cache removes invalid payloads', () => {
+        const { readPerformanceCache } = exportsModule;
+        if (!readPerformanceCache) return;
+
+        storage.set('gpv_performance_bad-json', '{invalid');
+        expect(readPerformanceCache('bad-json')).toBeNull();
+        expect(storage.has('gpv_performance_bad-json')).toBe(false);
+
+        storage.set('gpv_performance_bad-shape', JSON.stringify({ fetchedAt: 'nope', response: 'bad' }));
+        expect(readPerformanceCache('bad-shape')).toBeNull();
+        expect(storage.has('gpv_performance_bad-shape')).toBe(false);
+    });
+
+    test('clearPerformanceCache removes stored entries', () => {
+        const { clearPerformanceCache } = exportsModule;
+        if (!clearPerformanceCache) return;
+
+        storage.set('gpv_performance_goal-a', JSON.stringify({ fetchedAt: 1, response: {} }));
+        storage.set('gpv_performance_goal-b', JSON.stringify({ fetchedAt: 1, response: {} }));
+
+        clearPerformanceCache(['goal-a', 'goal-b']);
+
+        expect(storage.has('gpv_performance_goal-a')).toBe(false);
+        expect(storage.has('gpv_performance_goal-b')).toBe(false);
+    });
+
+    test('getLatestPerformanceCacheTimestamp returns latest fetched time', () => {
+        const { getLatestPerformanceCacheTimestamp } = exportsModule;
+        if (!getLatestPerformanceCacheTimestamp) return;
+
+        Date.now = () => 500;
+        storage.set('gpv_performance_goal-a', JSON.stringify({ fetchedAt: 100, response: {} }));
+        storage.set('gpv_performance_goal-b', JSON.stringify({ fetchedAt: 200, response: {} }));
+
+        const latest = getLatestPerformanceCacheTimestamp(['goal-a', 'goal-b']);
+        expect(latest).toBe(200);
     });
 
     test('fetch interception stores performance data', async () => {

@@ -1919,6 +1919,7 @@
         });
         return latestFetchedAt;
     }
+    testExports.getLatestPerformanceCacheTimestamp = getLatestPerformanceCacheTimestamp;
 
     function clearPerformanceCache(goalIds) {
         if (!Array.isArray(goalIds)) {
