@@ -46,11 +46,11 @@ Use this compact workflow for all changes. Keep detailed role guidance in `.gith
 
 | Change Type | Required Steps |
 | --- | --- |
-| Pure logic | Jest tests with edge cases; update docs if behavior changes |
-| UI/visual | Jest (if logic touched) + screenshot + smoke check |
-| Behavior change | Jest + update TECHNICAL_DESIGN.md and README references |
-| Performance | Jest + perf check and reasoning about impact |
-| Documentation-only | No tests required unless logic changed |
+| Pure logic | Jest tests with edge cases + lint; update docs if behavior changes |
+| UI/visual | Jest (if logic touched) + lint + screenshot + smoke check |
+| Behavior change | Jest + lint + update TECHNICAL_DESIGN.md and README references |
+| Performance | Jest + lint + perf check and reasoning about impact |
+| Documentation-only | Lint not required unless code changes; no tests required unless logic changed |
 
 ### Role Guides (Single Source of Detail)
 - **Product**: `.github/agents/product-manager.md` (requirements framing)
@@ -417,6 +417,7 @@ function escapeHtml(text) {
 ### Automated Testing (Required)
 
 - Run Jest for every change.
+- Run ESLint for every change that touches code.
 - Add or update tests for new logic, regressions, and edge cases.
 
 ### Manual/Exploratory Testing (When Applicable)

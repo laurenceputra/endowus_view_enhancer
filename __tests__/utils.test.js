@@ -11,10 +11,12 @@ const {
     normalizeGoalType,
     normalizeGoalName,
     getGoalTargetKey,
+    getGoalFixedKey,
     getProjectedInvestmentKey,
     extractBucketName,
     getDisplayGoalType,
     sortGoalTypes,
+    sortGoalsByName,
     formatMoney,
     formatPercentFromRatio,
     formatPercentFromPercent,
@@ -60,6 +62,16 @@ describe('getGoalTargetKey', () => {
 
     test('should handle special characters', () => {
         expect(getGoalTargetKey('goal-123-abc')).toBe('goal_target_pct_goal-123-abc');
+    });
+});
+
+describe('getGoalFixedKey', () => {
+    test('should generate correct storage key format', () => {
+        expect(getGoalFixedKey('goal123')).toBe('goal_fixed_goal123');
+    });
+
+    test('should handle empty string', () => {
+        expect(getGoalFixedKey('')).toBe('goal_fixed_');
     });
 });
 
@@ -198,6 +210,30 @@ describe('sortGoalTypes', () => {
         const original = [...input];
         sortGoalTypes(input);
         expect(input).toEqual(original);
+    });
+});
+
+describe('sortGoalsByName', () => {
+    test('should sort goals by name case-insensitively', () => {
+        const input = [
+            { goalId: 'b', goalName: 'beta' },
+            { goalId: 'a', goalName: 'Alpha' }
+        ];
+        const sorted = sortGoalsByName(input);
+        expect(sorted.map(goal => goal.goalName)).toEqual(['Alpha', 'beta']);
+    });
+
+    test('should use goalId as tiebreaker when names match', () => {
+        const input = [
+            { goalId: '2', goalName: 'Same' },
+            { goalId: '1', goalName: 'same' }
+        ];
+        const sorted = sortGoalsByName(input);
+        expect(sorted.map(goal => goal.goalId)).toEqual(['1', '2']);
+    });
+
+    test('should return empty array for invalid input', () => {
+        expect(sortGoalsByName(null)).toEqual([]);
     });
 });
 
@@ -785,6 +821,23 @@ describe('mergeTimeSeriesByDate', () => {
             { date: '2024-06-02', amount: 200 }
         ]);
     });
+
+    test('should merge normalized series when flag is set', () => {
+        const series = [
+            [
+                { date: new Date('2024-06-01'), dateString: '2024-06-01', amount: 100 },
+                { date: new Date('2024-06-02'), dateString: '2024-06-02', amount: 200 }
+            ],
+            [
+                { date: new Date('2024-06-01'), dateString: '2024-06-01', amount: 50 }
+            ]
+        ];
+        const result = mergeTimeSeriesByDate(series, true);
+        expect(result).toEqual([
+            { date: '2024-06-01', amount: 150 },
+            { date: '2024-06-02', amount: 200 }
+        ]);
+    });
 });
 
 describe('getTimeSeriesWindow', () => {
@@ -802,6 +855,14 @@ describe('getTimeSeriesWindow', () => {
             { date: '2024-06-02', amount: 200 }
         ], new Date('2024-06-02'));
         expect(result).toEqual([{ date: '2024-06-02', amount: 200 }]);
+    });
+
+    test('should return empty array for invalid start date', () => {
+        const result = getTimeSeriesWindow([
+            { date: '2024-06-01', amount: 100 },
+            { date: '2024-06-02', amount: 200 }
+        ], 'not-a-date');
+        expect(result).toEqual([]);
     });
 });
 
@@ -992,6 +1053,14 @@ describe('calculateReturnFromTimeSeries', () => {
         expect(calculateReturnFromTimeSeries(timeSeries, undefined)).toBeNull();
     });
 
+    test('should return null for invalid startDate', () => {
+        const timeSeries = [
+            { date: '2024-06-01', amount: 100 },
+            { date: '2024-06-02', amount: 110 }
+        ];
+        expect(calculateReturnFromTimeSeries(timeSeries, 'not-a-date')).toBeNull();
+    });
+
     test('should return null for empty time series', () => {
         expect(calculateReturnFromTimeSeries([], new Date('2024-06-01'))).toBeNull();
     });
@@ -1077,6 +1146,18 @@ describe('mapReturnsTableToWindowReturns', () => {
         expect(result.threeYear).toBeNull();
     });
 
+    test('should extract return percent from object values', () => {
+        const returnsTable = {
+            twr: {
+                oneMonthValue: { returnPercent: 0.05 },
+                sixMonthValue: { rateOfReturn: 0.1 }
+            }
+        };
+        const result = mapReturnsTableToWindowReturns(returnsTable);
+        expect(result.oneMonth).toBe(0.05);
+        expect(result.sixMonth).toBe(0.1);
+    });
+
     test('should handle zero values correctly', () => {
         const returnsTable = {
             twr: {
@@ -1137,6 +1218,22 @@ describe('derivePerformanceWindows', () => {
         const result = derivePerformanceWindows({}, null, timeSeries);
         expect(result.oneMonth).toBeCloseTo(0.0909, 3);
         expect(result.sixMonth).toBeCloseTo(0.3333, 3);
+    });
+
+    test('should fall back per-window when returns table value is null', () => {
+        const returnsTable = {
+            twr: {
+                oneMonthValue: null,
+                sixMonthValue: 0.1
+            }
+        };
+        const timeSeries = [
+            { date: '2024-05-01', amount: 100 },
+            { date: '2024-06-01', amount: 110 }
+        ];
+        const result = derivePerformanceWindows(returnsTable, null, timeSeries);
+        expect(result.oneMonth).toBeCloseTo(0.1, 6);
+        expect(result.sixMonth).toBe(0.1);
     });
 });
 
