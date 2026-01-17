@@ -222,6 +222,11 @@
         maximumFractionDigits: 2
     });
 
+    function toFiniteNumber(value, fallback = null) {
+        const numericValue = Number(value);
+        return Number.isFinite(numericValue) ? numericValue : fallback;
+    }
+
     function formatMoney(val) {
         if (typeof val === 'number' && Number.isFinite(val)) {
             return MONEY_FORMATTER.format(val);
@@ -233,12 +238,12 @@
         if (value === null || value === undefined) {
             return options.fallback ?? '-';
         }
-        const multiplier = Number(options.multiplier ?? 1);
-        if (!Number.isFinite(multiplier)) {
+        const multiplier = toFiniteNumber(options.multiplier ?? 1, null);
+        if (multiplier === null) {
             return options.fallback ?? '-';
         }
-        const numericValue = Number(value);
-        if (!Number.isFinite(numericValue)) {
+        const numericValue = toFiniteNumber(value, null);
+        if (numericValue === null) {
             return options.fallback ?? '-';
         }
         const percentValue = numericValue * multiplier;
@@ -264,42 +269,42 @@
         // where principal = ending balance - return
         // Example: if you invested $100 and now have $110, return is $10
         // Growth = 10 / 100 * 100 = 10%
-        const numericReturn = Number(totalReturn);
-        const numericEndingBalance = Number(endingBalance);
+        const numericReturn = toFiniteNumber(totalReturn, null);
+        const numericEndingBalance = toFiniteNumber(endingBalance, null);
         const principal = numericEndingBalance - numericReturn;
-        if (!Number.isFinite(numericReturn) || !Number.isFinite(numericEndingBalance) || principal <= 0) {
+        if (numericReturn === null || numericEndingBalance === null || principal <= 0) {
             return '-';
         }
         return ((numericReturn / principal) * 100).toFixed(2) + '%';
     }
 
     function getReturnClass(value) {
-        const numericValue = Number(value);
-        if (!Number.isFinite(numericValue)) {
+        const numericValue = toFiniteNumber(value, null);
+        if (numericValue === null) {
             return '';
         }
         return numericValue >= 0 ? 'positive' : 'negative';
     }
 
     function calculatePercentOfType(amount, total) {
-        const numericAmount = Number(amount);
-        const numericTotal = Number(total);
-        if (!Number.isFinite(numericAmount) || !Number.isFinite(numericTotal) || numericTotal <= 0) {
+        const numericAmount = toFiniteNumber(amount, null);
+        const numericTotal = toFiniteNumber(total, null);
+        if (numericAmount === null || numericTotal === null || numericTotal <= 0) {
             return 0;
         }
         return (numericAmount / numericTotal) * 100;
     }
 
     function calculateGoalDiff(currentAmount, targetPercent, adjustedTypeTotal) {
-        const numericCurrent = Number(currentAmount);
-        const numericTarget = Number(targetPercent);
-        const numericTotal = Number(adjustedTypeTotal);
+        const numericCurrent = toFiniteNumber(currentAmount, null);
+        const numericTarget = toFiniteNumber(targetPercent, null);
+        const numericTotal = toFiniteNumber(adjustedTypeTotal, null);
         if (
             targetPercent === null
             || targetPercent === undefined
-            || !Number.isFinite(numericCurrent)
-            || !Number.isFinite(numericTarget)
-            || !Number.isFinite(numericTotal)
+            || numericCurrent === null
+            || numericTarget === null
+            || numericTotal === null
             || numericTotal <= 0
         ) {
             return { diffAmount: null, diffClass: '' };
@@ -331,9 +336,9 @@
     // ============================================
 
     function calculateFixedTargetPercent(currentAmount, adjustedTypeTotal) {
-        const numericCurrent = Number(currentAmount);
-        const numericTotal = Number(adjustedTypeTotal);
-        if (!Number.isFinite(numericCurrent) || !Number.isFinite(numericTotal) || numericTotal <= 0) {
+        const numericCurrent = toFiniteNumber(currentAmount, null);
+        const numericTotal = toFiniteNumber(adjustedTypeTotal, null);
+        if (numericCurrent === null || numericTotal === null || numericTotal <= 0) {
             return null;
         }
         return (numericCurrent / numericTotal) * 100;
@@ -355,9 +360,9 @@
     }
 
     function isRemainingTargetAboveThreshold(remainingTargetPercent, threshold = REMAINING_TARGET_ALERT_THRESHOLD) {
-        const numericRemaining = Number(remainingTargetPercent);
-        const numericThreshold = Number(threshold);
-        if (!Number.isFinite(numericRemaining) || !Number.isFinite(numericThreshold)) {
+        const numericRemaining = toFiniteNumber(remainingTargetPercent, null);
+        const numericThreshold = toFiniteNumber(threshold, null);
+        if (numericRemaining === null || numericThreshold === null) {
             return false;
         }
         return numericRemaining > numericThreshold;
