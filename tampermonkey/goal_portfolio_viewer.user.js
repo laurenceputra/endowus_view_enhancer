@@ -164,13 +164,6 @@
         }, {});
     }
 
-    const Normalization = {
-        normalizeString,
-        normalizeGoalType,
-        normalizeGoalName,
-        normalizePerformanceResponse
-    };
-
     function extractBucketName(goalName) {
         if (!goalName || typeof goalName !== 'string') {
             return 'Uncategorized';
@@ -1090,7 +1083,7 @@
 
     function calculateWeightedWindowReturns(performanceResponses) {
         const responses = Array.isArray(performanceResponses)
-            ? performanceResponses.map(Normalization.normalizePerformanceResponse)
+            ? performanceResponses.map(normalizePerformanceResponse)
             : [];
         const windowKeys = Object.values(PERFORMANCE_WINDOWS).map(window => window.key);
         const valuesByWindow = {};
@@ -1134,7 +1127,7 @@
 
     function summarizePerformanceMetrics(performanceResponses, mergedTimeSeries) {
         const responses = Array.isArray(performanceResponses)
-            ? performanceResponses.map(Normalization.normalizePerformanceResponse)
+            ? performanceResponses.map(normalizePerformanceResponse)
             : [];
         const netInvestments = [];
         const totalReturns = [];
@@ -1808,7 +1801,7 @@
         if (!cached) {
             return null;
         }
-        return cached.response ? Normalization.normalizePerformanceResponse(cached.response) : null;
+        return cached.response ? normalizePerformanceResponse(cached.response) : null;
     }
     testExports.getCachedPerformanceResponse = getCachedPerformanceResponse;
 
@@ -1866,7 +1859,7 @@
         const queueResults = await state.performance.requestQueue(idsToFetch, async goalId => {
             try {
                 const data = await fetchPerformanceForGoal(goalId);
-                const normalized = Normalization.normalizePerformanceResponse(data);
+                const normalized = normalizePerformanceResponse(data);
                 writePerformanceCache(goalId, normalized);
                 state.performance.goalData[goalId] = normalized;
                 return normalized;
@@ -1887,7 +1880,7 @@
 
     function buildGoalTypePerformanceSummary(performanceResponses) {
         const responses = Array.isArray(performanceResponses)
-            ? performanceResponses.map(Normalization.normalizePerformanceResponse)
+            ? performanceResponses.map(normalizePerformanceResponse)
             : [];
         if (!responses.length) {
             return null;
