@@ -54,6 +54,19 @@
                 GM_setValue('api_investible', JSON.stringify(mockData.investible));
                 GM_setValue('api_summary', JSON.stringify(mockData.summary));
                 
+                // Store performance time-series data for each goal
+                if (mockData.performanceTimeSeries) {
+                    Object.keys(mockData.performanceTimeSeries).forEach(goalId => {
+                        const tsKey = `gpv_performance_${goalId}`;
+                        const tsData = mockData.performanceTimeSeries[goalId];
+                        GM_setValue(tsKey, JSON.stringify({
+                            data: tsData,
+                            timestamp: Date.now()
+                        }));
+                    });
+                    console.log('[Demo] Performance time-series data loaded for', Object.keys(mockData.performanceTimeSeries).length, 'goals');
+                }
+                
                 // Verify data was stored
                 if (!GM_getValue('api_performance') || !GM_getValue('api_investible') || !GM_getValue('api_summary')) {
                     throw new Error('Failed to store mock data');
