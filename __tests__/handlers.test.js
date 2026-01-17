@@ -1,4 +1,4 @@
-const { JSDOM } = require('jsdom');
+const { setupDom, teardownDom } = require('./helpers/domSetup');
 
 describe('handlers and cache', () => {
     let exportsModule;
@@ -8,15 +8,7 @@ describe('handlers and cache', () => {
 
     beforeEach(() => {
         jest.resetModules();
-        const dom = new JSDOM('<!doctype html><html><body></body></html>', {
-            url: 'https://app.sg.endowus.com/dashboard'
-        });
-        global.window = dom.window;
-        global.document = dom.window.document;
-        global.MutationObserver = dom.window.MutationObserver;
-        global.HTMLElement = dom.window.HTMLElement;
-        global.Node = dom.window.Node;
-        window.__GPV_DISABLE_AUTO_INIT = true;
+        setupDom();
 
         storage = new Map();
         global.GM_setValue = (key, value) => storage.set(key, value);
@@ -56,11 +48,7 @@ describe('handlers and cache', () => {
     });
 
     afterEach(() => {
-        delete global.window;
-        delete global.document;
-        delete global.MutationObserver;
-        delete global.HTMLElement;
-        delete global.Node;
+        teardownDom();
         delete global.GM_setValue;
         delete global.GM_getValue;
         delete global.GM_deleteValue;
