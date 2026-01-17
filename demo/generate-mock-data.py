@@ -17,7 +17,7 @@ def generate_mock_data():
         for i, goal_type in enumerate(goal_types, 1):
             target_amount = goal_type['targetAmount']
             # Add random variation (±2-10% of target)
-            variation = random.uniform(0.92, 1.08)  # -8% to +8% variation
+            variation = random.uniform(0.92, 1.10)  # -8% to +10% variation
             investment = round(target_amount * variation, 2)
             
             # Generate return

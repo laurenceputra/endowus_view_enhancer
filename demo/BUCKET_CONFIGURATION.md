@@ -1,6 +1,6 @@
 # Demo Bucket Configuration
 
-*Generated on: 2026-01-17 20:09:58*
+*Generated on: 2026-01-17 20:17:12*
 
 This document tracks the bucket and target configuration used in the demo.
 
@@ -8,57 +8,57 @@ This document tracks the bucket and target configuration used in the demo.
 
 ## House Purchase Bucket
 
-**Total Actual Investment:** $194,341.05
+**Total Actual Investment:** $206,893.61
 
-**Total Returns:** $19,219.78 (+9.89%)
+**Total Returns:** $15,458.75 (+7.47%)
 
-**Ending Balance:** $213,560.83
+**Ending Balance:** $222,352.36
 
 ### Goals Breakdown
 
 | Goal | Actual Investment | Returns | Return % | Ending Balance |
 |------|-------------------|---------|----------|----------------|
-| Core - Balanced | $133,173.65 | $15,957.23 | +11.98% | $149,130.88 |
-| Megatrends | $21,257.31 | $2,389.24 | +11.24% | $23,646.55 |
-| Tech | $20,864.04 | $746.53 | +3.58% | $21,610.57 |
-| China | $19,046.05 | $126.78 | +0.67% | $19,172.83 |
+| Core - Balanced | $147,189.95 | $9,173.26 | +6.23% | $156,363.21 |
+| Megatrends | $21,048.08 | $642.67 | +3.05% | $21,690.75 |
+| Tech | $20,072.24 | $3,783.52 | +18.85% | $23,855.76 |
+| China | $18,583.34 | $1,859.30 | +10.01% | $20,442.64 |
 
 ### Target Allocations
 
 | Goal | Target % | Actual % | Target Amount | Actual Amount | Variance |
 |------|----------|----------|---------------|---------------|----------|
-| Core - Balanced | 70% | 68.53% | $140,000.00 | $133,173.65 | -1.47% |
-| Megatrends | 10% | 10.94% | $20,000.00 | $21,257.31 | +0.94% |
-| Tech | 10% | 10.74% | $20,000.00 | $20,864.04 | +0.74% |
-| China | 10% | 9.80% | $20,000.00 | $19,046.05 | -0.20% |
+| Core - Balanced | 70% | 71.14% | $140,000.00 | $147,189.95 | +1.14% |
+| Megatrends | 10% | 10.17% | $20,000.00 | $21,048.08 | +0.17% |
+| Tech | 10% | 9.70% | $20,000.00 | $20,072.24 | -0.30% |
+| China | 10% | 8.98% | $20,000.00 | $18,583.34 | -1.02% |
 
 ---
 
 ## Retirement Bucket
 
-**Total Actual Investment:** $57,429.98
+**Total Actual Investment:** $60,492.76
 
-**Total Returns:** $4,966.31 (+8.65%)
+**Total Returns:** $7,324.12 (+12.11%)
 
-**Ending Balance:** $62,396.29
+**Ending Balance:** $67,816.88
 
 ### Goals Breakdown
 
 | Goal | Actual Investment | Returns | Return % | Ending Balance |
 |------|-------------------|---------|----------|----------------|
-| Core - Aggressive | $31,634.13 | $3,414.99 | +10.80% | $35,049.12 |
-| Megatrends | $8,605.70 | $1,235.01 | +14.35% | $9,840.71 |
-| Tech | $8,524.25 | $128.69 | +1.51% | $8,652.94 |
-| China | $8,665.90 | $187.62 | +2.17% | $8,853.52 |
+| Core - Aggressive | $33,282.98 | $4,656.04 | +13.99% | $37,939.02 |
+| Megatrends | $8,705.32 | $645.96 | +7.42% | $9,351.28 |
+| Tech | $8,611.03 | $550.21 | +6.39% | $9,161.24 |
+| China | $9,893.43 | $1,471.91 | +14.88% | $11,365.34 |
 
 ### Target Allocations
 
 | Goal | Target % | Actual % | Target Amount | Actual Amount | Variance |
 |------|----------|----------|---------------|---------------|----------|
-| Core - Aggressive | 55% | 55.08% | $33,000.00 | $31,634.13 | +0.08% |
-| Megatrends | 15% | 14.98% | $9,000.00 | $8,605.70 | -0.02% |
-| Tech | 15% | 14.84% | $9,000.00 | $8,524.25 | -0.16% |
-| China | 15% | 15.09% | $9,000.00 | $8,665.90 | +0.09% |
+| Core - Aggressive | 55% | 55.02% | $33,000.00 | $33,282.98 | +0.02% |
+| Megatrends | 15% | 14.39% | $9,000.00 | $8,705.32 | -0.61% |
+| Tech | 15% | 14.23% | $9,000.00 | $8,611.03 | -0.77% |
+| China | 15% | 16.35% | $9,000.00 | $9,893.43 | +1.35% |
 
 ---
 
