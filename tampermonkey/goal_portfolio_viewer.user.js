@@ -2848,14 +2848,21 @@
         });
     }
 
-    function flashInputBorder(input, color) {
+    function flashInputBorder(input, variant) {
         if (!input) {
             return;
         }
-        input.style.borderColor = color;
-        setTimeout(() => {
-            input.style.borderColor = '';
-        }, 1000);
+        const baseClass = 'gpv-input-flash';
+        const variantClass = `gpv-input-flash--${variant || 'error'}`;
+        input.classList.remove('gpv-input-flash--error', 'gpv-input-flash--warning', 'gpv-input-flash--success');
+        input.classList.remove(baseClass);
+        void input.offsetWidth;
+        input.classList.add(baseClass, variantClass);
+        const onAnimationEnd = () => {
+            input.classList.remove(baseClass, variantClass);
+            input.removeEventListener('animationend', onAnimationEnd);
+        };
+        input.addEventListener('animationend', onAnimationEnd);
     }
 
     /**
@@ -2907,14 +2914,14 @@
         // Validate input
         if (!Number.isFinite(targetPercent)) {
             // Invalid number - show error feedback
-            flashInputBorder(input, '#dc2626');
+            flashInputBorder(input, 'error');
             return;
         }
         
         // Save to storage (this will clamp to 0-100 automatically)
         const savedValue = GoalTargetStore.setTarget(goalId, targetPercent);
         if (!Number.isFinite(savedValue)) {
-            flashInputBorder(input, '#dc2626');
+            flashInputBorder(input, 'error');
             return;
         }
         
@@ -2923,7 +2930,7 @@
             // Value was clamped - update input to show actual stored value
             input.value = savedValue.toFixed(2);
             // Show warning briefly
-            flashInputBorder(input, '#f59e0b');
+            flashInputBorder(input, 'warning');
         }
         
         // Get projected investment and calculate adjusted total
@@ -2999,10 +3006,7 @@
             // Validate input
             if (isNaN(amount)) {
                 // Invalid number - show error feedback
-                input.style.borderColor = '#dc2626';
-                setTimeout(() => {
-                    input.style.borderColor = '';
-                }, 1000);
+                flashInputBorder(input, 'error');
                 return;
             }
             
@@ -3010,10 +3014,7 @@
             setProjectedInvestment(projectedInvestmentsState, bucket, goalType, amount);
             
             // Show success feedback
-            input.style.borderColor = '#10b981';
-            setTimeout(() => {
-                input.style.borderColor = '';
-            }, 500);
+            flashInputBorder(input, 'success');
         }
         
         // Recalculate all diffs in this goal type section
@@ -3117,6 +3118,29 @@
                     opacity: 1;
                     transform: translateY(0);
                 }
+            }
+
+            @keyframes gpv-input-flash {
+                0% { box-shadow: 0 0 0 2px var(--gpv-flash-color); }
+                100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+            }
+
+            .gpv-input-flash {
+                border-color: var(--gpv-flash-color);
+                box-shadow: 0 0 0 2px var(--gpv-flash-color);
+                animation: gpv-input-flash 0.8s ease;
+            }
+
+            .gpv-input-flash--error {
+                --gpv-flash-color: #dc2626;
+            }
+
+            .gpv-input-flash--warning {
+                --gpv-flash-color: #f59e0b;
+            }
+
+            .gpv-input-flash--success {
+                --gpv-flash-color: #10b981;
             }
             
             .gpv-header {

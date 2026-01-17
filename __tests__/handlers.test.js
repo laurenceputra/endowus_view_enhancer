@@ -313,7 +313,7 @@ describe('handlers and cache', () => {
         });
 
         expect(storage.has('goal_target_pct_g1')).toBe(false);
-        expect(targetInput.style.borderColor).toBe('#dc2626');
+        expect(targetInput.classList.contains('gpv-input-flash--error')).toBe(true);
 
         jest.runOnlyPendingTimers();
         jest.useRealTimers();
@@ -528,7 +528,7 @@ describe('handlers and cache', () => {
             projectedInvestmentsState
         });
         expect(projectedInvestmentsState[`${bucket}|${goalType}`]).toBe(300);
-        expect(input.style.borderColor).toBe('#dc2626');
+        expect(input.classList.contains('gpv-input-flash--error')).toBe(true);
 
         jest.runOnlyPendingTimers();
         jest.useRealTimers();
