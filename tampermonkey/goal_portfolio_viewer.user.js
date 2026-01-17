@@ -368,9 +368,23 @@
         return numericRemaining > numericThreshold;
     }
 
+    // Cache for sortGoalsByName memoization
+    let sortedGoalsCache = null;
+    let sortedGoalsCacheKey = null;
+
     function sortGoalsByName(goals) {
         const safeGoals = Array.isArray(goals) ? goals : [];
-        return safeGoals.slice().sort((left, right) => {
+        
+        // Generate cache key from goal IDs
+        const cacheKey = safeGoals.map(g => g?.goalId || '').join(',');
+        
+        // Return cached result if available
+        if (sortedGoalsCacheKey === cacheKey && sortedGoalsCache !== null) {
+            return sortedGoalsCache;
+        }
+        
+        // Perform sort and cache result
+        const sorted = safeGoals.slice().sort((left, right) => {
             const leftName = String(left?.goalName || '');
             const rightName = String(right?.goalName || '');
             const nameCompare = leftName.localeCompare(rightName, 'en', { sensitivity: 'base' });
@@ -381,6 +395,10 @@
             const rightId = String(right?.goalId || '');
             return leftId.localeCompare(rightId, 'en', { sensitivity: 'base' });
         });
+        
+        sortedGoalsCache = sorted;
+        sortedGoalsCacheKey = cacheKey;
+        return sorted;
     }
 
     function buildGoalTypeAllocationModel(goals, totalTypeAmount, adjustedTotal, goalTargets, goalFixed) {
