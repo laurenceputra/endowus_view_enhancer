@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.7.4
+// @version      2.7.3
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -24,7 +24,7 @@
     const DEBUG = false;
     const REMAINING_TARGET_ALERT_THRESHOLD = 2;
     const DEBUG_AUTH = false;
-    const SORT_CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+    const SORT_CACHE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
 
     const UNKNOWN_GOAL_TYPE = 'UNKNOWN_GOAL_TYPE';
     const PROJECTED_KEY_SEPARATOR = '|';
