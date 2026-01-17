@@ -184,11 +184,8 @@ function buildMergedInvestmentData(performanceData, investibleData, summaryData)
         return null;
     }
 
-    const investibleMap = {};
-    investibleData.forEach(item => investibleMap[item.goalId] = item);
-
-    const summaryMap = {};
-    summaryData.forEach(item => summaryMap[item.goalId] = item);
+    const investibleMap = indexBy(investibleData, item => item.goalId);
+    const summaryMap = indexBy(summaryData, item => item.goalId);
 
     const bucketMap = {};
 
@@ -372,6 +369,18 @@ function getReturnColor(value) {
         transform: translateY(0);
     }
 }
+```
+
+#### Input Feedback Flash
+
+Inputs use CSS-only flash classes to highlight invalid or clamped values. The JS helper applies a `gpv-input-flash` class
+plus a severity modifier, then removes it on `animationend` so the base styles resume.
+
+```css
+.gpv-input-flash { border-color: var(--gpv-flash-color); }
+.gpv-input-flash--error { --gpv-flash-color: #dc2626; }
+.gpv-input-flash--warning { --gpv-flash-color: #f59e0b; }
+.gpv-input-flash--success { --gpv-flash-color: #10b981; }
 ```
 
 ### Rendering Functions
@@ -829,6 +838,8 @@ function formatMoney(amount, currency = 'SGD') {
     });
 }
 ```
+
+`indexBy` is a small helper that builds a lookup map keyed by `goalId` so merge lookups are O(1) and the merge logic stays focused.
 
 ---
 
