@@ -1771,7 +1771,7 @@
         return headers;
     }
 
-    function readPerformanceCache(goalId) {
+    function readPerformanceCache(goalId, ignoreFreshness = false) {
         const key = getPerformanceCacheKey(goalId);
         const parsed = Storage.readJson(
             key,
@@ -1785,7 +1785,7 @@
         if (!parsed) {
             return null;
         }
-        if (!isCacheFresh(parsed.fetchedAt, PERFORMANCE_CACHE_MAX_AGE_MS)) {
+        if (!ignoreFreshness && !isCacheFresh(parsed.fetchedAt, PERFORMANCE_CACHE_MAX_AGE_MS)) {
             Storage.remove(key, 'Error deleting stale performance cache');
             return null;
         }
@@ -1803,8 +1803,8 @@
     }
     testExports.writePerformanceCache = writePerformanceCache;
 
-    function getCachedPerformanceResponse(goalId) {
-        const cached = readPerformanceCache(goalId);
+    function getCachedPerformanceResponse(goalId, ignoreFreshness = false) {
+        const cached = readPerformanceCache(goalId, ignoreFreshness);
         if (!cached) {
             return null;
         }
@@ -1872,6 +1872,13 @@
                 return normalized;
             } catch (error) {
                 console.warn('[Goal Portfolio Viewer] Performance fetch failed:', error);
+                // Fall back to cached data (ignore freshness) when fetch fails
+                const cached = getCachedPerformanceResponse(goalId, true);
+                if (cached) {
+                    logDebug('[Goal Portfolio Viewer] Using cached performance data for goal:', { goalId });
+                    state.performance.goalData[goalId] = cached;
+                    return cached;
+                }
                 return null;
             }
         });
