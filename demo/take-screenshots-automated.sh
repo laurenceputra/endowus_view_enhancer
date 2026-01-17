@@ -25,17 +25,12 @@ if [ -f "$DEMO_DIR/prepare-demo.sh" ]; then
     echo ""
 fi
 
-echo "Note: This script requires Playwright to be installed."
-echo "For now, please use the manual screenshot instructions from:"
-echo "  python3 take-screenshots.py"
+echo "Note: For automated screenshots using Playwright:"
+echo "  1. Install Playwright: npm install playwright"
+echo "  2. Install browser: npx playwright install chromium"
+echo "  3. Run: node demo/take-screenshots.js"
 echo ""
-echo "Or use the Playwright browser MCP tool for automation."
+echo "For manual screenshots, run: python3 demo/take-screenshots.py"
 echo ""
-
-# Future: Add Playwright automation here when available in the environment
-# Example:
-# playwright codegen "$DEMO_URL"
-# Or use node with playwright:
-# node take-screenshots.js
 
 exit 0
