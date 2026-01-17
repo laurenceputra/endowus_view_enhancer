@@ -135,6 +135,15 @@ describe('indexBy', () => {
         expect(Object.keys(result)).toHaveLength(1);
     });
 
+    test('should overwrite duplicate keys with last value', () => {
+        const items = [
+            { goalId: 'dup', value: 1 },
+            { goalId: 'dup', value: 2 }
+        ];
+        const result = indexBy(items, item => item.goalId);
+        expect(result.dup.value).toBe(2);
+    });
+
     test('should return empty object for invalid inputs', () => {
         expect(indexBy(null, () => 'a')).toEqual({});
         expect(indexBy([], null)).toEqual({});

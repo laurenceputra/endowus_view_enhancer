@@ -150,6 +150,13 @@
         };
     }
 
+    /**
+     * Build a lookup map from an array using a key selector.
+     * Duplicate keys overwrite earlier entries (last write wins).
+     * @param {Array} items - Array of items to index
+     * @param {Function} keyFn - Function returning a key for each item
+     * @returns {Object} Lookup map keyed by the resolved key
+     */
     function indexBy(items, keyFn) {
         const safeItems = Array.isArray(items) ? items : [];
         if (typeof keyFn !== 'function') {
