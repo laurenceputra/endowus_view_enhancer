@@ -16,8 +16,9 @@ def generate_mock_data():
         goals = []
         for i, goal_type in enumerate(goal_types, 1):
             target_amount = goal_type['targetAmount']
-            # Add random variation (±2-10% of target)
-            variation = random.uniform(0.92, 1.10)  # -8% to +10% variation
+            # Add random variation from targets
+            # Range provides -8% to +10% variation for demo realism
+            variation = random.uniform(0.92, 1.10)
             investment = round(target_amount * variation, 2)
             
             # Generate return
@@ -185,7 +186,7 @@ def generate_bucket_config_doc(mock_data, output_file):
             f.write('\n---\n\n')
         
         f.write('## Usage Notes\n\n')
-        f.write('- All actual investments have ±2-10% variance from targets for demo realism\n')
+        f.write('- All actual investments have realistic variance from targets (-8% to +10%) for demo realism\n')
         f.write('- Returns are randomized within specified ranges per goal type\n')
         f.write('- Regenerate this file whenever running `generate-mock-data.py`\n')
         f.write('- Use this configuration as reference for future demo updates\n')

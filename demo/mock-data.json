@@ -3,58 +3,58 @@
     {
       "goalId": "mock-goal-house-purchase-1",
       "totalCumulativeReturn": {
-        "amount": 9173.26
+        "amount": 12816.53
       },
-      "simpleRateOfReturnPercent": 0.06232259743277309
+      "simpleRateOfReturnPercent": 0.09541077232109191
     },
     {
       "goalId": "mock-goal-house-purchase-2",
       "totalCumulativeReturn": {
-        "amount": 642.67
+        "amount": 2298.48
       },
-      "simpleRateOfReturnPercent": 0.030533426326771845
+      "simpleRateOfReturnPercent": 0.10764998299878885
     },
     {
       "goalId": "mock-goal-house-purchase-3",
       "totalCumulativeReturn": {
-        "amount": 3783.52
+        "amount": 2905.47
       },
-      "simpleRateOfReturnPercent": 0.18849515549833998
+      "simpleRateOfReturnPercent": 0.14969319147839974
     },
     {
       "goalId": "mock-goal-house-purchase-4",
       "totalCumulativeReturn": {
-        "amount": 1859.3
+        "amount": 578.08
       },
-      "simpleRateOfReturnPercent": 0.100051982044132
+      "simpleRateOfReturnPercent": 0.031127047006644006
     },
     {
       "goalId": "mock-goal-retirement-1",
       "totalCumulativeReturn": {
-        "amount": 4656.04
+        "amount": 4432.71
       },
-      "simpleRateOfReturnPercent": 0.13989252164319418
+      "simpleRateOfReturnPercent": 0.13984097529766656
     },
     {
       "goalId": "mock-goal-retirement-2",
       "totalCumulativeReturn": {
-        "amount": 645.96
+        "amount": 505.67
       },
-      "simpleRateOfReturnPercent": 0.07420290121442981
+      "simpleRateOfReturnPercent": 0.05265832539298229
     },
     {
       "goalId": "mock-goal-retirement-3",
       "totalCumulativeReturn": {
-        "amount": 550.21
+        "amount": 921.42
       },
-      "simpleRateOfReturnPercent": 0.06389595669739857
+      "simpleRateOfReturnPercent": 0.10720518631936073
     },
     {
       "goalId": "mock-goal-retirement-4",
       "totalCumulativeReturn": {
-        "amount": 1471.91
+        "amount": -396.17
       },
-      "simpleRateOfReturnPercent": 0.14877651128071862
+      "simpleRateOfReturnPercent": -0.041281339775738446
     }
   ],
   "investible": [
@@ -64,7 +64,7 @@
       "investmentGoalType": "GENERAL_WEALTH_ACCUMULATION",
       "totalInvestmentAmount": {
         "display": {
-          "amount": 147189.95
+          "amount": 134330.01
         }
       }
     },
@@ -74,7 +74,7 @@
       "investmentGoalType": "GENERAL_WEALTH_ACCUMULATION",
       "totalInvestmentAmount": {
         "display": {
-          "amount": 21048.08
+          "amount": 21351.42
         }
       }
     },
@@ -84,7 +84,7 @@
       "investmentGoalType": "GENERAL_WEALTH_ACCUMULATION",
       "totalInvestmentAmount": {
         "display": {
-          "amount": 20072.24
+          "amount": 19409.5
         }
       }
     },
@@ -94,7 +94,7 @@
       "investmentGoalType": "GENERAL_WEALTH_ACCUMULATION",
       "totalInvestmentAmount": {
         "display": {
-          "amount": 18583.34
+          "amount": 18571.63
         }
       }
     },
@@ -104,7 +104,7 @@
       "investmentGoalType": "GENERAL_WEALTH_ACCUMULATION",
       "totalInvestmentAmount": {
         "display": {
-          "amount": 33282.98
+          "amount": 31698.22
         }
       }
     },
@@ -114,7 +114,7 @@
       "investmentGoalType": "GENERAL_WEALTH_ACCUMULATION",
       "totalInvestmentAmount": {
         "display": {
-          "amount": 8705.32
+          "amount": 9602.85
         }
       }
     },
@@ -124,7 +124,7 @@
       "investmentGoalType": "GENERAL_WEALTH_ACCUMULATION",
       "totalInvestmentAmount": {
         "display": {
-          "amount": 8611.03
+          "amount": 8594.92
         }
       }
     },
@@ -134,7 +134,7 @@
       "investmentGoalType": "GENERAL_WEALTH_ACCUMULATION",
       "totalInvestmentAmount": {
         "display": {
-          "amount": 9893.43
+          "amount": 9596.83
         }
       }
     }

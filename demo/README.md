@@ -9,7 +9,7 @@ This directory contains tools and files for demonstrating the Goal Portfolio Vie
   - Creates 2 buckets: House Purchase (~$200k) and Retirement (~$60k)
   - House Purchase: 70% Core-Balanced, 10% Megatrends, 10% Tech, 10% China
   - Retirement: 55% Core-Aggressive, 15% Megatrends, 15% Tech, 15% China
-  - Actual investments have ±2-10% variance from targets for realism
+  - Actual investments have realistic variance from targets (-8% to +10%) for realism
   - All goals under Investment type (GENERAL_WEALTH_ACCUMULATION)
   - Generates JSON file with API response format
 
@@ -82,7 +82,7 @@ Use Playwright or manual browser screenshots to capture:
 - Retirement - China: ~$9k (15% allocation, +2.17% return)
 
 All amounts are randomized with each generation while maintaining realistic proportions and return ranges.
-Actual investments have ±2-10% variance from target amounts for demo realism.
+Actual investments have realistic variance from targets (-8% to +10%) for demo realism.
 
 ## Technical Notes
 

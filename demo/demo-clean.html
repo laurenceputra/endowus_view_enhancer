@@ -67,6 +67,7 @@
                 script.src = 'goal_portfolio_viewer_demo.user.js';
                 script.onerror = function() {
                     console.error('[Demo] Failed to load userscript');
+                    document.body.innerHTML = '<div style="padding: 20px; color: red; font-family: sans-serif;">Error loading userscript. Please refresh the page.</div>';
                 };
                 document.body.appendChild(script);
             })
