@@ -598,7 +598,7 @@
                     const projectedAmount = getProjectedInvestmentValue(projectedInvestments, bucketName, goalType);
                     const adjustedTotal = (group.endingBalanceAmount || 0) + projectedAmount;
                     const goals = Array.isArray(group.goals) ? group.goals : [];
-                    const allocationModel = buildGoalTypeAllocationModel(
+                    const allocationModel = computeGoalTypeViewState(
                         goals,
                         group.endingBalanceAmount || 0,
                         adjustedTotal,
@@ -622,6 +622,7 @@
                         remainingTargetPercent: allocationModel.remainingTargetPercent,
                         remainingTargetDisplay: formatPercentFromPercent(allocationModel.remainingTargetPercent),
                         remainingTargetIsHigh: isRemainingTargetAboveThreshold(allocationModel.remainingTargetPercent),
+                        goalModelsById: allocationModel.goalModelsById,
                         goals: allocationModel.goalModels.map(goal => ({
                             ...goal,
                             endingBalanceDisplay: formatMoney(goal.endingBalanceAmount),
@@ -2663,12 +2664,7 @@
 
             const tbody = createElement('tbody');
 
-            const goalModelsById = goalTypeModel.goals.reduce((acc, goalModel) => {
-                if (goalModel?.goalId) {
-                    acc[goalModel.goalId] = goalModel;
-                }
-                return acc;
-            }, {});
+            const goalModelsById = goalTypeModel.goalModelsById || {};
 
             goalTypeModel.goals.forEach(goalModel => {
                 const tr = createElement('tr');
