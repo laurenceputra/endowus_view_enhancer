@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.7.1
+// @version      2.7.2
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -150,12 +150,26 @@
         };
     }
 
-    const Normalization = {
-        normalizeString,
-        normalizeGoalType,
-        normalizeGoalName,
-        normalizePerformanceResponse
-    };
+    /**
+     * Build a lookup map from an array using a key selector.
+     * Duplicate keys overwrite earlier entries (last write wins).
+     * @param {Array} items - Array of items to index
+     * @param {Function} keyFn - Function returning a key for each item
+     * @returns {Object} Lookup map keyed by the resolved key
+     */
+    function indexBy(items, keyFn) {
+        const safeItems = Array.isArray(items) ? items : [];
+        if (typeof keyFn !== 'function') {
+            return {};
+        }
+        return safeItems.reduce((acc, item) => {
+            const key = keyFn(item);
+            if (key !== null && key !== undefined && key !== '') {
+                acc[key] = item;
+            }
+            return acc;
+        }, {});
+    }
 
     function extractBucketName(goalName) {
         if (!goalName || typeof goalName !== 'string') {
@@ -208,6 +222,11 @@
         maximumFractionDigits: 2
     });
 
+    function toFiniteNumber(value, fallback = null) {
+        const numericValue = Number(value);
+        return Number.isFinite(numericValue) ? numericValue : fallback;
+    }
+
     function formatMoney(val) {
         if (typeof val === 'number' && Number.isFinite(val)) {
             return MONEY_FORMATTER.format(val);
@@ -215,46 +234,34 @@
         return '-';
     }
 
-    function formatPercentFromRatio(value, options = {}) {
+    function formatPercent(value, options = {}) {
         if (value === null || value === undefined) {
             return options.fallback ?? '-';
         }
-        const numericValue = Number(value);
-        if (!Number.isFinite(numericValue)) {
+        const multiplier = toFiniteNumber(options.multiplier ?? 1, null);
+        if (multiplier === null) {
             return options.fallback ?? '-';
         }
-        const percentValue = numericValue * 100;
+        const numericValue = toFiniteNumber(value, null);
+        if (numericValue === null) {
+            return options.fallback ?? '-';
+        }
+        const percentValue = numericValue * multiplier;
         const showSign = options.showSign === true;
         const sign = showSign && percentValue > 0 ? '+' : '';
         return `${sign}${percentValue.toFixed(2)}%`;
     }
 
+    function formatPercentFromRatio(value, options = {}) {
+        return formatPercent(value, { ...options, multiplier: 100 });
+    }
+
     function formatPercentFromPercent(value, options = {}) {
-        if (value === null || value === undefined) {
-            return options.fallback ?? '-';
-        }
-        const numericValue = Number(value);
-        if (!Number.isFinite(numericValue)) {
-            return options.fallback ?? '-';
-        }
-        const showSign = options.showSign === true;
-        const sign = showSign && numericValue > 0 ? '+' : '';
-        return `${sign}${numericValue.toFixed(2)}%`;
+        return formatPercent(value, { ...options, multiplier: 1 });
     }
 
     function formatPercentDisplay(value, options = {}) {
-        if (value === null || value === undefined) {
-            return options.fallback ?? '-';
-        }
-        const multiplier = Number(options.multiplier ?? 1);
-        if (!Number.isFinite(multiplier)) {
-            return options.fallback ?? '-';
-        }
-        const numericValue = Number(value);
-        if (!Number.isFinite(numericValue)) {
-            return options.fallback ?? '-';
-        }
-        return formatPercentFromPercent(numericValue * multiplier, options);
+        return formatPercent(value, options);
     }
 
     function formatGrowthPercentFromEndingBalance(totalReturn, endingBalance) {
@@ -262,42 +269,42 @@
         // where principal = ending balance - return
         // Example: if you invested $100 and now have $110, return is $10
         // Growth = 10 / 100 * 100 = 10%
-        const numericReturn = Number(totalReturn);
-        const numericEndingBalance = Number(endingBalance);
+        const numericReturn = toFiniteNumber(totalReturn, null);
+        const numericEndingBalance = toFiniteNumber(endingBalance, null);
         const principal = numericEndingBalance - numericReturn;
-        if (!Number.isFinite(numericReturn) || !Number.isFinite(numericEndingBalance) || principal <= 0) {
+        if (numericReturn === null || numericEndingBalance === null || principal <= 0) {
             return '-';
         }
         return ((numericReturn / principal) * 100).toFixed(2) + '%';
     }
 
     function getReturnClass(value) {
-        const numericValue = Number(value);
-        if (!Number.isFinite(numericValue)) {
+        const numericValue = toFiniteNumber(value, null);
+        if (numericValue === null) {
             return '';
         }
         return numericValue >= 0 ? 'positive' : 'negative';
     }
 
     function calculatePercentOfType(amount, total) {
-        const numericAmount = Number(amount);
-        const numericTotal = Number(total);
-        if (!Number.isFinite(numericAmount) || !Number.isFinite(numericTotal) || numericTotal <= 0) {
+        const numericAmount = toFiniteNumber(amount, null);
+        const numericTotal = toFiniteNumber(total, null);
+        if (numericAmount === null || numericTotal === null || numericTotal <= 0) {
             return 0;
         }
         return (numericAmount / numericTotal) * 100;
     }
 
     function calculateGoalDiff(currentAmount, targetPercent, adjustedTypeTotal) {
-        const numericCurrent = Number(currentAmount);
-        const numericTarget = Number(targetPercent);
-        const numericTotal = Number(adjustedTypeTotal);
+        const numericCurrent = toFiniteNumber(currentAmount, null);
+        const numericTarget = toFiniteNumber(targetPercent, null);
+        const numericTotal = toFiniteNumber(adjustedTypeTotal, null);
         if (
             targetPercent === null
             || targetPercent === undefined
-            || !Number.isFinite(numericCurrent)
-            || !Number.isFinite(numericTarget)
-            || !Number.isFinite(numericTotal)
+            || numericCurrent === null
+            || numericTarget === null
+            || numericTotal === null
             || numericTotal <= 0
         ) {
             return { diffAmount: null, diffClass: '' };
@@ -329,9 +336,9 @@
     // ============================================
 
     function calculateFixedTargetPercent(currentAmount, adjustedTypeTotal) {
-        const numericCurrent = Number(currentAmount);
-        const numericTotal = Number(adjustedTypeTotal);
-        if (!Number.isFinite(numericCurrent) || !Number.isFinite(numericTotal) || numericTotal <= 0) {
+        const numericCurrent = toFiniteNumber(currentAmount, null);
+        const numericTotal = toFiniteNumber(adjustedTypeTotal, null);
+        if (numericCurrent === null || numericTotal === null || numericTotal <= 0) {
             return null;
         }
         return (numericCurrent / numericTotal) * 100;
@@ -353,9 +360,9 @@
     }
 
     function isRemainingTargetAboveThreshold(remainingTargetPercent, threshold = REMAINING_TARGET_ALERT_THRESHOLD) {
-        const numericRemaining = Number(remainingTargetPercent);
-        const numericThreshold = Number(threshold);
-        if (!Number.isFinite(numericRemaining) || !Number.isFinite(numericThreshold)) {
+        const numericRemaining = toFiniteNumber(remainingTargetPercent, null);
+        const numericThreshold = toFiniteNumber(threshold, null);
+        if (numericRemaining === null || numericThreshold === null) {
             return false;
         }
         return numericRemaining > numericThreshold;
@@ -482,6 +489,27 @@
         return null;
     }
 
+    function buildBucketBase(bucketName, bucketObj) {
+        if (!bucketObj) {
+            return null;
+        }
+        const goalTypes = Object.keys(bucketObj).filter(key => key !== '_meta');
+        const bucketTotalReturn = goalTypes.reduce((total, goalType) => {
+            const value = bucketObj[goalType]?.totalCumulativeReturn;
+            return total + (Number.isFinite(value) ? value : 0);
+        }, 0);
+        const orderedTypes = sortGoalTypes(goalTypes);
+        const endingBalanceTotal = bucketObj._meta?.endingBalanceTotal || 0;
+        return {
+            bucketName,
+            bucketObj,
+            goalTypes,
+            orderedTypes,
+            bucketTotalReturn,
+            endingBalanceTotal
+        };
+    }
+
     function buildSummaryViewModel(bucketMap) {
         if (!bucketMap || typeof bucketMap !== 'object') {
             return { buckets: [] };
@@ -490,16 +518,11 @@
             .sort()
             .map(bucketName => {
                 const bucketObj = bucketMap[bucketName];
-                if (!bucketObj) {
+                const base = buildBucketBase(bucketName, bucketObj);
+                if (!base) {
                     return null;
                 }
-                const goalTypes = Object.keys(bucketObj).filter(key => key !== '_meta');
-                const bucketTotalReturn = goalTypes.reduce((total, goalType) => {
-                    const value = bucketObj[goalType]?.totalCumulativeReturn;
-                    return total + (Number.isFinite(value) ? value : 0);
-                }, 0);
-                const orderedTypes = sortGoalTypes(goalTypes);
-                const endingBalanceTotal = bucketObj._meta?.endingBalanceTotal || 0;
+                const { orderedTypes, bucketTotalReturn, endingBalanceTotal } = base;
                 return {
                     bucketName,
                     endingBalanceAmount: endingBalanceTotal,
@@ -513,7 +536,7 @@
                     returnClass: getReturnClass(bucketTotalReturn),
                     goalTypes: orderedTypes
                         .map(goalType => {
-                            const group = bucketObj[goalType];
+                            const group = base.bucketObj[goalType];
                             if (!group) {
                                 return null;
                             }
@@ -550,19 +573,14 @@
             return null;
         }
         const bucketObj = bucketMap[bucketName];
-        if (!bucketObj) {
+        const base = buildBucketBase(bucketName, bucketObj);
+        if (!base) {
             return null;
         }
-        const goalTypes = Object.keys(bucketObj).filter(key => key !== '_meta');
-        const bucketTotalReturn = goalTypes.reduce((total, goalType) => {
-            const value = bucketObj[goalType]?.totalCumulativeReturn;
-            return total + (Number.isFinite(value) ? value : 0);
-        }, 0);
-        const orderedTypes = sortGoalTypes(goalTypes);
         const projectedInvestments = projectedInvestmentsState || {};
         const goalTargets = goalTargetById || {};
         const goalFixed = goalFixedById || {};
-        const endingBalanceTotal = bucketObj._meta?.endingBalanceTotal || 0;
+        const { orderedTypes, bucketTotalReturn, endingBalanceTotal } = base;
 
         return {
             bucketName,
@@ -577,7 +595,7 @@
             returnClass: getReturnClass(bucketTotalReturn),
             goalTypes: orderedTypes
                 .map(goalType => {
-                    const group = bucketObj[goalType];
+                    const group = base.bucketObj[goalType];
                     if (!group) {
                         return null;
                     }
@@ -585,7 +603,7 @@
                     const projectedAmount = getProjectedInvestmentValue(projectedInvestments, bucketName, goalType);
                     const adjustedTotal = (group.endingBalanceAmount || 0) + projectedAmount;
                     const goals = Array.isArray(group.goals) ? group.goals : [];
-                    const allocationModel = buildGoalTypeAllocationModel(
+                    const allocationModel = computeGoalTypeViewState(
                         goals,
                         group.endingBalanceAmount || 0,
                         adjustedTotal,
@@ -609,6 +627,7 @@
                         remainingTargetPercent: allocationModel.remainingTargetPercent,
                         remainingTargetDisplay: formatPercentFromPercent(allocationModel.remainingTargetPercent),
                         remainingTargetIsHigh: isRemainingTargetAboveThreshold(allocationModel.remainingTargetPercent),
+                        goalModelsById: allocationModel.goalModelsById,
                         goals: allocationModel.goalModels.map(goal => ({
                             ...goal,
                             endingBalanceDisplay: formatMoney(goal.endingBalanceAmount),
@@ -641,30 +660,34 @@
         }, []);
     }
 
-    function buildGoalTargetById(goalIds, getTargetFn) {
-        if (!Array.isArray(goalIds) || typeof getTargetFn !== 'function') {
+    function buildGoalMapById(goalIds, getValueFn, isValidFn) {
+        if (!Array.isArray(goalIds) || typeof getValueFn !== 'function') {
             return {};
         }
+        const isValidValue = typeof isValidFn === 'function' ? isValidFn : () => false;
         return goalIds.reduce((acc, goalId) => {
-            const value = getTargetFn(goalId);
-            if (typeof value === 'number' && Number.isFinite(value)) {
-                acc[goalId] = value;
+            const value = getValueFn(goalId);
+            if (isValidValue(value)) {
+                acc[goalId] = value === true ? true : value;
             }
             return acc;
         }, {});
     }
 
+    function buildGoalTargetById(goalIds, getTargetFn) {
+        return buildGoalMapById(
+            goalIds,
+            getTargetFn,
+            value => typeof value === 'number' && Number.isFinite(value)
+        );
+    }
+
     function buildGoalFixedById(goalIds, getFixedFn) {
-        if (!Array.isArray(goalIds) || typeof getFixedFn !== 'function') {
-            return {};
-        }
-        return goalIds.reduce((acc, goalId) => {
-            const value = getFixedFn(goalId);
-            if (value === true) {
-                acc[goalId] = true;
-            }
-            return acc;
-        }, {});
+        return buildGoalMapById(
+            goalIds,
+            getFixedFn,
+            value => value === true
+        );
     }
 
     /**
@@ -684,11 +707,8 @@
             return null;
         }
 
-        const investibleMap = {};
-        investibleData.forEach(item => investibleMap[item.goalId] = item);
-
-        const summaryMap = {};
-        summaryData.forEach(item => summaryMap[item.goalId] = item);
+        const investibleMap = indexBy(investibleData, item => item?.goalId);
+        const summaryMap = indexBy(summaryData, item => item?.goalId);
 
         const bucketMap = {};
 
@@ -1070,7 +1090,7 @@
 
     function calculateWeightedWindowReturns(performanceResponses) {
         const responses = Array.isArray(performanceResponses)
-            ? performanceResponses.map(Normalization.normalizePerformanceResponse)
+            ? performanceResponses.map(normalizePerformanceResponse)
             : [];
         const windowKeys = Object.values(PERFORMANCE_WINDOWS).map(window => window.key);
         const valuesByWindow = {};
@@ -1114,7 +1134,7 @@
 
     function summarizePerformanceMetrics(performanceResponses, mergedTimeSeries) {
         const responses = Array.isArray(performanceResponses)
-            ? performanceResponses.map(Normalization.normalizePerformanceResponse)
+            ? performanceResponses.map(normalizePerformanceResponse)
             : [];
         const netInvestments = [];
         const totalReturns = [];
@@ -1788,7 +1808,7 @@
         if (!cached) {
             return null;
         }
-        return cached.response ? Normalization.normalizePerformanceResponse(cached.response) : null;
+        return cached.response ? normalizePerformanceResponse(cached.response) : null;
     }
     testExports.getCachedPerformanceResponse = getCachedPerformanceResponse;
 
@@ -1846,7 +1866,7 @@
         const queueResults = await state.performance.requestQueue(idsToFetch, async goalId => {
             try {
                 const data = await fetchPerformanceForGoal(goalId);
-                const normalized = Normalization.normalizePerformanceResponse(data);
+                const normalized = normalizePerformanceResponse(data);
                 writePerformanceCache(goalId, normalized);
                 state.performance.goalData[goalId] = normalized;
                 return normalized;
@@ -1867,7 +1887,7 @@
 
     function buildGoalTypePerformanceSummary(performanceResponses) {
         const responses = Array.isArray(performanceResponses)
-            ? performanceResponses.map(Normalization.normalizePerformanceResponse)
+            ? performanceResponses.map(normalizePerformanceResponse)
             : [];
         if (!responses.length) {
             return null;
@@ -2649,12 +2669,7 @@
 
             const tbody = createElement('tbody');
 
-            const goalModelsById = goalTypeModel.goals.reduce((acc, goalModel) => {
-                if (goalModel?.goalId) {
-                    acc[goalModel.goalId] = goalModel;
-                }
-                return acc;
-            }, {});
+            const goalModelsById = goalTypeModel.goalModelsById || {};
 
             goalTypeModel.goals.forEach(goalModel => {
                 const tr = createElement('tr');
@@ -2834,14 +2849,21 @@
         });
     }
 
-    function flashInputBorder(input, color) {
+    function flashInputBorder(input, variant) {
         if (!input) {
             return;
         }
-        input.style.borderColor = color;
-        setTimeout(() => {
-            input.style.borderColor = '';
-        }, 1000);
+        const baseClass = 'gpv-input-flash';
+        const variantClass = `gpv-input-flash--${variant || 'error'}`;
+        input.classList.remove('gpv-input-flash--error', 'gpv-input-flash--warning', 'gpv-input-flash--success');
+        input.classList.remove(baseClass);
+        void input.offsetWidth;
+        input.classList.add(baseClass, variantClass);
+        const onAnimationEnd = () => {
+            input.classList.remove(baseClass, variantClass);
+            input.removeEventListener('animationend', onAnimationEnd);
+        };
+        input.addEventListener('animationend', onAnimationEnd);
     }
 
     /**
@@ -2893,14 +2915,14 @@
         // Validate input
         if (!Number.isFinite(targetPercent)) {
             // Invalid number - show error feedback
-            flashInputBorder(input, '#dc2626');
+            flashInputBorder(input, 'error');
             return;
         }
         
         // Save to storage (this will clamp to 0-100 automatically)
         const savedValue = GoalTargetStore.setTarget(goalId, targetPercent);
         if (!Number.isFinite(savedValue)) {
-            flashInputBorder(input, '#dc2626');
+            flashInputBorder(input, 'error');
             return;
         }
         
@@ -2909,7 +2931,7 @@
             // Value was clamped - update input to show actual stored value
             input.value = savedValue.toFixed(2);
             // Show warning briefly
-            flashInputBorder(input, '#f59e0b');
+            flashInputBorder(input, 'warning');
         }
         
         // Get projected investment and calculate adjusted total
@@ -2985,10 +3007,7 @@
             // Validate input
             if (isNaN(amount)) {
                 // Invalid number - show error feedback
-                input.style.borderColor = '#dc2626';
-                setTimeout(() => {
-                    input.style.borderColor = '';
-                }, 1000);
+                flashInputBorder(input, 'error');
                 return;
             }
             
@@ -2996,10 +3015,7 @@
             setProjectedInvestment(projectedInvestmentsState, bucket, goalType, amount);
             
             // Show success feedback
-            input.style.borderColor = '#10b981';
-            setTimeout(() => {
-                input.style.borderColor = '';
-            }, 500);
+            flashInputBorder(input, 'success');
         }
         
         // Recalculate all diffs in this goal type section
@@ -3103,6 +3119,29 @@
                     opacity: 1;
                     transform: translateY(0);
                 }
+            }
+
+            @keyframes gpv-input-flash {
+                0% { box-shadow: 0 0 0 2px var(--gpv-flash-color); }
+                100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+            }
+
+            .gpv-input-flash {
+                border-color: var(--gpv-flash-color);
+                box-shadow: 0 0 0 2px var(--gpv-flash-color);
+                animation: gpv-input-flash 0.8s ease;
+            }
+
+            .gpv-input-flash--error {
+                --gpv-flash-color: #dc2626;
+            }
+
+            .gpv-input-flash--warning {
+                --gpv-flash-color: #f59e0b;
+            }
+
+            .gpv-input-flash--success {
+                --gpv-flash-color: #10b981;
             }
             
             .gpv-header {
@@ -4191,6 +4230,7 @@
             normalizeString,
             normalizeGoalType,
             normalizeGoalName,
+            indexBy,
             getGoalTargetKey,
             getGoalFixedKey,
             getProjectedInvestmentKey,

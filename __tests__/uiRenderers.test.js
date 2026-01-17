@@ -1,20 +1,11 @@
-const { JSDOM } = require('jsdom');
+const { setupDom, teardownDom } = require('./helpers/domSetup');
 
 describe('UI renderers', () => {
     let exportsModule;
 
     beforeAll(() => {
         jest.resetModules();
-        const dom = new JSDOM('<!doctype html><html><body></body></html>', {
-            url: 'https://app.sg.endowus.com/dashboard'
-        });
-
-        global.window = dom.window;
-        global.document = dom.window.document;
-        global.MutationObserver = dom.window.MutationObserver;
-        global.HTMLElement = dom.window.HTMLElement;
-        global.Node = dom.window.Node;
-        window.__GPV_DISABLE_AUTO_INIT = true;
+        setupDom();
 
         global.GM_setValue = jest.fn();
         global.GM_getValue = jest.fn();
@@ -52,11 +43,7 @@ describe('UI renderers', () => {
     });
 
     afterAll(() => {
-        delete global.window;
-        delete global.document;
-        delete global.MutationObserver;
-        delete global.HTMLElement;
-        delete global.Node;
+        teardownDom();
         delete global.GM_setValue;
         delete global.GM_getValue;
         delete global.GM_deleteValue;
