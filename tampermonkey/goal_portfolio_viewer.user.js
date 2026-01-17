@@ -229,34 +229,7 @@
         return '-';
     }
 
-    function formatPercentFromRatio(value, options = {}) {
-        if (value === null || value === undefined) {
-            return options.fallback ?? '-';
-        }
-        const numericValue = Number(value);
-        if (!Number.isFinite(numericValue)) {
-            return options.fallback ?? '-';
-        }
-        const percentValue = numericValue * 100;
-        const showSign = options.showSign === true;
-        const sign = showSign && percentValue > 0 ? '+' : '';
-        return `${sign}${percentValue.toFixed(2)}%`;
-    }
-
-    function formatPercentFromPercent(value, options = {}) {
-        if (value === null || value === undefined) {
-            return options.fallback ?? '-';
-        }
-        const numericValue = Number(value);
-        if (!Number.isFinite(numericValue)) {
-            return options.fallback ?? '-';
-        }
-        const showSign = options.showSign === true;
-        const sign = showSign && numericValue > 0 ? '+' : '';
-        return `${sign}${numericValue.toFixed(2)}%`;
-    }
-
-    function formatPercentDisplay(value, options = {}) {
+    function formatPercent(value, options = {}) {
         if (value === null || value === undefined) {
             return options.fallback ?? '-';
         }
@@ -268,7 +241,22 @@
         if (!Number.isFinite(numericValue)) {
             return options.fallback ?? '-';
         }
-        return formatPercentFromPercent(numericValue * multiplier, options);
+        const percentValue = numericValue * multiplier;
+        const showSign = options.showSign === true;
+        const sign = showSign && percentValue > 0 ? '+' : '';
+        return `${sign}${percentValue.toFixed(2)}%`;
+    }
+
+    function formatPercentFromRatio(value, options = {}) {
+        return formatPercent(value, { ...options, multiplier: 100 });
+    }
+
+    function formatPercentFromPercent(value, options = {}) {
+        return formatPercent(value, { ...options, multiplier: 1 });
+    }
+
+    function formatPercentDisplay(value, options = {}) {
+        return formatPercent(value, options);
     }
 
     function formatGrowthPercentFromEndingBalance(totalReturn, endingBalance) {
