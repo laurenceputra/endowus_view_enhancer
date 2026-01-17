@@ -11,6 +11,39 @@ The demo generation system creates realistic mock data including:
 - Time-series performance data with realistic market fluctuations
 - Contribution events (simulating portfolio additions)
 - Target percentages for allocation tracking
+- **Cache-based performance data loading** (no external API calls required)
+
+## Demo Mode Architecture
+
+### Performance Data Caching
+
+The demo uses a client-side caching mechanism to avoid external API dependencies:
+
+1. **Data Storage**: Mock performance data is stored in browser storage with key format `gpv_performance_${goalId}`
+2. **Storage Format**:
+   ```javascript
+   {
+     fetchedAt: Date.now(),
+     response: {
+       timeSeries: { data: [...] },
+       returnsTable: {...},
+       totalCumulativeReturnPercent: ...,
+       totalCumulativeReturnAmount: ...
+     }
+   }
+   ```
+3. **Cache Fallback**: When BFF endpoint is unavailable (blocked in demo), the userscript automatically falls back to cached data
+4. **Freshness Check**: Cache is bypassed on fetch failure to ensure demo works even with stale data
+
+### How It Works
+
+1. `demo-clean.html` loads `mock-data.json`
+2. For each goal, performance time-series is stored via `GM_setValue()`
+3. Userscript attempts to fetch from BFF endpoint (fails in demo)
+4. On fetch failure, userscript checks cache with `ignoreFreshness=true`
+5. Cached data is used to render performance charts
+
+This ensures the demo works completely offline without any external dependencies.
 
 ## Bucket Configurations
 

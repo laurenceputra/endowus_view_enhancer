@@ -60,8 +60,8 @@
                         const tsKey = `gpv_performance_${goalId}`;
                         const tsData = mockData.performanceTimeSeries[goalId];
                         GM_setValue(tsKey, JSON.stringify({
-                            data: tsData,
-                            timestamp: Date.now()
+                            fetchedAt: Date.now(),
+                            response: tsData
                         }));
                     });
                     console.log('[Demo] Performance time-series data loaded for', Object.keys(mockData.performanceTimeSeries).length, 'goals');
