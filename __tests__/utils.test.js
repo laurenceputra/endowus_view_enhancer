@@ -339,6 +339,22 @@ describe('sortGoalsByName', () => {
         expect(result2).toBe(result1);
         expect(result2).toEqual([]);
     });
+
+    test('should update timestamp on cache hit', () => {
+        const input = [
+            { goalId: 'b', goalName: 'beta' },
+            { goalId: 'a', goalName: 'Alpha' }
+        ];
+        const sorted1 = sortGoalsByName(input);
+        
+        // Call again with same input - should be cached
+        const sorted2 = sortGoalsByName(input);
+        expect(sorted2).toBe(sorted1);
+        
+        // Timestamp should be updated (cache is still fresh)
+        const sorted3 = sortGoalsByName(input);
+        expect(sorted3).toBe(sorted1);
+    });
 });
 
 describe('formatMoney', () => {

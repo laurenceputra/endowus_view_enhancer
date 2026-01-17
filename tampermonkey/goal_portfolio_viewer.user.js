@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.7.3
+// @version      2.7.4
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -24,6 +24,7 @@
     const DEBUG = false;
     const REMAINING_TARGET_ALERT_THRESHOLD = 2;
     const DEBUG_AUTH = false;
+    const SORT_CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 
     const UNKNOWN_GOAL_TYPE = 'UNKNOWN_GOAL_TYPE';
     const PROJECTED_KEY_SEPARATOR = '|';
@@ -371,6 +372,21 @@
     // Cache for sortGoalsByName memoization
     let sortedGoalsCache = null;
     let sortedGoalsCacheKey = null;
+    let sortedGoalsCacheTimestamp = null;
+
+    function clearSortCacheIfExpired() {
+        if (sortedGoalsCacheTimestamp === null) {
+            return;
+        }
+        const now = Date.now();
+        const age = now - sortedGoalsCacheTimestamp;
+        if (age > SORT_CACHE_EXPIRY_MS) {
+            sortedGoalsCache = null;
+            sortedGoalsCacheKey = null;
+            sortedGoalsCacheTimestamp = null;
+            logDebug('[Goal Portfolio Viewer] Cleared expired sort cache');
+        }
+    }
 
     function sortGoalsByName(goals) {
         const safeGoals = Array.isArray(goals) ? goals : [];
@@ -378,8 +394,13 @@
         // Generate cache key from goal IDs
         const cacheKey = safeGoals.map(g => g?.goalId || '').join(',');
         
+        // Check if cache has expired
+        clearSortCacheIfExpired();
+        
         // Return cached result if available
         if (sortedGoalsCacheKey === cacheKey && sortedGoalsCache !== null) {
+            // Update timestamp on cache hit
+            sortedGoalsCacheTimestamp = Date.now();
             return sortedGoalsCache;
         }
         
@@ -398,6 +419,7 @@
         
         sortedGoalsCache = sorted;
         sortedGoalsCacheKey = cacheKey;
+        sortedGoalsCacheTimestamp = Date.now();
         return sorted;
     }
 
@@ -4219,6 +4241,9 @@
     function init() {
         // Load stored API data
         loadStoredData(state);
+
+        // Clear expired sort cache on startup
+        clearSortCacheIfExpired();
 
         if (DEBUG_AUTH) {
             getAuthTokenFromGMCookie();
