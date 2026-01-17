@@ -57,7 +57,7 @@ async function takeScreenshots() {
     try {
         // Navigate to demo page
         console.log('📂 Loading demo page...');
-        await page.goto(demoUrl, { waitUntil: 'networkidle' });
+        await page.goto(demoUrl, { waitUntil: 'load' });
         
         // Wait for the trigger button to appear
         console.log('⏳ Waiting for Portfolio Viewer button...');
