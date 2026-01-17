@@ -10,6 +10,7 @@ const {
     normalizeString,
     normalizeGoalType,
     normalizeGoalName,
+    indexBy,
     getGoalTargetKey,
     getGoalFixedKey,
     getProjectedInvestmentKey,
@@ -109,6 +110,34 @@ describe('normalizeGoalName', () => {
     test('should trim names and allow empty fallback', () => {
         expect(normalizeGoalName(' Retirement ')).toBe('Retirement');
         expect(normalizeGoalName('   ')).toBe('');
+    });
+});
+
+describe('indexBy', () => {
+    test('should index items by key', () => {
+        const items = [
+            { goalId: 'a', value: 1 },
+            { goalId: 'b', value: 2 }
+        ];
+        const result = indexBy(items, item => item.goalId);
+        expect(result.a.value).toBe(1);
+        expect(result.b.value).toBe(2);
+    });
+
+    test('should ignore empty or null keys', () => {
+        const items = [
+            { goalId: '', value: 1 },
+            { goalId: null, value: 2 },
+            { goalId: 'c', value: 3 }
+        ];
+        const result = indexBy(items, item => item.goalId);
+        expect(result.c.value).toBe(3);
+        expect(Object.keys(result)).toHaveLength(1);
+    });
+
+    test('should return empty object for invalid inputs', () => {
+        expect(indexBy(null, () => 'a')).toEqual({});
+        expect(indexBy([], null)).toEqual({});
     });
 });
 

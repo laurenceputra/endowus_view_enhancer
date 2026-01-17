@@ -150,6 +150,20 @@
         };
     }
 
+    function indexBy(items, keyFn) {
+        const safeItems = Array.isArray(items) ? items : [];
+        if (typeof keyFn !== 'function') {
+            return {};
+        }
+        return safeItems.reduce((acc, item) => {
+            const key = keyFn(item);
+            if (key !== null && key !== undefined && key !== '') {
+                acc[key] = item;
+            }
+            return acc;
+        }, {});
+    }
+
     const Normalization = {
         normalizeString,
         normalizeGoalType,
@@ -684,11 +698,8 @@
             return null;
         }
 
-        const investibleMap = {};
-        investibleData.forEach(item => investibleMap[item.goalId] = item);
-
-        const summaryMap = {};
-        summaryData.forEach(item => summaryMap[item.goalId] = item);
+        const investibleMap = indexBy(investibleData, item => item?.goalId);
+        const summaryMap = indexBy(summaryData, item => item?.goalId);
 
         const bucketMap = {};
 
@@ -4191,6 +4202,7 @@
             normalizeString,
             normalizeGoalType,
             normalizeGoalName,
+            indexBy,
             getGoalTargetKey,
             getGoalFixedKey,
             getProjectedInvestmentKey,
