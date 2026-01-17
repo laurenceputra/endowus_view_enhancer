@@ -221,16 +221,27 @@ def generate_mock_data():
         })
         
         # Time-series performance data (for charts)
+        # Calculate YTD return (assume start of current year)
+        current_date = datetime.now()
+        start_of_year = datetime(current_date.year, 1, 1)
+        days_since_start_of_year = (current_date - start_of_year).days
+        # Prorate the annual return to YTD
+        ytd_return = goal['simpleRateOfReturnPercent'] * (days_since_start_of_year / 365)
+        
         performance_time_series[goal['goalId']] = {
             'timeSeries': {
                 'data': goal['timeSeriesData']
             },
             'returnsTable': {
-                'allTimeValue': goal['simpleRateOfReturnPercent'],
-                'oneYearValue': goal['simpleRateOfReturnPercent'],
-                'sixMonthsValue': goal['simpleRateOfReturnPercent'] * 0.5,
-                'threeMonthsValue': goal['simpleRateOfReturnPercent'] * 0.25,
-                'oneMonthValue': goal['simpleRateOfReturnPercent'] * 0.083
+                'twr': {
+                    'allTimeValue': goal['simpleRateOfReturnPercent'],
+                    'oneYearValue': goal['simpleRateOfReturnPercent'],
+                    'sixMonthValue': goal['simpleRateOfReturnPercent'] * 0.5,
+                    'threeMonthValue': goal['simpleRateOfReturnPercent'] * 0.25,
+                    'oneMonthValue': goal['simpleRateOfReturnPercent'] * 0.083,
+                    'ytdValue': ytd_return,
+                    'threeYearValue': goal['simpleRateOfReturnPercent']  # Use same as allTime for demo
+                }
             },
             'totalCumulativeReturnPercent': goal['simpleRateOfReturnPercent'] * 100,
             'totalCumulativeReturnAmount': goal['totalCumulativeReturn'],

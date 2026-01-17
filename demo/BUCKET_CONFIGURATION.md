@@ -1,6 +1,6 @@
 # Demo Bucket Configuration
 
-*Generated on: 2026-01-17 21:56:28*
+*Generated on: 2026-01-17 23:44:30*
 
 This document tracks the bucket and target configuration used in the demo.
 
@@ -10,11 +10,11 @@ This document tracks the bucket and target configuration used in the demo.
 
 **Total Target Investment:** $200,000.00
 
-**Total Actual Investment:** $168,014.43
+**Total Actual Investment:** $191,519.83
 
-**Total Returns:** $5,894.38 (+3.51%)
+**Total Returns:** $22,865.43 (+11.94%)
 
-**Ending Balance:** $173,908.81
+**Ending Balance:** $214,385.26
 
 **Time Horizon:** 1.0 year(s) (365 days)
 
@@ -22,28 +22,28 @@ This document tracks the bucket and target configuration used in the demo.
 
 | Goal | Target | Actual Investment | Returns | Return % | Ending Balance |
 |------|--------|-------------------|---------|----------|----------------|
-| Core - Balanced | $140,000.00 | $117,934.52 | $2,956.10 | +2.57% | $120,890.62 |
-| Megatrends | $20,000.00 | $16,679.30 | $589.14 | +3.66% | $17,268.44 |
-| Tech | $20,000.00 | $16,580.79 | $1,040.92 | +6.70% | $17,621.71 |
-| China | $20,000.00 | $16,819.82 | $1,308.22 | +8.43% | $18,128.04 |
+| Core - Balanced | $140,000.00 | $139,430.99 | $19,543.89 | +16.30% | $158,974.88 |
+| Megatrends | $20,000.00 | $19,101.80 | $2,950.15 | +18.27% | $22,051.95 |
+| Tech | $20,000.00 | $18,993.87 | $1,444.41 | +8.23% | $20,438.28 |
+| China | $20,000.00 | $13,993.17 | $-1,073.02 | -7.12% | $12,920.15 |
 
 ### Target Allocations
 
 | Goal | Target % | Actual % | Target Amount | Actual Amount | Variance |
 |------|----------|----------|---------------|---------------|----------|
-| Core - Balanced | 70% | 70.19% | $140,000.00 | $117,934.52 | +0.19% |
-| Megatrends | 10% | 9.93% | $20,000.00 | $16,679.30 | -0.07% |
-| Tech | 10% | 9.87% | $20,000.00 | $16,580.79 | -0.13% |
-| China | 10% | 10.01% | $20,000.00 | $16,819.82 | +0.01% |
+| Core - Balanced | 70% | 72.80% | $140,000.00 | $139,430.99 | +2.80% |
+| Megatrends | 10% | 9.97% | $20,000.00 | $19,101.80 | -0.03% |
+| Tech | 10% | 9.92% | $20,000.00 | $18,993.87 | -0.08% |
+| China | 10% | 7.31% | $20,000.00 | $13,993.17 | -2.69% |
 
 ### Time-Series Performance
 
 | Goal | Start Date | End Date | Contribution Date | Data Points |
 |------|------------|----------|-------------------|--------------|
-| Core - Balanced | 2025-01-17 | 2026-01-16 | 2025-11-11 | 365 |
-| Megatrends | 2025-01-17 | 2026-01-16 | 2025-11-06 | 365 |
-| Tech | 2025-01-17 | 2026-01-16 | 2025-12-06 | 365 |
-| China | 2025-01-17 | 2026-01-16 | 2025-11-17 | 365 |
+| Core - Balanced | 2025-01-17 | 2026-01-16 | 2025-11-22 | 365 |
+| Megatrends | 2025-01-17 | 2026-01-16 | 2025-12-06 | 365 |
+| Tech | 2025-01-17 | 2026-01-16 | 2025-10-25 | 365 |
+| China | 2025-01-17 | 2026-01-16 | 2025-12-16 | 365 |
 
 ---
 
@@ -51,11 +51,11 @@ This document tracks the bucket and target configuration used in the demo.
 
 **Total Target Investment:** $60,000.00
 
-**Total Actual Investment:** $56,592.23
+**Total Actual Investment:** $58,753.81
 
-**Total Returns:** $6,626.30 (+11.71%)
+**Total Returns:** $8,597.97 (+14.63%)
 
-**Ending Balance:** $63,218.53
+**Ending Balance:** $67,351.78
 
 **Time Horizon:** 2.0 year(s) (730 days)
 
@@ -63,28 +63,28 @@ This document tracks the bucket and target configuration used in the demo.
 
 | Goal | Target | Actual Investment | Returns | Return % | Ending Balance |
 |------|--------|-------------------|---------|----------|----------------|
-| Core - Aggressive | $33,000.00 | $30,984.78 | $3,711.18 | +13.61% | $34,695.96 |
-| Megatrends | $9,000.00 | $9,486.37 | $1,644.85 | +20.98% | $11,131.22 |
-| Tech | $9,000.00 | $6,289.68 | $-684.56 | -9.82% | $5,605.12 |
-| China | $9,000.00 | $9,831.40 | $1,954.83 | +24.82% | $11,786.23 |
+| Core - Aggressive | $33,000.00 | $32,195.86 | $4,914.55 | +18.01% | $37,110.41 |
+| Megatrends | $9,000.00 | $9,831.34 | $1,877.99 | +23.61% | $11,709.33 |
+| Tech | $9,000.00 | $9,162.90 | $1,637.85 | +21.77% | $10,800.75 |
+| China | $9,000.00 | $7,563.71 | $167.58 | +2.27% | $7,731.29 |
 
 ### Target Allocations
 
 | Goal | Target % | Actual % | Target Amount | Actual Amount | Variance |
 |------|----------|----------|---------------|---------------|----------|
-| Core - Aggressive | 55% | 54.75% | $33,000.00 | $30,984.78 | -0.25% |
-| Megatrends | 15% | 16.76% | $9,000.00 | $9,486.37 | +1.76% |
-| Tech | 15% | 11.11% | $9,000.00 | $6,289.68 | -3.89% |
-| China | 15% | 17.37% | $9,000.00 | $9,831.40 | +2.37% |
+| Core - Aggressive | 55% | 54.80% | $33,000.00 | $32,195.86 | -0.20% |
+| Megatrends | 15% | 16.73% | $9,000.00 | $9,831.34 | +1.73% |
+| Tech | 15% | 15.60% | $9,000.00 | $9,162.90 | +0.60% |
+| China | 15% | 12.87% | $9,000.00 | $7,563.71 | -2.13% |
 
 ### Time-Series Performance
 
 | Goal | Start Date | End Date | Contribution Date | Data Points |
 |------|------------|----------|-------------------|--------------|
-| Core - Aggressive | 2024-01-18 | 2026-01-16 | 2025-12-06 | 730 |
-| Megatrends | 2024-01-18 | 2026-01-16 | 2025-10-19 | 730 |
-| Tech | 2024-01-18 | 2026-01-16 | 2025-12-16 | 730 |
-| China | 2024-01-18 | 2026-01-16 | 2025-12-17 | 730 |
+| Core - Aggressive | 2024-01-18 | 2026-01-16 | 2025-11-30 | 730 |
+| Megatrends | 2024-01-18 | 2026-01-16 | 2025-11-01 | 730 |
+| Tech | 2024-01-18 | 2026-01-16 | 2025-11-01 | 730 |
+| China | 2024-01-18 | 2026-01-16 | 2025-11-16 | 730 |
 
 ---
 
