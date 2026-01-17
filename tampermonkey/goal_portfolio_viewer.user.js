@@ -484,6 +484,27 @@
         return null;
     }
 
+    function buildBucketBase(bucketName, bucketObj) {
+        if (!bucketObj) {
+            return null;
+        }
+        const goalTypes = Object.keys(bucketObj).filter(key => key !== '_meta');
+        const bucketTotalReturn = goalTypes.reduce((total, goalType) => {
+            const value = bucketObj[goalType]?.totalCumulativeReturn;
+            return total + (Number.isFinite(value) ? value : 0);
+        }, 0);
+        const orderedTypes = sortGoalTypes(goalTypes);
+        const endingBalanceTotal = bucketObj._meta?.endingBalanceTotal || 0;
+        return {
+            bucketName,
+            bucketObj,
+            goalTypes,
+            orderedTypes,
+            bucketTotalReturn,
+            endingBalanceTotal
+        };
+    }
+
     function buildSummaryViewModel(bucketMap) {
         if (!bucketMap || typeof bucketMap !== 'object') {
             return { buckets: [] };
@@ -492,16 +513,11 @@
             .sort()
             .map(bucketName => {
                 const bucketObj = bucketMap[bucketName];
-                if (!bucketObj) {
+                const base = buildBucketBase(bucketName, bucketObj);
+                if (!base) {
                     return null;
                 }
-                const goalTypes = Object.keys(bucketObj).filter(key => key !== '_meta');
-                const bucketTotalReturn = goalTypes.reduce((total, goalType) => {
-                    const value = bucketObj[goalType]?.totalCumulativeReturn;
-                    return total + (Number.isFinite(value) ? value : 0);
-                }, 0);
-                const orderedTypes = sortGoalTypes(goalTypes);
-                const endingBalanceTotal = bucketObj._meta?.endingBalanceTotal || 0;
+                const { orderedTypes, bucketTotalReturn, endingBalanceTotal } = base;
                 return {
                     bucketName,
                     endingBalanceAmount: endingBalanceTotal,
@@ -515,7 +531,7 @@
                     returnClass: getReturnClass(bucketTotalReturn),
                     goalTypes: orderedTypes
                         .map(goalType => {
-                            const group = bucketObj[goalType];
+                            const group = base.bucketObj[goalType];
                             if (!group) {
                                 return null;
                             }
@@ -552,19 +568,14 @@
             return null;
         }
         const bucketObj = bucketMap[bucketName];
-        if (!bucketObj) {
+        const base = buildBucketBase(bucketName, bucketObj);
+        if (!base) {
             return null;
         }
-        const goalTypes = Object.keys(bucketObj).filter(key => key !== '_meta');
-        const bucketTotalReturn = goalTypes.reduce((total, goalType) => {
-            const value = bucketObj[goalType]?.totalCumulativeReturn;
-            return total + (Number.isFinite(value) ? value : 0);
-        }, 0);
-        const orderedTypes = sortGoalTypes(goalTypes);
         const projectedInvestments = projectedInvestmentsState || {};
         const goalTargets = goalTargetById || {};
         const goalFixed = goalFixedById || {};
-        const endingBalanceTotal = bucketObj._meta?.endingBalanceTotal || 0;
+        const { orderedTypes, bucketTotalReturn, endingBalanceTotal } = base;
 
         return {
             bucketName,
@@ -579,7 +590,7 @@
             returnClass: getReturnClass(bucketTotalReturn),
             goalTypes: orderedTypes
                 .map(goalType => {
-                    const group = bucketObj[goalType];
+                    const group = base.bucketObj[goalType];
                     if (!group) {
                         return null;
                     }
