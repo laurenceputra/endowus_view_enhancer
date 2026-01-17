@@ -654,30 +654,34 @@
         }, []);
     }
 
-    function buildGoalTargetById(goalIds, getTargetFn) {
-        if (!Array.isArray(goalIds) || typeof getTargetFn !== 'function') {
+    function buildGoalMapById(goalIds, getValueFn, isValidFn) {
+        if (!Array.isArray(goalIds) || typeof getValueFn !== 'function') {
             return {};
         }
+        const isValidValue = typeof isValidFn === 'function' ? isValidFn : () => false;
         return goalIds.reduce((acc, goalId) => {
-            const value = getTargetFn(goalId);
-            if (typeof value === 'number' && Number.isFinite(value)) {
-                acc[goalId] = value;
+            const value = getValueFn(goalId);
+            if (isValidValue(value)) {
+                acc[goalId] = value === true ? true : value;
             }
             return acc;
         }, {});
     }
 
+    function buildGoalTargetById(goalIds, getTargetFn) {
+        return buildGoalMapById(
+            goalIds,
+            getTargetFn,
+            value => typeof value === 'number' && Number.isFinite(value)
+        );
+    }
+
     function buildGoalFixedById(goalIds, getFixedFn) {
-        if (!Array.isArray(goalIds) || typeof getFixedFn !== 'function') {
-            return {};
-        }
-        return goalIds.reduce((acc, goalId) => {
-            const value = getFixedFn(goalId);
-            if (value === true) {
-                acc[goalId] = true;
-            }
-            return acc;
-        }, {});
+        return buildGoalMapById(
+            goalIds,
+            getFixedFn,
+            value => value === true
+        );
     }
 
     /**
