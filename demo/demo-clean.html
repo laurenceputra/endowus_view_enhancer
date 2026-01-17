@@ -48,15 +48,18 @@
                 GM_setValue('api_performance', JSON.stringify(mockData.performance));
                 GM_setValue('api_investible', JSON.stringify(mockData.investible));
                 GM_setValue('api_summary', JSON.stringify(mockData.summary));
-                console.log('[Demo] Mock data loaded - Personal and Holiday buckets with core-satellite strategy');
+                console.log('[Demo] Mock data loaded - House Purchase and Retirement buckets with core-satellite strategy');
                 console.log('[Demo] Goals loaded:', mockData.performance.length);
+                
+                // Load userscript after data is ready
+                const script = document.createElement('script');
+                script.src = 'goal_portfolio_viewer_demo.user.js';
+                document.body.appendChild(script);
             })
             .catch(error => {
                 console.error('[Demo] Failed to load mock data:', error);
             });
     </script>
-    
-    <!-- Load modified userscript with demo mode enabled -->
-    <script src="goal_portfolio_viewer_demo.user.js"></script>
+
 </body>
 </html>
