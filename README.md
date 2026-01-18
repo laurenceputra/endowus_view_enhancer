@@ -2,6 +2,10 @@
 
 ## Example Screenshots
 
+### Overview
+![Goal Portfolio Viewer - Summary View](docs/screenshot-summary.png)
+*Summary view showing House Purchase and Retirement buckets with ending balance, returns, and growth*
+
 ### House Purchase Bucket - Performance Graph
 ![House Purchase - Performance Graph](docs/house-purchase-performance.png)
 *Performance graph showing corrected Total Return % (2.84%), window returns (1M/6M/YTD/1Y/3Y), TWR %, Annualised IRR, Net Fees, Net Investment, and complete metrics*
