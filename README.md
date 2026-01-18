@@ -1,13 +1,28 @@
 # Goal Portfolio Viewer
 
+## Example Screenshots
+
+### Overview
 ![Goal Portfolio Viewer - Summary View](docs/screenshot-summary.png)
 *Summary view showing House Purchase and Retirement buckets with ending balance, returns, and growth*
 
-![Goal Portfolio Viewer - House Purchase Bucket Detail](docs/screenshot-house-purchase-detail.png)
-*House Purchase bucket detail view with core-satellite goals: Core - Balanced, Megatrends, Tech, China*
+### House Purchase Bucket - Performance Graph
+![House Purchase - Performance Graph](docs/house-purchase-performance.png)
+*Performance graph showing corrected Total Return % (2.84%), window returns (1M/6M/YTD/1Y/3Y), TWR %, Annualised IRR, Net Fees, Net Investment, and complete metrics*
 
-![Goal Portfolio Viewer - Retirement Bucket Detail](docs/screenshot-retirement-detail.png)
-*Retirement bucket detail view with core-satellite goals and individual performance metrics*
+### House Purchase Bucket - Goals Table
+![House Purchase - Goals Table](docs/house-purchase-goals.png)
+*Individual goals with target percentages (10%, 70%), diff calculations showing rebalancing needs, cumulative returns, and return percentages*
+
+### Retirement Bucket - Performance Graph
+![Retirement - Performance Graph](docs/retirement-performance.png)
+*Retirement bucket showing corrected Total Return % (19.23%) matching TWR %, along with 18.27% IRR and complete performance metrics*
+
+### Retirement Bucket - Goals Table
+![Retirement - Goals Table](docs/retirement-goals.png)
+*Retirement goals with target allocations (15%, 55%) and diff calculations demonstrating portfolio rebalancing needs*
+
+---
 
 **Track core-satellite portfolios the way they were meant to be seen — clean, goal-aware, and entirely private.**
 

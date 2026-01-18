@@ -12,24 +12,31 @@ This directory contains tools and files for demonstrating the Goal Portfolio Vie
   - Actual investments have realistic variance from targets (-8% to +10%) for realism
   - All goals under Investment type (GENERAL_WEALTH_ACCUMULATION)
   - Generates JSON file with API response format
+  - **Includes `performanceTimeSeries`** with:
+    - `timeSeries.data` - Daily time-series data for performance charts
+    - `returnsTable.twr` - Time-Weighted Return metrics (1m, 6m, ytd, 1y, 3y)
+    - Realistic bumpy performance with market volatility patterns
+    - Contribution events for testing contribution-adjusted calculations
 
-- **`mock-data.json`** - Generated mock data (performance, investible, summary endpoints)
-- **`mock-data.js`** - JavaScript version of the mock data generator
+- **`mock-data.json`** - Generated mock data (performance, investible, summary, performanceTimeSeries)
+- **`mock-data.js`** - JavaScript version of the mock data generator (legacy)
 - **`BUCKET_CONFIGURATION.md`** - Documentation of bucket structure, targets, and calculated values
+
+### Screenshot Tools
+- **`take-screenshots.py`** - Python script for manual screenshot instructions
+- **`take-screenshots.js`** - Node.js script for automated Playwright screenshots
+- **`take-screenshots-automated.sh`** - Shell wrapper for automated screenshots
+- **`prepare-demo.sh`** - Prepares demo userscript files for local testing
 
 ### Demo Pages
 - **`demo-clean.html`** - Minimal demo page that works with the modified userscript
   - Sets `__GPV_DEMO_MODE__` flag to enable button in non-Endowus URLs
   - Mocks Tampermonkey API (GM_setValue, GM_getValue, etc.)
-  - Loads mock data from JSON file
+  - Loads mock data from JSON file including performanceTimeSeries
   - Loads modified userscript with demo mode enabled
 
 - **`index.html`** - Full-featured demo page with info panel
 - **`demo.html`** - Alternative demo page (kept for reference)
-
-### Support Files
-- **`loader.js`** - Dynamic script loader (not currently used)
-- **`take-screenshots.py`** - Helper script for screenshot instructions
 
 ### Generated Files (gitignored)
 - **`goal_portfolio_viewer_demo.user.js`** - Modified userscript with demo mode patch
@@ -62,10 +69,57 @@ This creates `mock-data.json` with randomized investment amounts and returns.
 
 ### Take Screenshots
 
-Use Playwright or manual browser screenshots to capture:
+#### Automated (Recommended)
+
+Using Node.js with Playwright:
+```bash
+# Install Playwright (one-time setup)
+npm install playwright
+npx playwright install chromium
+
+# Run automated screenshot capture
+node take-screenshots.js
+```
+
+This will automatically:
+- Open the demo in a headless browser
+- Click the Portfolio Viewer button
+- Capture summary view
+- Navigate to each bucket detail view
+- Scroll to capture both the performance graph AND goals table
+- Save all screenshots to the `assets/` directory
+
+#### Manual
+
+Using Python helper script for instructions:
+```bash
+python3 take-screenshots.py
+```
+
+Or manually capture screenshots:
 - Summary view (both buckets: House Purchase and Retirement)
-- House Purchase bucket detail view
-- Retirement bucket detail view
+- House Purchase bucket detail view (scroll to capture goals table)
+- Retirement bucket detail view (scroll to capture goals table)
+
+**Important**: When capturing bucket detail views, make sure to scroll down to include the goals table (individual goal breakdowns with investment amounts and returns).
+
+### Example Screenshots
+
+**House Purchase Bucket - Top Section (Performance Graph):**
+
+![House Purchase - Top](https://github.com/user-attachments/assets/57003f68-75ef-45c4-b0dd-48ffa7c575db)
+
+**House Purchase Bucket - Bottom Section (Goals Table):**
+
+![House Purchase - Bottom](https://github.com/user-attachments/assets/e980446b-e4ca-463a-8fdd-f459f6156c4a)
+
+**Retirement Bucket - Top Section (Performance Graph):**
+
+![Retirement - Top](https://github.com/user-attachments/assets/deeb7a7d-be6c-4c50-bfdb-7ad8c208bcf3)
+
+**Retirement Bucket - Bottom Section (Goals Table):**
+
+![Retirement - Bottom](https://github.com/user-attachments/assets/524ada98-1a28-4524-b257-fb9ddb8c1f00)
 
 ## Mock Data Structure
 

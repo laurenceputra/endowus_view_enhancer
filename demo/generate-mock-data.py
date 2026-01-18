@@ -221,18 +221,50 @@ def generate_mock_data():
         })
         
         # Time-series performance data (for charts)
+        # Calculate YTD return (assume start of current year)
+        current_date = datetime.now()
+        start_of_year = datetime(current_date.year, 1, 1)
+        days_since_start_of_year = (current_date - start_of_year).days
+        # Prorate the annual return to YTD
+        ytd_return = goal['simpleRateOfReturnPercent'] * (days_since_start_of_year / 365)
+        
+        # Calculate annualised IRR (use a slightly different value for realism)
+        annualised_irr = goal['simpleRateOfReturnPercent'] * 0.95  # Slightly lower than TWR for realism
+        
+        # Calculate fees (small percentage of investment for realism)
+        access_fee = goal['cumulativeInvested'] * 0.005  # 0.5% access fee
+        trailer_fee_rebate = goal['cumulativeInvested'] * 0.002  # 0.2% trailer fee rebate
+        
         performance_time_series[goal['goalId']] = {
             'timeSeries': {
                 'data': goal['timeSeriesData']
             },
             'returnsTable': {
-                'allTimeValue': goal['simpleRateOfReturnPercent'],
-                'oneYearValue': goal['simpleRateOfReturnPercent'],
-                'sixMonthsValue': goal['simpleRateOfReturnPercent'] * 0.5,
-                'threeMonthsValue': goal['simpleRateOfReturnPercent'] * 0.25,
-                'oneMonthValue': goal['simpleRateOfReturnPercent'] * 0.083
+                'twr': {
+                    'allTimeValue': goal['simpleRateOfReturnPercent'],
+                    'oneYearValue': goal['simpleRateOfReturnPercent'],
+                    'sixMonthValue': goal['simpleRateOfReturnPercent'] * 0.5,
+                    'threeMonthValue': goal['simpleRateOfReturnPercent'] * 0.25,
+                    'oneMonthValue': goal['simpleRateOfReturnPercent'] * 0.083,
+                    'ytdValue': ytd_return,
+                    'threeYearValue': goal['simpleRateOfReturnPercent']  # Use same as allTime for demo
+                },
+                'annualisedIrr': {
+                    'allTimeValue': annualised_irr
+                }
             },
-            'totalCumulativeReturnPercent': goal['simpleRateOfReturnPercent'] * 100,
+            'gainOrLossTable': {
+                'netInvestment': {
+                    'allTimeValue': goal['cumulativeInvested']
+                },
+                'accessFeeCharged': {
+                    'allTimeValue': access_fee
+                },
+                'trailerFeeRebates': {
+                    'allTimeValue': trailer_fee_rebate
+                }
+            },
+            'totalCumulativeReturnPercent': goal['simpleRateOfReturnPercent'],
             'totalCumulativeReturnAmount': goal['totalCumulativeReturn'],
             'contributionDate': goal['contributionDate'],
             'annualReturnRate': goal['annualReturnRate'],
