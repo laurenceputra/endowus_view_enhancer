@@ -264,7 +264,7 @@ def generate_mock_data():
                     'allTimeValue': trailer_fee_rebate
                 }
             },
-            'totalCumulativeReturnPercent': goal['simpleRateOfReturnPercent'] * 100,
+            'totalCumulativeReturnPercent': goal['simpleRateOfReturnPercent'],
             'totalCumulativeReturnAmount': goal['totalCumulativeReturn'],
             'contributionDate': goal['contributionDate'],
             'annualReturnRate': goal['annualReturnRate'],

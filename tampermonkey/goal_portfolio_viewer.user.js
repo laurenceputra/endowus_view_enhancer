@@ -1203,14 +1203,7 @@
             }
         }
 
-        // Calculate Total Return % correctly:
-        // Total Return % = total cumulative returns / (total investment amount - total cumulative returns)
-        // This is equivalent to: returns / (ending balance - returns) = returns / net investment
-        let totalReturnPercent = null;
-        if (totalReturnSeen && netInvestmentSeen && netInvestmentAmount > 0) {
-            totalReturnPercent = totalReturnAmount / netInvestmentAmount;
-        }
-        
+        const totalReturnPercent = calculateWeightedAverage(totalReturns, netInvestments);
         const simpleReturnPercent = calculateWeightedAverage(simpleReturns, netInvestments);
         const twrPercent = calculateWeightedAverage(twrReturns, netInvestments);
         const annualisedIrrPercent = calculateWeightedAverage(annualisedIrrReturns, netInvestments);
