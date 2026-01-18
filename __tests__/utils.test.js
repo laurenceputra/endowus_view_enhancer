@@ -273,6 +273,88 @@ describe('sortGoalsByName', () => {
     test('should return empty array for invalid input', () => {
         expect(sortGoalsByName(null)).toEqual([]);
     });
+
+    test('should return cached result for same goal IDs', () => {
+        const input1 = [
+            { goalId: 'b', goalName: 'beta' },
+            { goalId: 'a', goalName: 'Alpha' }
+        ];
+        const sorted1 = sortGoalsByName(input1);
+        
+        // Call again with same goal IDs (same order)
+        const input2 = [
+            { goalId: 'b', goalName: 'beta' },
+            { goalId: 'a', goalName: 'Alpha' }
+        ];
+        const sorted2 = sortGoalsByName(input2);
+        
+        // Should return the same reference (cached)
+        expect(sorted2).toBe(sorted1);
+    });
+
+    test('should recalculate when goal IDs change', () => {
+        const input1 = [
+            { goalId: 'b', goalName: 'beta' },
+            { goalId: 'a', goalName: 'Alpha' }
+        ];
+        const sorted1 = sortGoalsByName(input1);
+        
+        // Call with different goal IDs
+        const input2 = [
+            { goalId: 'c', goalName: 'Charlie' },
+            { goalId: 'a', goalName: 'Alpha' }
+        ];
+        const sorted2 = sortGoalsByName(input2);
+        
+        // Should return a different reference (recalculated)
+        expect(sorted2).not.toBe(sorted1);
+        expect(sorted2.map(goal => goal.goalName)).toEqual(['Alpha', 'Charlie']);
+    });
+
+    test('should recalculate when goal order changes', () => {
+        const input1 = [
+            { goalId: 'a', goalName: 'Alpha' },
+            { goalId: 'b', goalName: 'beta' }
+        ];
+        const sorted1 = sortGoalsByName(input1);
+        
+        // Call with same goals but different order (different cache key)
+        const input2 = [
+            { goalId: 'b', goalName: 'beta' },
+            { goalId: 'a', goalName: 'Alpha' }
+        ];
+        const sorted2 = sortGoalsByName(input2);
+        
+        // Should recalculate since input order changed (cache key changed)
+        expect(sorted2).not.toBe(sorted1);
+        // But results should still be sorted the same way
+        expect(sorted2.map(goal => goal.goalName)).toEqual(['Alpha', 'beta']);
+    });
+
+    test('should handle empty arrays', () => {
+        const result1 = sortGoalsByName([]);
+        const result2 = sortGoalsByName([]);
+        
+        // Should cache empty array results
+        expect(result2).toBe(result1);
+        expect(result2).toEqual([]);
+    });
+
+    test('should update timestamp on cache hit', () => {
+        const input = [
+            { goalId: 'b', goalName: 'beta' },
+            { goalId: 'a', goalName: 'Alpha' }
+        ];
+        const sorted1 = sortGoalsByName(input);
+        
+        // Call again with same input - should be cached
+        const sorted2 = sortGoalsByName(input);
+        expect(sorted2).toBe(sorted1);
+        
+        // Timestamp should be updated (cache is still fresh)
+        const sorted3 = sortGoalsByName(input);
+        expect(sorted3).toBe(sorted1);
+    });
 });
 
 describe('formatMoney', () => {
