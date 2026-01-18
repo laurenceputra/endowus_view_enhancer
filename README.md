@@ -2,25 +2,21 @@
 
 ## Example Screenshots
 
-### Overview Page
-![Goal Portfolio Viewer - Summary View](docs/screenshot-summary.png)
-*Summary view showing House Purchase and Retirement buckets with ending balance, returns, and growth*
-
 ### House Purchase Bucket - Performance Graph
-![House Purchase - Performance Graph](https://github.com/user-attachments/assets/648ae5a7-717c-45c0-a2f2-3d274309719f)
-*Performance graph showing 1M/6M/YTD/1Y/3Y returns, TWR %, Annualised IRR, and other metrics*
+![House Purchase - Performance Graph](docs/house-purchase-performance.png)
+*Performance graph showing corrected Total Return % (2.84%), window returns (1M/6M/YTD/1Y/3Y), TWR %, Annualised IRR, Net Fees, Net Investment, and complete metrics*
 
 ### House Purchase Bucket - Goals Table
-![House Purchase - Goals Table](https://github.com/user-attachments/assets/24e16158-183b-493d-8a0b-5316f0bf90c1)
-*Individual goals with target percentages, diff calculations, cumulative returns, and return percentages*
+![House Purchase - Goals Table](docs/house-purchase-goals.png)
+*Individual goals with target percentages (10%, 70%), diff calculations showing rebalancing needs, cumulative returns, and return percentages*
 
 ### Retirement Bucket - Performance Graph
-![Retirement - Performance Graph](https://github.com/user-attachments/assets/d40175aa-daec-4720-a0df-050f9f79ebbe)
-*Retirement bucket showing higher returns with complete performance metrics*
+![Retirement - Performance Graph](docs/retirement-performance.png)
+*Retirement bucket showing corrected Total Return % (19.23%) matching TWR %, along with 18.27% IRR and complete performance metrics*
 
 ### Retirement Bucket - Goals Table
-![Retirement - Goals Table](https://github.com/user-attachments/assets/7f73a86a-7227-43ec-b3a9-812c05f78146)
-*Retirement goals with target allocations and diff calculations demonstrating portfolio rebalancing needs*
+![Retirement - Goals Table](docs/retirement-goals.png)
+*Retirement goals with target allocations (15%, 55%) and diff calculations demonstrating portfolio rebalancing needs*
 
 ---
 
