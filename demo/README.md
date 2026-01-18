@@ -103,6 +103,24 @@ Or manually capture screenshots:
 
 **Important**: When capturing bucket detail views, make sure to scroll down to include the goals table (individual goal breakdowns with investment amounts and returns).
 
+### Example Screenshots
+
+**House Purchase Bucket - Top Section (Performance Graph):**
+
+![House Purchase - Top](https://github.com/user-attachments/assets/57003f68-75ef-45c4-b0dd-48ffa7c575db)
+
+**House Purchase Bucket - Bottom Section (Goals Table):**
+
+![House Purchase - Bottom](https://github.com/user-attachments/assets/e980446b-e4ca-463a-8fdd-f459f6156c4a)
+
+**Retirement Bucket - Top Section (Performance Graph):**
+
+![Retirement - Top](https://github.com/user-attachments/assets/deeb7a7d-be6c-4c50-bfdb-7ad8c208bcf3)
+
+**Retirement Bucket - Bottom Section (Goals Table):**
+
+![Retirement - Bottom](https://github.com/user-attachments/assets/524ada98-1a28-4524-b257-fb9ddb8c1f00)
+
 ## Mock Data Structure
 
 ### House Purchase Bucket (~$194k)
