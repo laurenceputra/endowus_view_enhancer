@@ -228,6 +228,13 @@ def generate_mock_data():
         # Prorate the annual return to YTD
         ytd_return = goal['simpleRateOfReturnPercent'] * (days_since_start_of_year / 365)
         
+        # Calculate annualised IRR (use a slightly different value for realism)
+        annualised_irr = goal['simpleRateOfReturnPercent'] * 0.95  # Slightly lower than TWR for realism
+        
+        # Calculate fees (small percentage of investment for realism)
+        access_fee = goal['cumulativeInvested'] * 0.005  # 0.5% access fee
+        trailer_fee_rebate = goal['cumulativeInvested'] * 0.002  # 0.2% trailer fee rebate
+        
         performance_time_series[goal['goalId']] = {
             'timeSeries': {
                 'data': goal['timeSeriesData']
@@ -241,6 +248,20 @@ def generate_mock_data():
                     'oneMonthValue': goal['simpleRateOfReturnPercent'] * 0.083,
                     'ytdValue': ytd_return,
                     'threeYearValue': goal['simpleRateOfReturnPercent']  # Use same as allTime for demo
+                },
+                'annualisedIrr': {
+                    'allTimeValue': annualised_irr
+                }
+            },
+            'gainOrLossTable': {
+                'netInvestment': {
+                    'allTimeValue': goal['cumulativeInvested']
+                },
+                'accessFeeCharged': {
+                    'allTimeValue': access_fee
+                },
+                'trailerFeeRebates': {
+                    'allTimeValue': trailer_fee_rebate
                 }
             },
             'totalCumulativeReturnPercent': goal['simpleRateOfReturnPercent'] * 100,

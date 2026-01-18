@@ -67,6 +67,17 @@
                     console.log('[Demo] Performance time-series data loaded for', Object.keys(mockData.performanceTimeSeries).length, 'goals');
                 }
                 
+                // Pre-fill target percentages for goals to demonstrate diff calculation
+                if (mockData.investible) {
+                    mockData.investible.forEach(goal => {
+                        if (goal.targetAllocation && goal.goalId) {
+                            const targetKey = `goal_target_pct_${goal.goalId}`;
+                            GM_setValue(targetKey, goal.targetAllocation.toString());
+                        }
+                    });
+                    console.log('[Demo] Target allocations set for all goals');
+                }
+                
                 // Verify data was stored
                 if (!GM_getValue('api_performance') || !GM_getValue('api_investible') || !GM_getValue('api_summary')) {
                     throw new Error('Failed to store mock data');
