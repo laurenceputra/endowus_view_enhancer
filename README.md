@@ -2,6 +2,10 @@
 
 ## Example Screenshots
 
+### Overview Page
+![Goal Portfolio Viewer - Summary View](docs/screenshot-summary.png)
+*Summary view showing House Purchase and Retirement buckets with ending balance, returns, and growth*
+
 ### House Purchase Bucket - Performance Graph
 ![House Purchase - Performance Graph](https://github.com/user-attachments/assets/648ae5a7-717c-45c0-a2f2-3d274309719f)
 *Performance graph showing 1M/6M/YTD/1Y/3Y returns, TWR %, Annualised IRR, and other metrics*
