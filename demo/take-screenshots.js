@@ -9,6 +9,8 @@
  * Requirements:
  *   npm install playwright
  *   npx playwright install chromium
+ * 
+ * @eslint-env node
  */
 
 const fs = require('fs');
@@ -62,7 +64,7 @@ async function takeScreenshots() {
     let playwright;
     try {
         playwright = require('playwright');
-    } catch (error) {
+    } catch (_error) {
         console.error('\n❌ Playwright not installed!');
         console.error('\nTo use automated screenshots, install Playwright:');
         console.error('  npm install playwright');
