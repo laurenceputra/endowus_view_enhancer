@@ -33,6 +33,7 @@ const {
     isCacheFresh,
     isCacheRefreshAllowed,
     formatPercentage,
+    isDemoModeEnabled,
     isDashboardRoute,
     normalizeTimeSeriesData,
     normalizePerformanceResponse,
@@ -613,6 +614,79 @@ describe('isDashboardRoute', () => {
 
     test('should reject non-dashboard paths', () => {
         expect(isDashboardRoute('https://app.sg.endowus.com/overview')).toBe(false);
+    });
+});
+
+describe('isDemoModeEnabled', () => {
+    test('returns false when __GPV_DEMO_MODE__ is undefined', () => {
+        const mockWindow = {};
+        expect(isDemoModeEnabled(mockWindow)).toBe(false);
+    });
+    
+    test('returns false when __GPV_DEMO_MODE__ is false', () => {
+        const mockWindow = { __GPV_DEMO_MODE__: false };
+        expect(isDemoModeEnabled(mockWindow)).toBe(false);
+    });
+    
+    test('returns false when __GPV_DEMO_MODE__ is truthy but not true', () => {
+        const mockWindow = { __GPV_DEMO_MODE__: 1 };
+        expect(isDemoModeEnabled(mockWindow)).toBe(false);
+    });
+    
+    test('returns true in test environment when flag is true', () => {
+        // In test environment, location might not exist, so trust the flag
+        const mockWindow = { __GPV_DEMO_MODE__: true };
+        expect(isDemoModeEnabled(mockWindow)).toBe(true);
+    });
+    
+    test('returns true when flag is true and on localhost', () => {
+        const mockWindow = {
+            __GPV_DEMO_MODE__: true,
+            location: { hostname: 'localhost', pathname: '/test' }
+        };
+        expect(isDemoModeEnabled(mockWindow)).toBe(true);
+    });
+    
+    test('returns true when flag is true and on 127.0.0.1', () => {
+        const mockWindow = {
+            __GPV_DEMO_MODE__: true,
+            location: { hostname: '127.0.0.1', pathname: '/test' }
+        };
+        expect(isDemoModeEnabled(mockWindow)).toBe(true);
+    });
+    
+    test('returns true when flag is true and on demo URL', () => {
+        const mockWindow = {
+            __GPV_DEMO_MODE__: true,
+            location: { hostname: 'example.com', pathname: '/demo/index.html' }
+        };
+        expect(isDemoModeEnabled(mockWindow)).toBe(true);
+    });
+    
+    test('returns true when flag is true and hostname is empty string', () => {
+        // Empty hostname represents file:// protocol URLs
+        const mockWindow = {
+            __GPV_DEMO_MODE__: true,
+            location: { hostname: '', pathname: '/test' }
+        };
+        expect(isDemoModeEnabled(mockWindow)).toBe(true);
+    });
+    
+    test('returns false when flag is true but on production domain', () => {
+        const mockWindow = {
+            __GPV_DEMO_MODE__: true,
+            location: { hostname: 'app.sg.endowus.com', pathname: '/dashboard' }
+        };
+        expect(isDemoModeEnabled(mockWindow)).toBe(false);
+    });
+    
+    test('returns false when window is null', () => {
+        expect(isDemoModeEnabled(null)).toBe(false);
+    });
+    
+    test('returns false when window is not an object', () => {
+        expect(isDemoModeEnabled('not an object')).toBe(false);
+        expect(isDemoModeEnabled(123)).toBe(false);
     });
 });
 
