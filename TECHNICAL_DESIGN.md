@@ -145,7 +145,8 @@ combined, percentage metrics are weighted by each goal’s net investment amount
 
 | Table Label | Primary Response Field(s) | Notes |
 | --- | --- | --- |
-| Total Return % | `totalCumulativeReturnPercent` | Weighted by `netInvestmentAmount` across goals. |
+| Total Return % | `totalCumulativeReturnPercent` | Weighted by `netInvestmentAmount` across goals, with UI helper text explaining the weighting. |
+| Simple Return % | `simpleRateOfReturnPercent` → `simpleReturnPercent` | Weighted by `netInvestmentAmount` across goals for a companion view. |
 | TWR % | `timeWeightedReturnPercent` → `twrPercent` | Weighted by `gainOrLossTable.netInvestment.allTimeValue.amount` across goals. |
 | Annualised IRR | `returnsTable.annualisedIrr.allTimeValue` | Weighted by `gainOrLossTable.netInvestment.allTimeValue.amount` across goals. |
 | Gain / Loss | `totalCumulativeReturnAmount` | Summed across goals. |

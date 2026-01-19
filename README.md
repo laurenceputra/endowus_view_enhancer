@@ -8,7 +8,7 @@
 
 ### House Purchase Bucket - Performance Graph
 ![House Purchase - Performance Graph](docs/house-purchase-performance.png)
-*Performance graph showing corrected Total Return % (2.84%), window returns (1M/6M/YTD/1Y/3Y), TWR %, Annualised IRR, Net Fees, Net Investment, and complete metrics*
+*Performance graph showing Total Return % (weighted) with Simple Return %, window returns (1M/6M/YTD/1Y/3Y), TWR %, Annualised IRR, Net Fees, Net Investment, and complete metrics*
 
 ### House Purchase Bucket - Goals Table
 ![House Purchase - Goals Table](docs/house-purchase-goals.png)
@@ -16,7 +16,7 @@
 
 ### Retirement Bucket - Performance Graph
 ![Retirement - Performance Graph](docs/retirement-performance.png)
-*Retirement bucket showing corrected Total Return % (19.23%) matching TWR %, along with 18.27% IRR and complete performance metrics*
+*Retirement bucket showing Total Return % (weighted) with Simple Return %, along with TWR %, IRR, and complete performance metrics*
 
 ### Retirement Bucket - Goals Table
 ![Retirement - Goals Table](docs/retirement-goals.png)
