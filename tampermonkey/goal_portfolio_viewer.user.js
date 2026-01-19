@@ -325,7 +325,7 @@
             return false;
         }
         // Require explicit demo flag AND safe environment (localhost or demo URL)
-        // This prevents accidental or malicious activation in production
+        // This prevents activation in production environments by requiring both the flag AND a localhost/demo URL
         const hasExplicitFlag = windowRef.__GPV_DEMO_MODE__ === true;
         if (!hasExplicitFlag) {
             return false;
@@ -334,9 +334,10 @@
         if (!windowRef.location || !windowRef.location.hostname) {
             return hasExplicitFlag; // Trust flag in test environments
         }
+        // Empty hostname supports file:// protocol for local HTML demo files
         const isLocalhost = windowRef.location.hostname === 'localhost' ||
                           windowRef.location.hostname === '127.0.0.1' ||
-                          windowRef.location.hostname === '';
+                          windowRef.location.hostname === ''; // file:// URLs have empty hostname
         const isDemoURL = windowRef.location.pathname && 
                          windowRef.location.pathname.includes('/demo');
         
@@ -1903,6 +1904,7 @@
         }
         return cloned.json();
     }
+    testExports.fetchPerformanceForGoal = fetchPerformanceForGoal;
 
     async function ensurePerformanceData(goalIds) {
         const results = {};
@@ -1960,6 +1962,7 @@
 
         return results;
     }
+    testExports.ensurePerformanceData = ensurePerformanceData;
 
     function buildGoalTypePerformanceSummary(performanceResponses) {
         // Guard against empty/null input - Staff Engineer requirement
@@ -2004,6 +2007,7 @@
             metrics
         };
     }
+    testExports.buildGoalTypePerformanceSummary = buildGoalTypePerformanceSummary;
 
     function getLatestPerformanceCacheTimestamp(goalIds) {
         if (!Array.isArray(goalIds)) {

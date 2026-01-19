@@ -663,6 +663,15 @@ describe('isDemoModeEnabled', () => {
         expect(isDemoModeEnabled(mockWindow)).toBe(true);
     });
     
+    test('returns true when flag is true and hostname is empty string', () => {
+        // Empty hostname represents file:// protocol URLs
+        const mockWindow = {
+            __GPV_DEMO_MODE__: true,
+            location: { hostname: '', pathname: '/test' }
+        };
+        expect(isDemoModeEnabled(mockWindow)).toBe(true);
+    });
+    
     test('returns false when flag is true but on production domain', () => {
         const mockWindow = {
             __GPV_DEMO_MODE__: true,
