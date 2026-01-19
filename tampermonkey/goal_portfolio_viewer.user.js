@@ -1294,8 +1294,7 @@
                 key: 'totalReturnPercent',
                 label: 'Total Return %',
                 value: formatPercentFromRatio(metrics?.totalReturnPercent, { showSign: true }),
-                info: 'Weighted by net investment over time. Large recent contributions can dilute earlier gains.',
-                note: 'Total Return % is weighted by net investment. Compare with Simple Return % to see how contributions affect performance.'
+                info: 'Weighted by net investment over time. Large recent contributions can dilute earlier gains. Compare with Simple Return % to see how contributions affect performance.'
             },
             {
                 key: 'simpleReturnPercent',
@@ -2457,8 +2456,8 @@
             labelCell.appendChild(labelText);
             if (row.info) {
                 const info = createElement('span', 'gpv-performance-metric-info', '?');
-                info.setAttribute('title', row.info);
                 info.setAttribute('aria-label', row.info);
+                info.setAttribute('data-tooltip', row.info);
                 labelCell.appendChild(info);
             }
             const valueCell = createElement('td', 'gpv-performance-metric-value', row.value);
@@ -2467,13 +2466,6 @@
             tr.appendChild(valueCell);
             tbody.appendChild(tr);
 
-            if (row.note) {
-                const noteRow = createElement('tr', 'gpv-performance-metric-note-row');
-                const noteCell = createElement('td', 'gpv-performance-metric-note', row.note);
-                noteCell.colSpan = 2;
-                noteRow.appendChild(noteCell);
-                tbody.appendChild(noteRow);
-            }
         });
 
         table.appendChild(tbody);
@@ -3987,6 +3979,7 @@
             }
 
             .gpv-performance-metric-info {
+                position: relative;
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
@@ -4002,14 +3995,46 @@
                 cursor: help;
             }
 
-            .gpv-performance-metric-note-row {
-                border-bottom: none;
+            .gpv-performance-metric-info::before,
+            .gpv-performance-metric-info::after {
+                position: absolute;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.12s ease-out;
+                transition-delay: 0.1s;
             }
 
-            .gpv-performance-metric-note {
-                padding: 0 4px 8px;
+            .gpv-performance-metric-info::before {
+                content: '';
+                top: calc(100% + 2px);
+                left: 50%;
+                transform: translateX(-50%);
+                border-width: 6px 6px 0 6px;
+                border-style: solid;
+                border-color: #0f172a transparent transparent transparent;
+            }
+
+            .gpv-performance-metric-info::after {
+                content: attr(data-tooltip);
+                top: calc(100% + 8px);
+                left: 50%;
+                transform: translateX(-50%);
+                max-width: 260px;
+                padding: 6px 8px;
+                border-radius: 6px;
+                background: #0f172a;
+                color: #f8fafc;
                 font-size: 11px;
-                color: #64748b;
+                line-height: 1.4;
+                text-align: left;
+                white-space: normal;
+                box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+                z-index: 2;
+            }
+
+            .gpv-performance-metric-info:hover::before,
+            .gpv-performance-metric-info:hover::after {
+                opacity: 1;
             }
 
             .gpv-performance-metric-value {

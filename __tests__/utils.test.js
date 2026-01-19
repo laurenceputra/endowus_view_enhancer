@@ -1149,7 +1149,7 @@ describe('buildPerformanceMetricsRows', () => {
         expect(rows[0].label).toBe('Total Return %');
         expect(rows[0].value).toBe('+10.00%');
         expect(rows[0].info).toContain('Weighted by net investment');
-        expect(rows[0].note).toContain('Compare with Simple Return %');
+        expect(rows[0].info).toContain('Compare with Simple Return %');
 
         const simpleRow = rows.find(row => row.key === 'simpleReturnPercent');
         expect(simpleRow.label).toBe('Simple Return %');
