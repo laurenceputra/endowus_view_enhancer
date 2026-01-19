@@ -4019,7 +4019,8 @@
                 top: calc(100% + 8px);
                 left: 50%;
                 transform: translateX(-50%);
-                max-width: 260px;
+                max-width: 360px;
+                width: max-content;
                 padding: 6px 8px;
                 border-radius: 6px;
                 background: #0f172a;
