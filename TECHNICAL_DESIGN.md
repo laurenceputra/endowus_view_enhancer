@@ -298,7 +298,7 @@ Performance requests are executed sequentially with a configurable delay to avoi
 - **Cache**: Tampermonkey storage keyed by `gpv_performance_<goalId>`.
 - **TTL**: 7 days; cached responses are reused if still fresh and purged once stale.
 - **Refresh policy**: the UI exposes a “Clear cache & refresh” action once cached data is at least 24 hours old.
-
+- **Demo fallback**: When `isDemoModeEnabled()` returns true (requires both `window.__GPV_DEMO_MODE__ === true` AND localhost/demo URL), the script falls back to stale cached data if a performance fetch fails. In production mode, fetch failures return null to prevent showing stale financial data to users.
 ### Money Formatting
 
 All monetary values are formatted consistently:
