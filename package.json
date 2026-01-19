@@ -44,5 +44,8 @@
     "testMatch": [
       "**/__tests__/**/*.test.js"
     ]
+  },
+  "dependencies": {
+    "playwright": "^1.57.0"
   }
 }

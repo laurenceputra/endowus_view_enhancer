@@ -78,6 +78,32 @@ export default [
     rules: baseRules
   },
   {
+    files: ['demo/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2021,
+      sourceType: 'commonjs',
+      globals: {
+        require: 'readonly',
+        module: 'readonly',
+        exports: 'readonly',
+        console: 'readonly',
+        process: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        Buffer: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        setImmediate: 'readonly',
+        clearImmediate: 'readonly',
+        window: 'readonly',
+        document: 'readonly'
+      }
+    },
+    rules: baseRules
+  },
+  {
     files: ['**/fixtures/**/*.js'],
     languageOptions: {
       ecmaVersion: 2021,
