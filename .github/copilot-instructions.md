@@ -57,13 +57,27 @@ Use this compact workflow for all changes. Keep detailed role guidance in `.gith
 - **Architecture/Risks**: `.github/agents/staff-engineer.md`
 - **QA/Test Depth**: `.github/agents/qa-engineer.md`
 - **Review Gates**: `.github/agents/code-reviewer.md`
+- **Devil's Advocate**: `.github/agents/devils-advocate.md` (blind spots)
 
 ### Agent Interaction Model (Required)
 1. **Product**: Frame the problem, user impact, and acceptance criteria.
-2. **Staff Engineer**: Confirm architecture fit, call out risks/tradeoffs.
-3. **Implementer**: Make focused changes aligned with constraints.
+2. **Staff Engineer**: Confirm architecture fit, call out risks/tradeoffs, and own implementation.
+3. **Devil's Advocate**: Surface blind spots, assumptions, and risk gaps.
 4. **QA**: Define test depth, edge cases, and verification steps.
 5. **Code Reviewer**: Apply review gates before final approval.
+
+### Stage Alignment Gates (Required)
+Only move to the next stage when all required agents are aligned.
+- **Alignment artifact**: 1-3 bullets per stage capturing agreement.
+- **Blocking rule**: Any blocking concern stops progression until resolved.
+- **Loopback rule**: If QA or Code Review fails, return to Stage 3 (Staff Engineer implementation), then re-run QA and Code Review.
+
+#### Stage Gates
+1. **Product Gate**: Product owns scope; Staff Engineer and QA confirm acceptance criteria are testable.
+2. **Staff Engineer Gate**: Risks/tradeoffs documented; Product and QA agree on scope impact.
+3. **Devil's Advocate Gate**: Risks/assumptions addressed or explicitly accepted.
+4. **QA Gate**: Test plan covers change type requirements; Staff Engineer agrees to fix gaps.
+5. **Code Review Gate**: Reviewer approves or blocks; QA must re-verify after any changes.
 
 ### Versioning & Docs
 - If behavior changes, update TECHNICAL_DESIGN.md and any related README references.
