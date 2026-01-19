@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.7.4
+// @version      2.7.5
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -1288,6 +1288,55 @@
         };
     }
 
+    function buildPerformanceMetricsRows(metrics) {
+        const rows = [
+            {
+                key: 'totalReturnPercent',
+                label: 'Total Return %',
+                value: formatPercentFromRatio(metrics?.totalReturnPercent, { showSign: true }),
+                info: 'Weighted by net investment over time. Large recent contributions can dilute earlier gains.',
+                note: 'Total Return % is weighted by net investment. Compare with Simple Return % to see how contributions affect performance.'
+            },
+            {
+                key: 'simpleReturnPercent',
+                label: 'Simple Return %',
+                value: formatPercentFromRatio(metrics?.simpleReturnPercent, { showSign: true })
+            },
+            {
+                key: 'twrPercent',
+                label: 'TWR %',
+                value: formatPercentFromRatio(metrics?.twrPercent, { showSign: true })
+            },
+            {
+                key: 'annualisedIrrPercent',
+                label: 'Annualised IRR',
+                value: formatPercentFromRatio(metrics?.annualisedIrrPercent, { showSign: true })
+            },
+            {
+                key: 'totalReturnAmount',
+                label: 'Gain / Loss',
+                value: formatMoney(metrics?.totalReturnAmount)
+            },
+            {
+                key: 'netFeesAmount',
+                label: 'Net Fees',
+                value: formatMoney(metrics?.netFeesAmount)
+            },
+            {
+                key: 'netInvestmentAmount',
+                label: 'Net Investment',
+                value: formatMoney(metrics?.netInvestmentAmount)
+            },
+            {
+                key: 'endingBalanceAmount',
+                label: 'Ending Balance',
+                value: formatMoney(metrics?.endingBalanceAmount)
+            }
+        ];
+
+        return rows;
+    }
+
     function createSequentialRequestQueue({ delayMs, waitFn }) {
         const delay = Number(delayMs) || 0;
         const wait = waitFn || (ms => new Promise(resolve => setTimeout(resolve, ms)));
@@ -2399,24 +2448,32 @@
     function buildPerformanceMetricsTable(metrics) {
         const table = createElement('table', 'gpv-performance-metrics-table');
         const tbody = createElement('tbody');
-        const rows = [
-            { label: 'Total Return %', value: formatPercentFromRatio(metrics?.totalReturnPercent, { showSign: true }) },
-            { label: 'TWR %', value: formatPercentFromRatio(metrics?.twrPercent, { showSign: true }) },
-            { label: 'Annualised IRR', value: formatPercentFromRatio(metrics?.annualisedIrrPercent, { showSign: true }) },
-            { label: 'Gain / Loss', value: formatMoney(metrics?.totalReturnAmount) },
-            { label: 'Net Fees', value: formatMoney(metrics?.netFeesAmount) },
-            { label: 'Net Investment', value: formatMoney(metrics?.netInvestmentAmount) },
-            { label: 'Ending Balance', value: formatMoney(metrics?.endingBalanceAmount) }
-        ];
+        const rows = buildPerformanceMetricsRows(metrics);
 
         rows.forEach(row => {
             const tr = createElement('tr');
-            const labelCell = createElement('td', 'gpv-performance-metric-label', row.label);
+            const labelCell = createElement('td', 'gpv-performance-metric-label');
+            const labelText = createElement('span', 'gpv-performance-metric-label-text', row.label);
+            labelCell.appendChild(labelText);
+            if (row.info) {
+                const info = createElement('span', 'gpv-performance-metric-info', '?');
+                info.setAttribute('title', row.info);
+                info.setAttribute('aria-label', row.info);
+                labelCell.appendChild(info);
+            }
             const valueCell = createElement('td', 'gpv-performance-metric-value', row.value);
 
             tr.appendChild(labelCell);
             tr.appendChild(valueCell);
             tbody.appendChild(tr);
+
+            if (row.note) {
+                const noteRow = createElement('tr', 'gpv-performance-metric-note-row');
+                const noteCell = createElement('td', 'gpv-performance-metric-note', row.note);
+                noteCell.colSpan = 2;
+                noteRow.appendChild(noteCell);
+                tbody.appendChild(noteRow);
+            }
         });
 
         table.appendChild(tbody);
@@ -3915,10 +3972,44 @@
             }
 
             .gpv-performance-metric-label {
+                display: flex;
+                align-items: center;
+                gap: 6px;
                 text-align: left;
                 color: #475569;
                 font-weight: 600;
                 padding: 6px 4px;
+            }
+
+            .gpv-performance-metric-label-text {
+                display: inline-flex;
+                align-items: center;
+            }
+
+            .gpv-performance-metric-info {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 16px;
+                height: 16px;
+                border-radius: 999px;
+                border: 1px solid #cbd5f5;
+                background: #eef2ff;
+                color: #4c51bf;
+                font-size: 10px;
+                font-weight: 700;
+                line-height: 1;
+                cursor: help;
+            }
+
+            .gpv-performance-metric-note-row {
+                border-bottom: none;
+            }
+
+            .gpv-performance-metric-note {
+                padding: 0 4px 8px;
+                font-size: 11px;
+                color: #64748b;
             }
 
             .gpv-performance-metric-value {
@@ -4369,6 +4460,7 @@
             calculateWeightedAverage,
             calculateWeightedWindowReturns,
             summarizePerformanceMetrics,
+            buildPerformanceMetricsRows,
             derivePerformanceWindows,
             createSequentialRequestQueue
         };

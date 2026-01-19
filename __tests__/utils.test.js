@@ -48,6 +48,7 @@ const {
     extractAmount,
     calculateWeightedAverage,
     calculateWeightedWindowReturns,
+    buildPerformanceMetricsRows,
     summarizePerformanceMetrics,
     derivePerformanceWindows,
     parseJsonSafely
@@ -1128,6 +1129,31 @@ describe('summarizePerformanceMetrics', () => {
             { date: '2024-06-01', amount: 123 }
         ]);
         expect(metrics.endingBalanceAmount).toBe(123);
+    });
+});
+
+describe('buildPerformanceMetricsRows', () => {
+    test('should include total return context and simple return row', () => {
+        const rows = buildPerformanceMetricsRows({
+            totalReturnPercent: 0.1,
+            simpleReturnPercent: 0.2,
+            twrPercent: 0.05,
+            annualisedIrrPercent: 0.07,
+            totalReturnAmount: 100,
+            netFeesAmount: 2,
+            netInvestmentAmount: 1000,
+            endingBalanceAmount: 1100
+        });
+
+        expect(rows).toHaveLength(8);
+        expect(rows[0].label).toBe('Total Return %');
+        expect(rows[0].value).toBe('+10.00%');
+        expect(rows[0].info).toContain('Weighted by net investment');
+        expect(rows[0].note).toContain('Compare with Simple Return %');
+
+        const simpleRow = rows.find(row => row.key === 'simpleReturnPercent');
+        expect(simpleRow.label).toBe('Simple Return %');
+        expect(simpleRow.value).toBe('+20.00%');
     });
 });
 

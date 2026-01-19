@@ -23,7 +23,7 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 - **Real-time Data Interception**: Automatically captures portfolio data using monkey patching techniques
 - **Comprehensive Analytics**: View ending balances, cumulative returns, and growth percentages
 - **Multi-level Views**: Toggle between summary view and detailed bucket views
-- **Performance Insights**: Per goal-type charts with responsive sizing (including dynamic height), recent return windows, and key metrics
+- **Performance Insights**: Per goal-type charts with responsive sizing (including dynamic height), recent return windows, and key metrics (including Total Return % with weighting context and Simple Return %)
 
 ### 🎨 Modern UX Design
 - **Beautiful Gradient UI**: Modern purple gradient theme with smooth animations
