@@ -79,3 +79,70 @@ jobs:
             issue_number: context.issue.number,
             body
           });
+
+  e2e:
+    name: E2E Demo
+    runs-on: ubuntu-latest
+    needs: lint
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright browsers
+      run: npx playwright install --with-deps
+
+    - name: Run E2E demo tests
+      id: e2e
+      env:
+        E2E_SCREENSHOT_DIR: demo/screenshots
+        E2E_SUMMARY_PATH: demo/screenshots/e2e-summary.json
+      run: npm run test:e2e
+
+    - name: Upload E2E screenshots
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: e2e-screenshots
+        path: demo/screenshots
+        if-no-files-found: warn
+
+    - name: Post E2E summary comment
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      env:
+        E2E_OUTCOME: ${{ steps.e2e.outcome }}
+      with:
+        script: |
+          const fs = require('fs');
+          const path = 'demo/screenshots/e2e-summary.json';
+          let summary = null;
+          if (fs.existsSync(path)) {
+            summary = JSON.parse(fs.readFileSync(path, 'utf8'));
+          }
+          const flows = summary?.flowsTested ?? [];
+          const screenshots = summary?.screenshots ?? [];
+          const status = process.env.E2E_OUTCOME || summary?.status || 'unknown';
+          const lines = [
+            '### 🧪 E2E Demo Result',
+            '',
+            `- Status: **${status}**`,
+            `- Flows tested: **${flows.length}**${flows.length ? ` (${flows.join(', ')})` : ''}`,
+            `- Screenshots: ${screenshots.length ? screenshots.map(name => `\`${name}\``).join(', ') : 'None'}`,
+            '',
+            '_Screenshots are attached as the **e2e-screenshots** artifact._'
+          ].join('\\n');
+          await github.rest.issues.createComment({
+            ...context.repo,
+            issue_number: context.issue.number,
+            body: lines
+          });

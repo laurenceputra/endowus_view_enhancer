@@ -28,6 +28,14 @@ async function runE2ETests() {
     const outputDir = process.env.E2E_SCREENSHOT_DIR
         ? path.resolve(process.env.E2E_SCREENSHOT_DIR)
         : path.join(__dirname, 'screenshots');
+    const summaryPath = process.env.E2E_SUMMARY_PATH
+        ? path.resolve(process.env.E2E_SUMMARY_PATH)
+        : path.join(outputDir, 'e2e-summary.json');
+    const summary = {
+        status: 'passed',
+        flowsTested: [],
+        screenshots: []
+    };
 
     if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
@@ -57,6 +65,8 @@ async function runE2ETests() {
             path: path.join(outputDir, 'e2e-summary.png'),
             fullPage: false
         });
+        summary.flowsTested.push('summary');
+        summary.screenshots.push('e2e-summary.png');
 
         const options = await page.$$eval('select.gpv-select option', opts =>
             opts.map(opt => opt.textContent)
@@ -80,6 +90,8 @@ async function runE2ETests() {
             path: path.join(outputDir, 'e2e-house-purchase.png'),
             fullPage: false
         });
+        summary.flowsTested.push('house-purchase');
+        summary.screenshots.push('e2e-house-purchase.png');
 
         await page.selectOption('select.gpv-select', 'Retirement');
         await page.waitForFunction(
@@ -94,7 +106,14 @@ async function runE2ETests() {
             path: path.join(outputDir, 'e2e-retirement.png'),
             fullPage: false
         });
+        summary.flowsTested.push('retirement');
+        summary.screenshots.push('e2e-retirement.png');
+    } catch (error) {
+        summary.status = 'failed';
+        summary.error = error instanceof Error ? error.message : String(error);
+        throw error;
     } finally {
+        fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
         await browser.close();
         server.close();
     }
