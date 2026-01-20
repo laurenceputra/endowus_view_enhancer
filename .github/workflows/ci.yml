@@ -145,7 +145,7 @@ jobs:
             `- Screenshots: ${screenshots.length ? screenshots.map(name => `\`${name}\``).join(', ') : 'None'}`,
             '',
             screenshotArtifact
-              ? `- Screenshots artifact: [${screenshotArtifact.name}](${screenshotArtifact.html_url})`
+              ? `- Screenshots artifact: ${screenshotArtifact.url}`
               : '_Screenshots are attached as the **e2e-screenshots** artifact._',
             `- Workflow run: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
           ].filter(Boolean).join('\n');
