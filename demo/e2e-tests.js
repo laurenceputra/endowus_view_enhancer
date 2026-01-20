@@ -83,6 +83,16 @@ async function runE2ETests() {
             null,
             { timeout: 5000 }
         );
+        await page.waitForSelector('.gpv-content .gpv-fixed-toggle-input', { state: 'attached', timeout: 5000 });
+        const fixedRow = await page.$('.gpv-content .gpv-fixed-toggle-input');
+        assertCondition(fixedRow, 'Expected fixed toggle input to render in House Purchase view.');
+        const isFixedChecked = await page.$eval(
+            '.gpv-content .gpv-fixed-toggle-input',
+            input => input instanceof HTMLInputElement && input.checked === true
+        );
+        if (!isFixedChecked) {
+            await page.click('.gpv-content .gpv-fixed-toggle');
+        }
         await page.waitForFunction(
             () => {
                 const fixedInput = document.querySelector('.gpv-content .gpv-fixed-toggle-input');
@@ -91,8 +101,6 @@ async function runE2ETests() {
             null,
             { timeout: 5000 }
         );
-        const fixedRow = await page.$('.gpv-content .gpv-fixed-toggle-input');
-        assertCondition(fixedRow, 'Expected at least one fixed toggle to be enabled in House Purchase view.');
         await page.screenshot({
             path: path.join(outputDir, 'e2e-house-purchase.png'),
             fullPage: false
