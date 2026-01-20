@@ -1,13 +1,14 @@
 {
   "name": "goal-portfolio-viewer",
-  "version": "2.7.5",
+  "version": "2.7.6",
   "description": "View and organize your investment portfolio by buckets with a modern interface",
   "main": "tampermonkey/goal_portfolio_viewer.user.js",
   "scripts": {
     "lint": "eslint tampermonkey __tests__",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:e2e": "node demo/e2e-tests.js"
   },
   "repository": {
     "type": "git",

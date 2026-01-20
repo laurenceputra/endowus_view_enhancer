@@ -1,6 +1,6 @@
 # Demo Environment
 
-This directory contains tools and files for demonstrating the Goal Portfolio Viewer with mock data.
+This directory contains tools and files for demonstrating the Goal Portfolio Viewer with mock data, including an E2E-ready mock server that emulates Endowus API endpoints.
 
 ## Contents
 
@@ -22,6 +22,12 @@ This directory contains tools and files for demonstrating the Goal Portfolio Vie
 - **`mock-data.js`** - JavaScript version of the mock data generator (legacy)
 - **`BUCKET_CONFIGURATION.md`** - Documentation of bucket structure, targets, and calculated values
 
+### Mock Server (E2E)
+- **`mock-server.js`** - Node.js server that:
+  - Serves demo pages (including `/dashboard/` for production URL parity)
+  - Emulates Endowus API endpoints for fetch/XHR interception
+  - Serves the production userscript from `tampermonkey/goal_portfolio_viewer.user.js`
+
 ### Screenshot Tools
 - **`take-screenshots.py`** - Python script for manual screenshot instructions
 - **`take-screenshots.js`** - Node.js script for automated Playwright screenshots
@@ -29,11 +35,15 @@ This directory contains tools and files for demonstrating the Goal Portfolio Vie
 - **`prepare-demo.sh`** - Prepares demo userscript files for local testing
 
 ### Demo Pages
+- **`dashboard/index.html`** - E2E-ready demo page (served at `/dashboard/`)
+  - Matches production `/dashboard` route so `shouldShowButton()` works unmodified
+  - Mocks Tampermonkey APIs (GM_setValue, GM_getValue, etc.)
+  - Triggers fetches to mock Endowus endpoints for interception testing
+  - Sets `window.__GPV_E2E_READY__` when the button is available
 - **`demo-clean.html`** - Minimal demo page that works with the modified userscript
-  - Sets `__GPV_DEMO_MODE__` flag to enable button in non-Endowus URLs
-  - Mocks Tampermonkey API (GM_setValue, GM_getValue, etc.)
-  - Loads mock data from JSON file including performanceTimeSeries
-  - Loads modified userscript with demo mode enabled
+  - Sets `__GPV_DEMO_MODE__` flag for development scenarios
+  - Loads mock data directly into storage
+  - Useful for quick manual checks without API interception
 
 - **`index.html`** - Full-featured demo page with info panel
 - **`demo.html`** - Alternative demo page (kept for reference)
@@ -52,20 +62,38 @@ python3 generate-mock-data.py
 
 This creates `mock-data.json` with randomized investment amounts and returns.
 
-### Run Demo Locally
+### Run Demo Locally (E2E-Ready)
 
-1. Start a local web server:
+1. Start the demo mock server:
    ```bash
-   cd demo
-   python3 -m http.server 8080
+   node demo/mock-server.js
    ```
 
 2. Open in browser:
    ```
-   http://localhost:8080/demo-clean.html
+   http://localhost:8765/dashboard/
    ```
 
 3. Click the "📊 Portfolio Viewer" button that appears in the bottom-right
+
+### Run E2E Smoke Tests
+
+The E2E smoke test uses Playwright to validate the demo flow and capture screenshots.
+
+```bash
+npm run test:e2e
+```
+
+Screenshots are saved to `demo/screenshots/` by default (override with `E2E_SCREENSHOT_DIR`):
+- `e2e-summary.png`
+- `e2e-house-purchase.png`
+- `e2e-retirement.png`
+
+If Playwright is missing system dependencies on Linux, run:
+
+```bash
+npx playwright install --with-deps
+```
 
 ### Take Screenshots
 
@@ -87,7 +115,7 @@ This will automatically:
 - Capture summary view
 - Navigate to each bucket detail view
 - Scroll to capture both the performance graph AND goals table
-- Save all screenshots to the `assets/` directory
+- Save all screenshots to `demo/screenshots/` by default (override with `SCREENSHOT_DIR`)
 
 #### Manual
 
@@ -147,7 +175,7 @@ The demo requires a modified userscript that checks for `window.__GPV_DEMO_MODE_
 ```javascript
 function shouldShowButton() {
     return window.location.href === 'https://app.sg.endowus.com/dashboard' || 
-           window.__GPV_DEMO_MODE__ === true;
+        window.__GPV_DEMO_MODE__ === true;
 }
 ```
 
@@ -172,3 +200,14 @@ window.GM_deleteValue = function(key) {
 ```
 
 This allows the userscript to run without actual Tampermonkey installed.
+
+### E2E Readiness Signal
+
+The `/dashboard/` demo page sets:
+
+```javascript
+window.__GPV_E2E_READY__ = true;
+window.dispatchEvent(new Event('gpv:e2e-ready'));
+```
+
+This allows Playwright to wait for initialization without arbitrary sleeps.
