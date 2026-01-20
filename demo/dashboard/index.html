@@ -135,11 +135,11 @@
             ]);
             const payloads = await Promise.all(responses.map(response => response.json()));
             const investible = payloads[1];
-            const firstGoalId = Array.isArray(investible)
-                ? investible.find(goal => goal && goal.goalId)?.goalId
+            const fixedGoalId = Array.isArray(investible)
+                ? investible.find(goal => goal && goal.goalName && goal.goalName.startsWith('House Purchase'))?.goalId
                 : null;
-            if (firstGoalId) {
-                GM_setValue(`goal_fixed_${firstGoalId}`, true);
+            if (fixedGoalId) {
+                GM_setValue(`goal_fixed_${fixedGoalId}`, true);
             }
             return payloads;
         }

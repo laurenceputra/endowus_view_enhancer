@@ -73,8 +73,9 @@ async function runE2ETests() {
             null,
             { timeout: 5000 }
         );
-        const fixedRow = await page.$('.gpv-fixed-toggle-input:checked');
-        assertCondition(fixedRow, 'Expected at least one fixed toggle to be enabled.');
+        await page.waitForSelector('.gpv-content .gpv-fixed-toggle-input:checked', { timeout: 5000 });
+        const fixedRow = await page.$('.gpv-content .gpv-fixed-toggle-input:checked');
+        assertCondition(fixedRow, 'Expected at least one fixed toggle to be enabled in House Purchase view.');
         await page.screenshot({
             path: path.join(outputDir, 'e2e-house-purchase.png'),
             fullPage: false
