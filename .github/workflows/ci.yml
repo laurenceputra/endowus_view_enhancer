@@ -139,23 +139,17 @@ jobs:
             }
             const data = fs.readFileSync(filePath);
             try {
-              const uploadUrl = `https://uploads.github.com/repos/${context.repo.owner}/${context.repo.repo}/issues/${context.issue.number}/comments?name=${encodeURIComponent(name)}`;
-              const response = await github.request({
-                method: 'POST',
-                url: uploadUrl,
-                headers: {
-                  'content-type': 'image/png',
-                  'content-length': data.length
-                },
+              const response = await github.rest.issues.uploadCommentAttachment({
+                ...context.repo,
+                issue_number: context.issue.number,
+                name,
                 data
               });
               if (response?.data?.markdown) {
                 attachments.push(response.data.markdown);
-              } else if (response?.data?.html_url) {
-                attachments.push(`![${name}](${response.data.html_url})`);
               }
             } catch (error) {
-              attachments.push(`- ${name} (upload failed)`);
+              attachments.push(`- ${name} (upload failed: ${error.message})`);
             }
           }
           const status = process.env.E2E_OUTCOME || summary?.status || 'unknown';
@@ -168,7 +162,7 @@ jobs:
             '',
             attachments.length ? '#### 📷 Screenshots' : '_Screenshots are attached as the **e2e-screenshots** artifact._',
             attachments.join('\n')
-          ].join('\\n');
+          ].filter(Boolean).join('\n');
           await github.rest.issues.createComment({
             ...context.repo,
             issue_number: context.issue.number,
