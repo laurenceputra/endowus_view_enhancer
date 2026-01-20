@@ -131,6 +131,33 @@ jobs:
           }
           const flows = summary?.flowsTested ?? [];
           const screenshots = summary?.screenshots ?? [];
+          const attachments = [];
+          for (const name of screenshots) {
+            const filePath = `demo/screenshots/${name}`;
+            if (!fs.existsSync(filePath)) {
+              continue;
+            }
+            const data = fs.readFileSync(filePath);
+            try {
+              const uploadUrl = `https://uploads.github.com/repos/${context.repo.owner}/${context.repo.repo}/issues/${context.issue.number}/comments?name=${encodeURIComponent(name)}`;
+              const response = await github.request({
+                method: 'POST',
+                url: uploadUrl,
+                headers: {
+                  'content-type': 'image/png',
+                  'content-length': data.length
+                },
+                data
+              });
+              if (response?.data?.markdown) {
+                attachments.push(response.data.markdown);
+              } else if (response?.data?.html_url) {
+                attachments.push(`![${name}](${response.data.html_url})`);
+              }
+            } catch (error) {
+              attachments.push(`- ${name} (upload failed)`);
+            }
+          }
           const status = process.env.E2E_OUTCOME || summary?.status || 'unknown';
           const lines = [
             '### 🧪 E2E Demo Result',
@@ -139,7 +166,8 @@ jobs:
             `- Flows tested: **${flows.length}**${flows.length ? ` (${flows.join(', ')})` : ''}`,
             `- Screenshots: ${screenshots.length ? screenshots.map(name => `\`${name}\``).join(', ') : 'None'}`,
             '',
-            '_Screenshots are attached as the **e2e-screenshots** artifact._'
+            attachments.length ? '#### 📷 Screenshots' : '_Screenshots are attached as the **e2e-screenshots** artifact._',
+            attachments.join('\n')
           ].join('\\n');
           await github.rest.issues.createComment({
             ...context.repo,
