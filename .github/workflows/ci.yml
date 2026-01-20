@@ -131,27 +131,11 @@ jobs:
           }
           const flows = summary?.flowsTested ?? [];
           const screenshots = summary?.screenshots ?? [];
-          const attachments = [];
-          for (const name of screenshots) {
-            const filePath = `demo/screenshots/${name}`;
-            if (!fs.existsSync(filePath)) {
-              continue;
-            }
-            const data = fs.readFileSync(filePath);
-            try {
-              const response = await github.rest.issues.uploadCommentAttachment({
-                ...context.repo,
-                issue_number: context.issue.number,
-                name,
-                data
-              });
-              if (response?.data?.markdown) {
-                attachments.push(response.data.markdown);
-              }
-            } catch (error) {
-              attachments.push(`- ${name} (upload failed: ${error.message})`);
-            }
-          }
+          const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+            ...context.repo,
+            run_id: context.runId
+          });
+          const screenshotArtifact = artifacts.data.artifacts.find(artifact => artifact.name === 'e2e-screenshots');
           const status = process.env.E2E_OUTCOME || summary?.status || 'unknown';
           const lines = [
             '### 🧪 E2E Demo Result',
@@ -160,8 +144,10 @@ jobs:
             `- Flows tested: **${flows.length}**${flows.length ? ` (${flows.join(', ')})` : ''}`,
             `- Screenshots: ${screenshots.length ? screenshots.map(name => `\`${name}\``).join(', ') : 'None'}`,
             '',
-            attachments.length ? '#### 📷 Screenshots' : '_Screenshots are attached as the **e2e-screenshots** artifact._',
-            attachments.join('\n')
+            screenshotArtifact
+              ? `- Screenshots artifact: [${screenshotArtifact.name}](${screenshotArtifact.archive_download_url})`
+              : '_Screenshots are attached as the **e2e-screenshots** artifact._',
+            `- Workflow run: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
           ].filter(Boolean).join('\n');
           await github.rest.issues.createComment({
             ...context.repo,
