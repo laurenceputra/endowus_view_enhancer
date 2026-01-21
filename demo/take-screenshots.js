@@ -15,49 +15,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const http = require('http');
-
-// Simple HTTP server for serving demo files
-function startServer(directory, port) {
-    return new Promise((resolve, reject) => {
-        const server = http.createServer((req, res) => {
-            let filePath = path.join(directory, req.url === '/' ? 'demo-clean.html' : req.url);
-            
-            // Security: prevent directory traversal
-            if (!filePath.startsWith(directory)) {
-                res.writeHead(403);
-                res.end('Forbidden');
-                return;
-            }
-            
-            fs.readFile(filePath, (err, data) => {
-                if (err) {
-                    res.writeHead(404);
-                    res.end('Not found');
-                    return;
-                }
-                
-                // Set content type
-                const ext = path.extname(filePath);
-                const contentType = {
-                    '.html': 'text/html',
-                    '.js': 'text/javascript',
-                    '.json': 'application/json',
-                    '.png': 'image/png'
-                }[ext] || 'text/plain';
-                
-                res.writeHead(200, { 'Content-Type': contentType });
-                res.end(data);
-            });
-        });
-        
-        server.listen(port, () => {
-            resolve(server);
-        });
-        
-        server.on('error', reject);
-    });
-}
+const { startDemoServer } = require('./mock-server');
 
 async function takeScreenshots() {
     // Check if playwright is available
@@ -74,24 +32,26 @@ async function takeScreenshots() {
     }
 
     const demoDir = __dirname;
-    const docsDir = path.join(path.dirname(demoDir), 'docs');
+    const outputDir = process.env.SCREENSHOT_DIR
+        ? path.resolve(process.env.SCREENSHOT_DIR)
+        : path.join(demoDir, 'screenshots');
     const port = 8765;
-    const demoUrl = `http://localhost:${port}/demo-clean.html`;
+    const demoUrl = `http://localhost:${port}/dashboard/`;
 
     // Ensure docs directory exists
-    if (!fs.existsSync(docsDir)) {
-        fs.mkdirSync(docsDir, { recursive: true });
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
     }
 
     console.log('\n' + '='.repeat(70));
     console.log('GOAL PORTFOLIO VIEWER - AUTOMATED SCREENSHOT CAPTURE');
     console.log('='.repeat(70));
     console.log(`\nDemo URL: ${demoUrl}`);
-    console.log(`Docs directory: ${docsDir}\n`);
+    console.log(`Screenshot directory: ${outputDir}\n`);
 
     // Start HTTP server
-    console.log(`🌐 Starting local server on port ${port}...`);
-    const server = await startServer(demoDir, port);
+    console.log(`🌐 Starting demo server on port ${port}...`);
+    const server = await startDemoServer({ demoDir, port });
     console.log('   ✓ Server started');
 
     // Launch browser
@@ -118,8 +78,8 @@ async function takeScreenshots() {
         console.log('📂 Loading demo page...');
         await page.goto(demoUrl, { waitUntil: 'networkidle' });
         
-        // Wait a bit for scripts to initialize
-        await page.waitForTimeout(2000);
+        // Wait for the demo to signal readiness
+        await page.waitForFunction(() => window.__GPV_E2E_READY__ === true, null, { timeout: 20000 });
         
         // Check if button exists
         const buttonExists = await page.$('.gpv-trigger-btn');
@@ -133,7 +93,7 @@ async function takeScreenshots() {
             
             // Take debug screenshot
             await page.screenshot({
-                path: path.join(docsDir, 'debug-screenshot.png'),
+                path: path.join(outputDir, 'debug-screenshot.png'),
                 fullPage: true
             });
             console.log('   ✓ Saved debug screenshot: debug-screenshot.png');
@@ -160,7 +120,7 @@ async function takeScreenshots() {
         // Screenshot 1: Summary view
         console.log('📸 Capturing summary view...');
         await page.screenshot({
-            path: path.join(docsDir, 'screenshot-summary.png'),
+            path: path.join(outputDir, 'screenshot-summary.png'),
             fullPage: false
         });
         console.log('   ✓ Saved: screenshot-summary.png');
@@ -180,7 +140,7 @@ async function takeScreenshots() {
         
         // Take screenshot of top section (performance graph)
         await page.screenshot({
-            path: path.join(docsDir, 'house-purchase-performance.png'),
+            path: path.join(outputDir, 'house-purchase-performance.png'),
             fullPage: false
         });
         console.log('   ✓ Saved: house-purchase-performance.png');
@@ -196,7 +156,7 @@ async function takeScreenshots() {
         
         // Take screenshot of scrolled view showing goals table
         await page.screenshot({
-            path: path.join(docsDir, 'house-purchase-goals.png'),
+            path: path.join(outputDir, 'house-purchase-goals.png'),
             fullPage: false
         });
         console.log('   ✓ Saved: house-purchase-goals.png');
@@ -219,7 +179,7 @@ async function takeScreenshots() {
         
         // Take screenshot of top section (performance graph)
         await page.screenshot({
-            path: path.join(docsDir, 'retirement-performance.png'),
+            path: path.join(outputDir, 'retirement-performance.png'),
             fullPage: false
         });
         console.log('   ✓ Saved: retirement-performance.png');
@@ -235,13 +195,13 @@ async function takeScreenshots() {
         
         // Take screenshot of scrolled view
         await page.screenshot({
-            path: path.join(docsDir, 'retirement-goals.png'),
+            path: path.join(outputDir, 'retirement-goals.png'),
             fullPage: false
         });
         console.log('   ✓ Saved: retirement-goals.png');
         
         console.log('\n✅ All screenshots captured successfully!');
-        console.log(`\n📁 Screenshots saved to: ${docsDir}\n`);
+        console.log(`\n📁 Screenshots saved to: ${outputDir}\n`);
         
     } catch (error) {
         console.error('\n❌ Error capturing screenshots:', error.message);

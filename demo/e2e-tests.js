@@ -1,0 +1,150 @@
+/**
+ * E2E smoke tests for the demo dashboard.
+ *
+ * Usage: node demo/e2e-tests.js
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { startDemoServer } = require('./mock-server');
+
+function assertCondition(condition, message) {
+    if (!condition) {
+        throw new Error(message);
+    }
+}
+
+async function runE2ETests() {
+    let playwright;
+    try {
+        playwright = require('playwright');
+    } catch (error) {
+        console.error('Playwright is required for E2E tests.');
+        throw error;
+    }
+
+    const port = 8765;
+    const demoUrl = `http://localhost:${port}/dashboard/`;
+    const outputDir = process.env.E2E_SCREENSHOT_DIR
+        ? path.resolve(process.env.E2E_SCREENSHOT_DIR)
+        : path.join(__dirname, 'screenshots');
+    const summaryPath = process.env.E2E_SUMMARY_PATH
+        ? path.resolve(process.env.E2E_SUMMARY_PATH)
+        : path.join(outputDir, 'e2e-summary.json');
+    const summary = {
+        status: 'passed',
+        flowsTested: [],
+        screenshots: []
+    };
+
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    const server = await startDemoServer({ port });
+    const browser = await playwright.chromium.launch({ headless: true });
+    const context = await browser.newContext({
+        viewport: { width: 1280, height: 800 }
+    });
+    const page = await context.newPage();
+
+    try {
+        await page.goto(demoUrl, { waitUntil: 'networkidle' });
+        await page.waitForFunction(() => window.__GPV_E2E_READY__ === true, null, { timeout: 20000 });
+
+        const trigger = await page.$('.gpv-trigger-btn');
+        assertCondition(trigger, 'Expected Portfolio Viewer trigger button to exist.');
+
+        await page.click('.gpv-trigger-btn');
+        await page.waitForSelector('.gpv-overlay', { timeout: 5000 });
+
+        const summaryHeader = await page.$('.gpv-header');
+        assertCondition(summaryHeader, 'Expected summary header to render.');
+
+        await page.screenshot({
+            path: path.join(outputDir, 'e2e-summary.png'),
+            fullPage: false
+        });
+        summary.flowsTested.push('summary');
+        summary.screenshots.push('e2e-summary.png');
+
+        const options = await page.$$eval('select.gpv-select option', opts =>
+            opts.map(opt => opt.textContent)
+        );
+        assertCondition(options.some(text => text.includes('House Purchase')), 'Expected House Purchase option.');
+        assertCondition(options.some(text => text.includes('Retirement')), 'Expected Retirement option.');
+
+        await page.selectOption('select.gpv-select', 'House Purchase');
+        await page.waitForFunction(
+            () => {
+                const title = document.querySelector('.gpv-detail-title');
+                return title && title.textContent && title.textContent.includes('House Purchase');
+            },
+            null,
+            { timeout: 5000 }
+        );
+        await page.waitForSelector('.gpv-content .gpv-fixed-toggle-input', { state: 'attached', timeout: 5000 });
+        const fixedRow = await page.$('.gpv-content .gpv-fixed-toggle-input');
+        assertCondition(fixedRow, 'Expected fixed toggle input to render in House Purchase view.');
+        const isFixedChecked = await page.$eval(
+            '.gpv-content .gpv-fixed-toggle-input',
+            input => input instanceof HTMLInputElement && input.checked === true
+        );
+        if (!isFixedChecked) {
+            await page.click('.gpv-content .gpv-fixed-toggle');
+        }
+        await page.waitForFunction(
+            () => {
+                const fixedInput = document.querySelector('.gpv-content .gpv-fixed-toggle-input');
+                return fixedInput instanceof HTMLInputElement && fixedInput.checked === true;
+            },
+            null,
+            { timeout: 5000 }
+        );
+        await page.screenshot({
+            path: path.join(outputDir, 'e2e-house-purchase.png'),
+            fullPage: false
+        });
+        summary.flowsTested.push('house-purchase');
+        summary.screenshots.push('e2e-house-purchase.png');
+
+        await page.selectOption('select.gpv-select', 'Retirement');
+        await page.waitForFunction(
+            () => {
+                const title = document.querySelector('.gpv-detail-title');
+                return title && title.textContent && title.textContent.includes('Retirement');
+            },
+            null,
+            { timeout: 5000 }
+        );
+        await page.screenshot({
+            path: path.join(outputDir, 'e2e-retirement.png'),
+            fullPage: false
+        });
+        summary.flowsTested.push('retirement');
+        summary.screenshots.push('e2e-retirement.png');
+    } catch (error) {
+        summary.status = 'failed';
+        summary.error = error instanceof Error ? error.message : String(error);
+        throw error;
+    } finally {
+        fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
+        await browser.close();
+        server.close();
+    }
+}
+
+if (require.main === module) {
+    runE2ETests()
+        .then(() => {
+            console.log('E2E demo tests completed successfully.');
+        })
+        .catch(error => {
+            console.error('E2E demo tests failed:', error);
+            process.exit(1);
+        });
+}
+
+module.exports = {
+    runE2ETests
+};

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.7.5
+// @version      2.7.6
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore).
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -318,30 +318,6 @@
             diffAmount,
             diffClass
         };
-    }
-
-    function isDemoModeEnabled(windowRef = typeof window !== 'undefined' ? window : null) {
-        if (!windowRef || typeof windowRef !== 'object') {
-            return false;
-        }
-        // Require explicit demo flag AND safe environment (localhost or demo URL)
-        // This prevents activation in production environments by requiring both the flag AND a localhost/demo URL
-        const hasExplicitFlag = windowRef.__GPV_DEMO_MODE__ === true;
-        if (!hasExplicitFlag) {
-            return false;
-        }
-        // In tests, window.location might not exist
-        if (!windowRef.location || !windowRef.location.hostname) {
-            return hasExplicitFlag; // Trust flag in test environments
-        }
-        // Empty hostname supports file:// protocol for local HTML demo files
-        const isLocalhost = windowRef.location.hostname === 'localhost' ||
-                          windowRef.location.hostname === '127.0.0.1' ||
-                          windowRef.location.hostname === ''; // file:// URLs have empty hostname
-        const isDemoURL = windowRef.location.pathname && 
-                         windowRef.location.pathname.includes('/demo');
-        
-        return hasExplicitFlag && (isLocalhost || isDemoURL);
     }
 
     function isDashboardRoute(url, originFallback = 'https://app.sg.endowus.com') {
@@ -1897,9 +1873,7 @@
         if (!parsed) {
             return null;
         }
-        // In production mode, always enforce freshness even if ignoreFreshness=true
-        // In demo mode, allow ignoring freshness to support development/testing
-        const shouldEnforceFreshness = !ignoreFreshness || !isDemoModeEnabled();
+        const shouldEnforceFreshness = !ignoreFreshness;
         if (shouldEnforceFreshness && !isCacheFresh(parsed.fetchedAt, PERFORMANCE_CACHE_MAX_AGE_MS)) {
             Storage.remove(key, 'Error deleting stale performance cache');
             return null;
@@ -1988,16 +1962,6 @@
                 return normalized;
             } catch (error) {
                 console.warn('[Goal Portfolio Viewer] Performance fetch failed:', error);
-                // Only fall back to stale cache in demo mode to support development/testing
-                // Production mode should never show stale financial data
-                if (isDemoModeEnabled()) {
-                    const cached = getCachedPerformanceResponse(goalId, true);
-                    if (cached) {
-                        logDebug('[Goal Portfolio Viewer] Using cached performance data in demo mode for goal:', { goalId });
-                        state.performance.goalData[goalId] = cached;
-                        return cached;
-                    }
-                }
                 return null;
             }
         });
@@ -4451,7 +4415,6 @@
             getReturnClass,
             calculatePercentOfType,
             calculateGoalDiff,
-            isDemoModeEnabled,
             isDashboardRoute,
             calculateFixedTargetPercent,
             calculateRemainingTargetPercent,

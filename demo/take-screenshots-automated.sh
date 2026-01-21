@@ -6,7 +6,7 @@ set -e
 
 DEMO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ASSETS_DIR="$(dirname "$DEMO_DIR")/assets"
-DEMO_URL="file://$DEMO_DIR/demo-clean.html"
+DEMO_URL="http://localhost:8765/dashboard/"
 
 echo "Goal Portfolio Viewer - Automated Screenshot Capture"
 echo "===================================================="
@@ -18,12 +18,8 @@ echo ""
 # Ensure assets directory exists
 mkdir -p "$ASSETS_DIR"
 
-# Prepare demo files
-if [ -f "$DEMO_DIR/prepare-demo.sh" ]; then
-    echo "Preparing demo files..."
-    bash "$DEMO_DIR/prepare-demo.sh"
-    echo ""
-fi
+echo "Start the demo server with: node demo/mock-server.js"
+echo ""
 
 echo "Note: For automated screenshots using Playwright:"
 echo "  1. Install Playwright: npm install playwright"
