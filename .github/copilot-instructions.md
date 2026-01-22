@@ -725,455 +725,70 @@ goal-portfolio-viewer/
 
 ## Agent Orchestration & Coordination
 
-### Workflow State Machine
-
+### Workflow Phases
+```
+PLANNING → DESIGN → RISK → IMPLEMENT → QA → REVIEW → MERGE
+   (PM)      (SE)    (DA)       (SE)     (QA)   (CR)
 ```
 
-                         PLANNING PHASE                          │
+**Phase Gates**:
+1. **Planning**: PM defines requirements → Gate: Testable acceptance criteria
+2. **Design**: SE proposes solution → Gate: Risks/tradeoffs documented  
+3. **Risk**: DA challenges assumptions → Gate: Mitigations accepted
+4. **Implementation**: SE codes → Gate: Tests pass
+5. **QA**: QA verifies → Gate: Acceptance criteria met
+6. **Review**: CR approves → Gate: No blocking issues
 
- 1. Product Manager: Frame problem & acceptance criteria        │
-    Output: User story, acceptance criteria                     │
-    Gate: Staff Engineer + QA confirm criteria are testable     │
-
-                     │
-                     ▼
-
-                      DESIGN PHASE                               │
-
- 2. Staff Engineer: Propose technical solution                  │
-    Output: Architecture, risks, tradeoffs                      │
-    Gate: Product + QA agree on scope impact                    │
-
-                     │
-                     ▼
-
-                   RISK ASSESSMENT PHASE                         │
-
- 3. Devil's Advocate: Challenge assumptions                     │
-    Output: Risks, blind spots, mitigations                     │
-    Gate: Risks addressed or explicitly accepted                │
-
-                     
-                     ▼
-
-                   IMPLEMENTATION PHASE                          │
-
- 4. Staff Engineer: Implement solution                          │
-    Output: Code changes, unit tests                            │
-    Gate: Code compiles, unit tests pass                        │
-
-                     │
-                     ▼
-
-                     QA PHASE                                    │
-
- 5. QA Engineer: Verify quality                                 │
-    Output: Test results, bug reports                           │
-    Gate: Test plan executed, critical bugs fixed              │
-
-                     │
-                     ▼
-
-                    REVIEW PHASE                                 │
-
- 6. Code Reviewer: Final quality gate                           │
-    Output: Approval or change requests                         │
-    Gate: All blocking issues resolved                          │
-
-                     │
-                     ▼
-                  [MERGE]
-```
+**Loopback**: Failed gate returns to appropriate phase for rework.
 
 ### Handoff Protocols
 
-**Product Manager → Staff Engineer**
-
-Handoff Document:
-```markdown
-## Problem Statement
-[Clear description of user pain point]
-
-## Acceptance Criteria
-- [ ] Criterion 1 (testable)
-- [ ] Criterion 2 (testable)
-
-## Constraints
-[Technical, business, or regulatory constraints]
-```
-
-Staff Engineer Checklist:
-- [ ] Acceptance criteria are clear and testable
-- [ ] Constraints are understood
-- [ ] Scope is reasonable for single PR
-
-Loopback Conditions:
-- Acceptance criteria are ambiguous or untestable
-- Constraints conflict with technical feasibility
-- Scope is too large (requires splitting)
-
----
-
-**Staff Engineer → Devil's Advocate**
-
-Handoff Document:
-```markdown
-## Proposed Solution
-[Technical approach]
-
-## Architecture Changes
-[What's being modified]
-
-## Key Assumptions
-1. [Assumption 1]
-2. [Assumption 2]
-
-## Known Risks
-- **Risk 1**: [description] → Mitigation: [plan]
-- **Risk 2**: [description] → Mitigation: [plan]
-
-## Tradeoffs
-[What we're trading off and why]
-```
-
-Devil's Advocate Checklist:
-- [ ] Test all key assumptions
-- [ ] Surface unmentioned risks
-- [ ] Challenge tradeoffs
-- [ ] Identify blind spots
-
-Loopback Conditions:
-- Critical risk without mitigation
-- Assumption proven false
-- Better alternative identified
-
----
-
-**Devil's Advocate → Staff Engineer (Implementation)**
-
-Handoff Document:
-```markdown
-## Risk Assessment Results
-[Summary of findings]
-
-## Blocking Risks
-[Risks that must be addressed]
-
-## Accepted Risks
-[Risks explicitly accepted with rationale]
-
-## Required Mitigations
-- [ ] Mitigation 1
-- [ ] Mitigation 2
-```
-
-Staff Engineer Checklist:
-- [ ] All blocking risks have mitigations
-- [ ] Accepted risks are documented
-- [ ] Required mitigations are in implementation plan
-
-Loopback Conditions:
-- Blocking risk cannot be mitigated (back to Product Manager)
-- Mitigation requires scope change (back to Product Manager)
-
----
-
-**Staff Engineer → QA Engineer**
-
-Handoff Document:
-```markdown
-## Implementation Summary
-[What was changed]
-
-## Test Hooks Added
-[Functions/modules exported for testing]
-
-## Edge Cases to Test
-1. [Edge case 1]
-2. [Edge case 2]
-
-## Known Limitations
-[Intentional limitations or future work]
-
-## Manual Test Steps (if needed)
-[Steps to verify in browser]
-```
-
-QA Engineer Checklist:
-- [ ] Test plan covers all acceptance criteria
-- [ ] Edge cases identified and testable
-- [ ] Performance impact considered
-- [ ] Security implications assessed
-
-Loopback Conditions:
-- Test failure reveals logic error (back to Staff Engineer)
-- Missing critical test coverage (back to Staff Engineer)
-- Performance regression (back to Staff Engineer)
-
----
-
-**QA Engineer → Code Reviewer**
-
-Handoff Document:
-```markdown
-## Test Results
-- Unit Tests: ✓ / ✗
-- Integration Tests: ✓ / ✗
-- Manual Tests: ✓ / ✗
-- Performance: ✓ / ✗
-
-## Bugs Found & Fixed
-1. [Bug 1] - Status: Fixed
-2. [Bug 2] - Status: Fixed
-
-## Outstanding Issues
-[Any remaining issues and severity]
-
-## Verification Checklist
-- [ ] All acceptance criteria met
-- [ ] Financial accuracy verified (if applicable)
-- [ ] Security checks passed
-- [ ] Cross-browser tested (if UI change)
-```
-
-Code Reviewer Checklist:
-- [ ] QA passed all gates
-- [ ] Code quality meets standards
-- [ ] No security vulnerabilities
-- [ ] Documentation updated
-
-Loopback Conditions:
-- Code review finds logic errors (back to Staff Engineer + QA)
-- Security vulnerability found (back to Staff Engineer + QA)
-- Breaking change not documented (back to Staff Engineer)
-
----
+**PM → SE**: Problem statement, acceptance criteria, constraints  
+**SE → DA**: Proposed solution, assumptions, known risks, tradeoffs  
+**DA → SE**: Risk assessment, blocking risks, required mitigations  
+**SE → QA**: Implementation summary, test hooks, edge cases  
+**QA → CR**: Test results, bugs fixed, verification checklist  
 
 ### Conflict Resolution
 
-**When Agents Disagree**
+**PM vs SE (Scope)**: PM states value, SE states cost/risk, DA surfaces tradeoffs → Decision: Split or accept larger PR  
+**SE vs QA (Coverage)**: QA states requirements, SE states feasibility, DA assesses risk → Decision: Balance coverage with effort  
+**QA vs CR (Standards)**: CR states concern, QA explains rationale, DA assesses risk → Decision: Add tests or accept  
 
-**Scenario: Product Manager vs. Staff Engineer (Scope)**
+**Escalation**: DA mediates → SE technical call → PM product call → Document and move forward
 
-Resolution Protocol:
-1. Product Manager states user value
-2. Staff Engineer states technical cost/risk
-3. Devil's Advocate surfaces tradeoffs
-4. Decision: Split scope or accept larger PR
+### Agent Capabilities
 
-Example:
-```
-PM: "We need export to CSV, Excel, and PDF"
-SE: "That's 3 PRs worth. CSV is 1 day, Excel/PDF adds 3 days each"
-DA: "Risk: Large PR harder to review, more bugs. Also: Excel/PDF need libraries"
-Decision: Split into 3 PRs. Ship CSV first (user feedback), then Excel, then PDF
-```
+| Agent | Requirements | Design | Implementation | Testing | Review | Risk |
+|-------|--------------|--------|----------------|---------|--------|------|
+| Product Manager | ✅ Owner | 🤝 Input | ❌ | 🤝 Input | 🤝 Input | 🤝 |
+| Staff Engineer | 🤝 Input | ✅ Owner | ✅ Owner | 🤝 Support | 🤝 Input | 🤝 |
+| QA Engineer | 🤝 Input | 🤝 Input | ❌ | ✅ Owner | 🤝 Input | 🤝 |
+| Code Reviewer | ❌ | � Input | ❌ | 🤝 Verify | ✅ Owner | 🤝 |
+| Devil's Advocate | 🤝 Challenge | 🤝 Challenge | ❌ | 🤝 Challenge | ❌ | ✅ Owner |
 
----
+**Legend**: ✅ Owner | 🤝 Input/Support | ❌ Not involved
 
-**Scenario: Staff Engineer vs. QA Engineer (Test Coverage)**
+### Quick Reference
 
-Resolution Protocol:
-1. QA states required coverage
-2. Staff Engineer states feasibility/cost
-3. Devil's Advocate assesses actual risk
-4. Decision: Balance coverage with effort
+**When to invoke**:
+- Requirements/scope → Product Manager
+- Technical design/implementation → Staff Engineer
+- Challenge assumptions → Devil's Advocate
+- Test strategy/execution → QA Engineer
+- Code review → Code Reviewer
 
-Example:
-```
-QA: "Need tests for all 15 edge cases"
-SE: "5 are truly edge cases, 10 are theoretical. Would take 2 extra days"
-DA: "Financial data is critical. But 10 theoretical cases have zero user reports"
-Decision: Test the 5 real edge cases now. Document 10 theoretical for future
-```
+**Common scenarios**:
+- **Bug fix**: PM clarify → SE fix → QA verify → CR review
+- **Feature**: PM define → SE design → DA challenge → SE implement → QA test → CR review
+- **Uncertain approach**: SE evaluate options → DA assess risks → PM decide value
 
----
-
-**Scenario: QA Engineer vs. Code Reviewer (Quality Standards)**
-
-Resolution Protocol:
-1. Code Reviewer states concern
-2. QA explains test coverage rationale
-3. Devil's Advocate assesses risk
-4. Decision: Additional tests or accept risk
-
-Example:
-```
-CR: "No tests for error handling path"
-QA: "Error path is already tested via integration test"
-DA: "Error path is critical security boundary. Explicit unit test would catch regressions"
-Decision: Add explicit unit test for error path
-```
+**Definition of Done per phase**:
+- **Planning→Design**: Testable criteria
+- **Design→Risk**: Risks identified
+- **Risk→Implement**: Mitigations planned
+- **Implement→QA**: Tests pass
+- **QA→Review**: Criteria met
+- **Review→Merge**: No blockers
 
 ---
-
-### Escalation Path
-
-If agents cannot resolve conflict:
-
-1. **Level 1**: Devil's Advocate mediates (risk-based decision)
-2. **Level 2**: Staff Engineer makes final technical call
-3. **Level 3**: Product Manager makes final product call
-4. **Level 4**: Document decision rationale and move forward
-
-**Key Principle**: Bias toward shipping with known tradeoffs over perfection paralysis.
-
----
-
-### Agent Selection Decision Tree
-
-```
-START
-  │
-  ├─ Need requirements/scope? ────────────► Product Manager
-  │
-  ├─ Need technical design? ──────────────► Staff Engineer
-  │
-  ├─ Need implementation? ────────────────► Staff Engineer
-  │
-  ├─ Need to challenge assumptions? ──────► Devil's Advocate
-  │
-  ├─ Need test strategy? ─────────────────► QA Engineer
-  │
-  ├─ Need test execution? ────────────────► QA Engineer
-  │
-  ├─ Need code review? ───────────────────► Code Reviewer
-  │
-  └─ Need conflict resolution? ───────────► See "Conflict Resolution"
-```
-
-### Agent Capabilities Matrix
-
-| Agent | Requirements | Design | Implementation | Testing | Review | Risk Analysis |
-|-------|--------------|--------|----------------|---------|--------|---------------|
-| Product Manager | ✅ Owner | 🤝 Input | ❌ No | 🤝 Input | 🤝 Input | 🤝 Input |
-| Staff Engineer | 🤝 Input | ✅ Owner | ✅ Owner | 🤝 Support | 🤝 Input | 🤝 Input |
-| Code Reviewer | ❌ No | 🤝 Input | ❌ No | 🤝 Verify | ✅ Owner | 🤝 Input || QA Engineer | 🤝 Input | 
-| Devil's Advocate | 🤝 Challenge | 🤝 Challenge | ❌ No | 🤝 Challenge | ❌ No | ✅ Owner |
-
-**Legend:**
-- ✅ Owner: Primary responsibility and decision-maker
-- 🤝 Input/Support: Provides input, collaborates, or verifies
-- ❌ No: Not involved in this phase
-
----
-
-## Quick Reference
-
-### When to Use Which Agent
-
-| I need to... | Use Agent | Approach |
-|--------------|-----------|----------|
-| Define what to build | Product Manager | Frame requirements and scope |
-| Design a solution | Staff Engineer | Design approach for problem |
-| Implement code | Staff Engineer | Implement feature |
-| Challenge assumptions | Devil's Advocate | Review risks for design |
-| Create test plan | QA Engineer | Test plan for feature |
-| Verify quality | QA Engineer | Verify implementation |
-| Review code | Code Reviewer | Review PR |
-| Resolve conflicts | Devil's Advocate | See orchestration guide |
-
-### Workflow Phases
-
-```
-1. [PLANNING]      Product Manager defines requirements
-2. [DESIGN]        Staff Engineer proposes solution  
-3. [RISK CHECK]    Devil's Advocate challenges
-4. [IMPLEMENT]     Staff Engineer codes
-5. [QA]            QA Engineer tests
-6. [REVIEW]        Code Reviewer approves
-```
-
-### Definition of Done Checklist
-
-**Planning → Design:**
-- [ ] Acceptance criteria clear and testable
-- [ ] Constraints documented
-
-**Design → Risk Check:**
-- [ ] Technical approach documented
-- [ ] Risks and tradeoffs identified
-- [ ] Testability confirmed
-
-**Risk Check → Implementation:**
-- [ ] Critical risks mitigated
-- [ ] Assumptions validated
-- [ ] Scope confirmed
-
-**Implementation → QA:**
-- [ ] Code complete
-- [ ] Unit tests pass
-- [ ] Documentation updated
-
-**QA → Review:**
-- [ ] Test plan executed
-- [ ] All acceptance criteria met
-- [ ] Critical bugs fixed
-
-**Review → Merge:**
-- [ ] Code review approved
-- [ ] No blocking issues
-- [ ] Version bumped (if behavior changed)
-
-### Common Scenarios
-
-**"I have a bug to fix"**
-1. Product Manager: Clarify expected behavior
-2. Staff Engineer: Fix bug
-3. QA Engineer: Verify fix
-4. Code Reviewer: Review bugfix
-
-**"I want to add a feature"**
-1. Product Manager: Define requirements
-2. Staff Engineer: Design feature
-3. Devil's Advocate: Challenge design
-4. Staff Engineer: Implement feature
-5. QA Engineer: Test feature
-6. Code Reviewer: Review feature
-
-**"I'm unsure about an approach"**
-1. Staff Engineer: Evaluate approaches (A vs B vs C)
-2. Devil's Advocate: What could go wrong?
-3. Product Manager: Which delivers most user value?
-
-**"Tests are failing"**
-1. QA Engineer: Diagnose test failure
-2. Staff Engineer: Fix failing test
-3. QA Engineer: Re-verify fix
-
-**"PR has review comments"**
-1. Staff Engineer: Address review comments
-2. QA Engineer: Re-test after changes
-3. Code Reviewer: Re-review
-
-### Quality Gates
-
-| Phase | Gate | Blocker If... |
-|-------|------|---------------|
-| Planning | Testable criteria | Acceptance criteria are vague |
-| Design | Risk assessment | Critical unmitigated risk |
-| Implementation | Tests pass | Test failures or no tests |
-| QA | Quality verified | Critical bugs found |
-| Review | Code approved | Blocking review comments |
-
-### Loopback Conditions
-
-**Back to Planning:**
-- Scope too large (split required)
-- Requirements unclear
-- Constraints conflict
-
-**Back to Design:**
-- Critical risk found
-- Better approach identified
-- Technical infeasibility
-
-**Back to Implementation:**
-- Test failures reveal logic errors
-- Review finds security issues
-- Performance regression
-
-**Back to QA:**
-- Code changes after review
-- New edge case discovered
-
