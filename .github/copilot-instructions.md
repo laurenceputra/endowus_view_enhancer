@@ -720,3 +720,75 @@ goal-portfolio-viewer/
 ---
 
 *This guide is maintained alongside the codebase. When in doubt, prioritize user privacy and financial data accuracy.*
+
+---
+
+## Agent Orchestration & Coordination
+
+### Workflow Phases
+```
+PLANNING → DESIGN → RISK → IMPLEMENT → QA → REVIEW → MERGE
+   (PM)      (SE)    (DA)       (SE)     (QA)   (CR)
+```
+
+**Phase Gates**:
+1. **Planning**: PM defines requirements → Gate: Testable acceptance criteria
+2. **Design**: SE proposes solution → Gate: Risks/tradeoffs documented  
+3. **Risk**: DA challenges assumptions → Gate: Mitigations accepted
+4. **Implementation**: SE codes → Gate: Tests pass
+5. **QA**: QA verifies → Gate: Acceptance criteria met
+6. **Review**: CR approves → Gate: No blocking issues
+
+**Loopback**: Failed gate returns to appropriate phase for rework.
+
+### Handoff Protocols
+
+**PM → SE**: Problem statement, acceptance criteria, constraints  
+**SE → DA**: Proposed solution, assumptions, known risks, tradeoffs  
+**DA → SE**: Risk assessment, blocking risks, required mitigations  
+**SE → QA**: Implementation summary, test hooks, edge cases  
+**QA → CR**: Test results, bugs fixed, verification checklist  
+
+### Conflict Resolution
+
+**PM vs SE (Scope)**: PM states value, SE states cost/risk, DA surfaces tradeoffs → Decision: Split or accept larger PR  
+**SE vs QA (Coverage)**: QA states requirements, SE states feasibility, DA assesses risk → Decision: Balance coverage with effort  
+**QA vs CR (Standards)**: CR states concern, QA explains rationale, DA assesses risk → Decision: Add tests or accept  
+
+**Escalation**: DA mediates → SE technical call → PM product call → Document and move forward
+
+### Agent Capabilities
+
+| Agent | Requirements | Design | Implementation | Testing | Review | Risk |
+|-------|--------------|--------|----------------|---------|--------|------|
+| Product Manager | ✅ Owner | 🤝 Input | ❌ | 🤝 Input | 🤝 Input | 🤝 |
+| Staff Engineer | 🤝 Input | ✅ Owner | ✅ Owner | 🤝 Support | 🤝 Input | 🤝 |
+| QA Engineer | 🤝 Input | 🤝 Input | ❌ | ✅ Owner | 🤝 Input | 🤝 |
+| Code Reviewer | ❌ | � Input | ❌ | 🤝 Verify | ✅ Owner | 🤝 |
+| Devil's Advocate | 🤝 Challenge | 🤝 Challenge | ❌ | 🤝 Challenge | ❌ | ✅ Owner |
+
+**Legend**: ✅ Owner | 🤝 Input/Support | ❌ Not involved
+
+### Quick Reference
+
+**When to invoke**:
+- Requirements/scope → Product Manager
+- Technical design/implementation → Staff Engineer
+- Challenge assumptions → Devil's Advocate
+- Test strategy/execution → QA Engineer
+- Code review → Code Reviewer
+
+**Common scenarios**:
+- **Bug fix**: PM clarify → SE fix → QA verify → CR review
+- **Feature**: PM define → SE design → DA challenge → SE implement → QA test → CR review
+- **Uncertain approach**: SE evaluate options → DA assess risks → PM decide value
+
+**Definition of Done per phase**:
+- **Planning→Design**: Testable criteria
+- **Design→Risk**: Risks identified
+- **Risk→Implement**: Mitigations planned
+- **Implement→QA**: Tests pass
+- **QA→Review**: Criteria met
+- **Review→Merge**: No blockers
+
+---
