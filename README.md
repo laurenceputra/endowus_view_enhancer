@@ -88,9 +88,8 @@ We use a multi-agent workflow to maintain code quality and ensure robust develop
 
 1. **Fork and clone** the repository
 2. **Install dependencies**: `npm install`
-3. **Set up Git hooks**: `npm run setup-hooks`
-4. **Make changes** following the workflow below
-5. **Submit PR** with clear description
+3. **Make changes** following the workflow below
+4. **Submit PR** with clear description
 
 ### Development Workflow
 
@@ -112,18 +111,13 @@ Our project uses specialized AI agents for different aspects of development:
 5. **QA** → Test thoroughly (QA Engineer)
 6. **Review** → Final approval (Code Reviewer)
 
-### Tools & Commands
+### Development Commands
 
 ```bash
 # Development
 npm test              # Run tests
 npm run lint          # Check code quality
 npm run test:watch    # Development mode
-
-# Workflow
-npm run workflow list-agents    # See all agents
-npm run workflow checklist qa   # Get phase checklist
-npm run workflow status         # Check current state
 ```
 
 ### Documentation
@@ -141,26 +135,6 @@ npm run workflow status         # Check current state
 - ✅ Version bumped appropriately
 - 🔒 No data egress (privacy first)
 - 🔒 No `eval()` or unsafe patterns
-
-### Pre-commit Checks
-
-Our Git hooks automatically verify:
-- Linting passes
-- Tests pass
-- Version consistency
-- No suspicious patterns
-
-**Enable hooks**: `npm run setup-hooks`
-
-### CI/CD
-
-GitHub Actions runs agent-based reviews on every PR:
-- Staff Engineer checks code quality
-- QA Engineer runs full test suite
-- Devil's Advocate assesses security risks
-- Code Reviewer validates standards
-
-See [`.github/workflows/agent-review.yml`](.github/workflows/agent-review.yml) for details.
 
 ---
 
