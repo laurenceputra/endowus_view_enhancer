@@ -1,65 +1,64 @@
 # AGENTS
 
-## Repository overview
-This repo contains a Tampermonkey userscript for goal-based portfolio view enhancements and a Jest test suite for validating its logic. Currently supports the Endowus (Singapore) platform.
+> **Note:** This file provides a quick reference. For comprehensive guidance, see [`.github/copilot-instructions.md`](.github/copilot-instructions.md) (single source of truth).
 
-## Coding conventions
-- Align with the existing codebase style in `tampermonkey/goal_portfolio_viewer.user.js`.
-- Use 4-space indentation.
-- Always include semicolons.
-- Use camelCase for variables and functions.
-- Keep section header blocks to organize the script.
-- Wrap the userscript in an IIFE structure.
+## Quick Start
 
-## Separation of concerns
-- Keep pure logic above the browser-only block.
-- Ensure logic remains testable and exportable under Node.
+This repository uses a multi-agent workflow for development. Each agent has specific responsibilities:
 
-## Styling pattern
-- Inject CSS via a string in `injectStyles()`.
-- Use the `gpv-` prefix for class names.
+### Agent Roles
 
-## Testing guidance
-- Jest tests should import functions from the userscript.
-- Keep logic functions pure to support unit testing.
-- Jest testing is mandatory for all changes; manual testing checklists are not required.
+| Agent | Role | Documentation |
+|-------|------|---------------|
+| **Product Manager** | Requirements framing, scope, user impact | [`.github/agents/product-manager.md`](.github/agents/product-manager.md) |
+| **Staff Engineer** | Architecture, implementation, technical decisions | [`.github/agents/staff-engineer.md`](.github/agents/staff-engineer.md) |
+| **QA Engineer** | Testing strategy, quality assurance | [`.github/agents/qa-engineer.md`](.github/agents/qa-engineer.md) |
+| **Code Reviewer** | Final review, quality gates | [`.github/agents/code-reviewer.md`](.github/agents/code-reviewer.md) |
+| **Devil's Advocate** | Risk surfacing, blind spots | [`.github/agents/devils-advocate.md`](.github/agents/devils-advocate.md) |
 
-## Development workflow alignment
-- Follow the workflow guidance in `.github/copilot-instructions.md` as the single source of truth.
-- Use the role guides in `.github/agents/` instead of a fixed phase model:
-  - `staff-engineer.md` for architecture, risks, and technical tradeoffs.
-  - `product-manager.md` for requirements framing and scope.
-  - `qa-engineer.md` for testing strategy and verification.
-  - `code-reviewer.md` for final review quality gates.
-- Codex should load the `.github/agents/*.md` files for role-specific guidance whenever relevant.
+### Workflow Overview
 
-## Definition of done
-- Behavior matches documented requirements and expectations.
-- New or changed logic has corresponding Jest coverage where applicable.
-- Pure logic remains exportable and browser-only code stays isolated.
-- Documentation updates are applied when behavior changes.
-- Safety requirements are met (no data egress, no `eval`, sanitized strings).
+1. **Product Manager** frames the problem and acceptance criteria
+2. **Staff Engineer** designs solution and implements changes
+3. **Devil's Advocate** challenges assumptions and surfaces risks
+4. **QA Engineer** defines test plan and verifies quality
+5. **Code Reviewer** applies final quality gates before merge
 
-## Testing and verification
-- Run Jest tests for any change.
-- If tests are not run, explain why in the PR description.
+See [Orchestration Guide](.github/agents/ORCHESTRATION.md) for detailed workflow.
 
-## PR checklist
-- Summary clearly states user-visible behavior changes.
-- Tests run (or skipped with justification).
-- Documentation updated (`TECHNICAL_DESIGN.md`, README references) when needed.
+## Key Principles
 
-## Update pointers
-- If behavior changes, update `TECHNICAL_DESIGN.md` and any related README references.
-- If behavior changes, require a version bump, in the tampermonkey/goal_portfolio_viewer.user.js, package.json, package-lock.json. There should only be 1 version bump per PR.
+- **Single Source of Truth**: [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
+- **Privacy First**: No data egress, all processing client-side
+- **Testing Required**: Jest tests mandatory for all logic changes
+- **Financial Accuracy**: Critical - verify calculations
+- **Security**: No `eval`, sanitize all strings
 
-## Safety
-- No data egress.
-- Avoid `eval`.
-- Sanitize user-visible strings.
+## Definition of Done
 
-## GitHub instructions and patterns
-- Review `.github/copilot-instructions.md` before starting work and follow its guidance.
-- Align with any relevant patterns or agent guidance under `.github/agents/`.
-- If guidance conflicts with the existing userscript style, prefer the current codebase conventions.
-- Treat `.github/copilot-instructions.md` as the single source of truth; keep this file minimal and defer to it for detailed guidance.
+- [ ] Behavior matches requirements and acceptance criteria
+- [ ] Jest tests added/updated for logic changes
+- [ ] Documentation updated if behavior changes
+- [ ] Version bumped if behavior changes
+- [ ] All tests passing
+- [ ] Security requirements met
+
+## Quick Reference
+
+```bash
+# Run tests
+npm test
+
+# Run linter
+npm run lint
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+## Further Reading
+
+- [Comprehensive Development Guide](.github/copilot-instructions.md)
+- [Agent Orchestration](.github/agents/ORCHESTRATION.md)
+- [Technical Design](TECHNICAL_DESIGN.md)
+- [Testing Guide](TESTING.md)

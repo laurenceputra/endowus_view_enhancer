@@ -8,7 +8,9 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:e2e": "node demo/e2e-tests.js"
+    "test:e2e": "node demo/e2e-tests.js",
+    "workflow": "node scripts/agent-workflow.js",
+    "setup-hooks": "git config core.hooksPath .githooks && echo '✅ Git hooks enabled'"
   },
   "repository": {
     "type": "git",

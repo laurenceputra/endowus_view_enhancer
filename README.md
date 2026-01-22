@@ -77,3 +77,94 @@ This overlay brings those assets back together so more sophisticated retail inve
 3. Log in to Endowus. If you see the 📊 button, you're all set.
 
 Bring your core-satellite strategy to life with a view that aligns with how you actually invest.
+
+---
+
+## Contributing
+
+We use a multi-agent workflow to maintain code quality and ensure robust development practices.
+
+### Quick Start for Contributors
+
+1. **Fork and clone** the repository
+2. **Install dependencies**: `npm install`
+3. **Set up Git hooks**: `npm run setup-hooks`
+4. **Make changes** following the workflow below
+5. **Submit PR** with clear description
+
+### Development Workflow
+
+Our project uses specialized AI agents for different aspects of development:
+
+| Agent | Role | When to Use |
+|-------|------|-------------|
+| 🎯 **Product Manager** | Requirements & scope | Defining features, clarifying requirements |
+| 🔧 **Staff Engineer** | Design & implementation | Architecture decisions, code changes |
+| 🧪 **QA Engineer** | Testing & quality | Test plans, quality verification |
+| 👁️ **Code Reviewer** | Final review | Pre-merge quality gates |
+| 😈 **Devil's Advocate** | Risk assessment | Challenging assumptions, finding blind spots |
+
+**Workflow Phases:**
+1. **Planning** → Define requirements (Product Manager)
+2. **Design** → Propose solution (Staff Engineer)
+3. **Risk Check** → Challenge assumptions (Devil's Advocate)
+4. **Implementation** → Write code (Staff Engineer)
+5. **QA** → Test thoroughly (QA Engineer)
+6. **Review** → Final approval (Code Reviewer)
+
+### Tools & Commands
+
+```bash
+# Development
+npm test              # Run tests
+npm run lint          # Check code quality
+npm run test:watch    # Development mode
+
+# Workflow
+npm run workflow list-agents    # See all agents
+npm run workflow checklist qa   # Get phase checklist
+npm run workflow status         # Check current state
+```
+
+### Documentation
+
+- **[Quick Reference](.github/agents/QUICK_REFERENCE.md)** - Agent cheat sheet
+- **[Orchestration Guide](.github/agents/ORCHESTRATION.md)** - Detailed workflow
+- **[Development Guide](.github/copilot-instructions.md)** - Comprehensive instructions
+- **[Technical Design](TECHNICAL_DESIGN.md)** - Architecture details
+
+### Quality Standards
+
+- ✅ All tests must pass
+- ✅ ESLint checks clean
+- ✅ Financial calculations manually verified
+- ✅ Documentation updated for behavior changes
+- ✅ Version bumped appropriately
+- 🔒 No data egress (privacy first)
+- 🔒 No `eval()` or unsafe patterns
+
+### Pre-commit Checks
+
+Our Git hooks automatically verify:
+- Linting passes
+- Tests pass
+- Version consistency
+- No suspicious patterns
+
+**Enable hooks**: `npm run setup-hooks`
+
+### CI/CD
+
+GitHub Actions runs agent-based reviews on every PR:
+- Staff Engineer checks code quality
+- QA Engineer runs full test suite
+- Devil's Advocate assesses security risks
+- Code Reviewer validates standards
+
+See [`.github/workflows/agent-review.yml`](.github/workflows/agent-review.yml) for details.
+
+---
+
+## License
+
+MIT License - See [LICENSE](LICENSE) for details.
