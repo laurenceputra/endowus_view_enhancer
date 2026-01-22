@@ -24,7 +24,7 @@ This repository uses a multi-agent workflow for development. Each agent has spec
 4. **QA Engineer** defines test plan and verifies quality
 5. **Code Reviewer** applies final quality gates before merge
 
-See [Orchestration Guide](.github/agents/ORCHESTRATION.md) for detailed workflow.
+See [Comprehensive Development Guide](.github/copilot-instructions.md) for detailed workflow and orchestration.
 
 ## Key Principles
 
@@ -59,6 +59,5 @@ npm run test:coverage
 ## Further Reading
 
 - [Comprehensive Development Guide](.github/copilot-instructions.md)
-- [Agent Orchestration](.github/agents/ORCHESTRATION.md)
 - [Technical Design](TECHNICAL_DESIGN.md)
 - [Testing Guide](TESTING.md)

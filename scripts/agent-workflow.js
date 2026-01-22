@@ -38,7 +38,6 @@ COMMANDS:
   invoke <agent> <task>    Invoke specific agent with task
   status                   Show current workflow status
   checklist <phase>        Show checklist for phase
-  metrics                  Display workflow metrics
 
 EXAMPLES:
   npm run workflow list-agents
@@ -60,7 +59,7 @@ function listAgents() {
     Object.entries(AGENTS).forEach(([key, description]) => {
         console.log(`  ${key.padEnd(20)} ${description}`);
     });
-    console.log('\nFor detailed information, see: .github/agents/QUICK_REFERENCE.md\n');
+    console.log('\nFor detailed information, see: .github/copilot-instructions.md\n');
 }
 
 function listPhases() {
@@ -68,7 +67,7 @@ function listPhases() {
     Object.entries(PHASES).forEach(([key, description], index) => {
         console.log(`  ${index + 1}. ${key.padEnd(20)} ${description}`);
     });
-    console.log('\nFor detailed workflow, see: .github/agents/ORCHESTRATION.md\n');
+    console.log('\nFor detailed workflow, see: .github/copilot-instructions.md\n');
 }
 
 function showChecklist(phase) {
@@ -172,14 +171,7 @@ function showStatus() {
         console.error('Error getting status:', error.message);
     }
     
-    console.log('\nFor detailed workflow state, see: .github/agents/ORCHESTRATION.md\n');
-}
-
-function showMetrics() {
-    console.log('\n📈 Workflow Metrics\n');
-    console.log('To track metrics for a PR, use the template:');
-    console.log('  .github/agents/METRICS_TEMPLATE.md\n');
-    console.log('Copy and fill out for each significant feature or bug fix.\n');
+    console.log('\nFor detailed workflow state, see: .github/copilot-instructions.md\n');
 }
 
 // Parse command line arguments
@@ -203,13 +195,10 @@ switch (command) {
     case 'status':
         showStatus();
         break;
-    case 'metrics':
-        showMetrics();
-        break;
     case 'invoke':
         console.log('\n💡 To invoke agents in GitHub Copilot:');
         console.log(`   @${args[0] || 'agent-name'} "${args.slice(1).join(' ') || 'your task description'}"\n`);
-        console.log('For more details, see: .github/agents/QUICK_REFERENCE.md\n');
+        console.log('For more details, see: .github/copilot-instructions.md\n');
         break;
     case 'help':
     case '--help':

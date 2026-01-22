@@ -128,10 +128,9 @@ npm run workflow status         # Check current state
 
 ### Documentation
 
-- **[Quick Reference](.github/agents/QUICK_REFERENCE.md)** - Agent cheat sheet
-- **[Orchestration Guide](.github/agents/ORCHESTRATION.md)** - Detailed workflow
-- **[Development Guide](.github/copilot-instructions.md)** - Comprehensive instructions
+- **[Development Guide](.github/copilot-instructions.md)** - Comprehensive instructions with workflow
 - **[Technical Design](TECHNICAL_DESIGN.md)** - Architecture details
+- **[Agent Roles](.github/agents/)** - Individual agent documentation
 
 ### Quality Standards
 
