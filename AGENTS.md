@@ -42,6 +42,7 @@ See [Comprehensive Development Guide](.github/copilot-instructions.md) for detai
 - [ ] Version bumped if behavior changes
 - [ ] All tests passing
 - [ ] Security requirements met
+- [ ] Workflow artifacts captured (change brief, risks/tradeoffs, test plan, verification, stage-gate alignment)
 
 ## Quick Reference
 

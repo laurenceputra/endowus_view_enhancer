@@ -37,10 +37,11 @@ applies_to:
 Use this compact workflow for all changes. Keep detailed role guidance in `.github/agents/*.md` and avoid duplicating it here.
 
 ### Required Artifacts
-- **Change Brief**: Problem, goal, and acceptance criteria.
+- **Change Brief**: Problem, goal, and acceptance criteria (include change type and required steps).
 - **Risks & Tradeoffs**: Short note, especially for data accuracy, privacy, or API interception changes.
 - **Test Plan**: Jest coverage and any manual checks needed.
 - **Verification**: Commands run and outcomes.
+- **Verification Matrix**: Map each acceptance criterion to a test or manual check.
 
 ### Change Type → Required Steps
 
@@ -71,6 +72,13 @@ Only move to the next stage when all required agents are aligned.
 - **Alignment artifact**: 1-3 bullets per stage capturing agreement.
 - **Blocking rule**: Any blocking concern stops progression until resolved.
 - **Loopback rule**: If QA or Code Review fails, return to Stage 3 (Staff Engineer implementation), then re-run QA and Code Review.
+- **Iteration rule**: When any agent surfaces a blocking issue, re-enter the prior stage and iterate within the same agent group until the blocking issue is resolved and re-validated.
+
+### Workflow Templates
+Use the repository PR template to capture the required artifacts and gate alignment bullets in one place.
+**Template hygiene**
+- Do not commit per-change copies of the PR template or filled templates into the repo.
+- Keep the template file unchanged and provide filled content only in the PR description.
 
 #### Stage Gates
 1. **Product Gate**: Product owns scope; Staff Engineer and QA confirm acceptance criteria are testable.
