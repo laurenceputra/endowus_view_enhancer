@@ -8,8 +8,6 @@
 
 const {
     normalizeString,
-    normalizeGoalType,
-    normalizeGoalName,
     indexBy,
     getGoalTargetKey,
     getGoalFixedKey,
@@ -19,9 +17,7 @@ const {
     sortGoalTypes,
     sortGoalsByName,
     formatMoney,
-    formatPercentFromRatio,
-    formatPercentFromPercent,
-    formatPercentDisplay,
+    formatPercent,
     formatGrowthPercentFromEndingBalance,
     calculateGoalDiff,
     calculateFixedTargetPercent,
@@ -92,25 +88,6 @@ describe('normalizeString', () => {
         expect(normalizeString(123)).toBe('123');
         expect(normalizeString(false)).toBe('false');
         expect(normalizeString({ key: 'value' })).toBe('[object Object]');
-    });
-});
-
-describe('normalizeGoalType', () => {
-    test('should return UNKNOWN_GOAL_TYPE for missing values', () => {
-        expect(normalizeGoalType(null)).toBe('UNKNOWN_GOAL_TYPE');
-        expect(normalizeGoalType('')).toBe('UNKNOWN_GOAL_TYPE');
-        expect(normalizeGoalType('   ')).toBe('UNKNOWN_GOAL_TYPE');
-    });
-
-    test('should trim and return valid values', () => {
-        expect(normalizeGoalType(' CASH_MANAGEMENT ')).toBe('CASH_MANAGEMENT');
-    });
-});
-
-describe('normalizeGoalName', () => {
-    test('should trim names and allow empty fallback', () => {
-        expect(normalizeGoalName(' Retirement ')).toBe('Retirement');
-        expect(normalizeGoalName('   ')).toBe('');
     });
 });
 
@@ -395,50 +372,38 @@ describe('formatMoney', () => {
     });
 });
 
-describe('formatPercentDisplay', () => {
+describe('formatPercent', () => {
     test('should return fallback for invalid inputs', () => {
-        expect(formatPercentDisplay(null)).toBe('-');
-        expect(formatPercentDisplay('invalid')).toBe('-');
-        expect(formatPercentDisplay(10, { multiplier: 'invalid' })).toBe('-');
+        expect(formatPercent(null)).toBe('-');
+        expect(formatPercent('invalid')).toBe('-');
+        expect(formatPercent(10, { multiplier: 'invalid' })).toBe('-');
     });
 
     test('should respect custom fallback', () => {
-        expect(formatPercentDisplay(null, { fallback: 'n/a' })).toBe('n/a');
+        expect(formatPercent(null, { fallback: 'n/a' })).toBe('n/a');
     });
 
     test('should format with default multiplier', () => {
-        expect(formatPercentDisplay(12.3456)).toBe('12.35%');
+        expect(formatPercent(12.3456)).toBe('12.35%');
     });
 
     test('should format with custom multiplier', () => {
-        expect(formatPercentDisplay(0.1234, { multiplier: 100 })).toBe('12.34%');
+        expect(formatPercent(0.1234, { multiplier: 100 })).toBe('12.34%');
     });
-});
 
-describe('formatPercentFromRatio', () => {
     test('should format ratio with sign when enabled', () => {
-        expect(formatPercentFromRatio(0.1, { showSign: true })).toBe('+10.00%');
-        expect(formatPercentFromRatio(-0.025, { showSign: true })).toBe('-2.50%');
+        expect(formatPercent(0.1, { multiplier: 100, showSign: true })).toBe('+10.00%');
+        expect(formatPercent(-0.025, { multiplier: 100, showSign: true })).toBe('-2.50%');
     });
 
     test('should format ratio without sign by default', () => {
-        expect(formatPercentFromRatio(0.1)).toBe('10.00%');
-        expect(formatPercentFromRatio(0)).toBe('0.00%');
+        expect(formatPercent(0.1, { multiplier: 100 })).toBe('10.00%');
+        expect(formatPercent(0)).toBe('0.00%');
     });
 
-    test('should return fallback for invalid ratios', () => {
-        expect(formatPercentFromRatio('invalid')).toBe('-');
-    });
-});
-
-describe('formatPercentFromPercent', () => {
     test('should format percent with optional sign', () => {
-        expect(formatPercentFromPercent(12.5)).toBe('12.50%');
-        expect(formatPercentFromPercent(12.5, { showSign: true })).toBe('+12.50%');
-    });
-
-    test('should return fallback for invalid percents', () => {
-        expect(formatPercentFromPercent(null, { fallback: 'n/a' })).toBe('n/a');
+        expect(formatPercent(12.5)).toBe('12.50%');
+        expect(formatPercent(12.5, { showSign: true })).toBe('+12.50%');
     });
 });
 
