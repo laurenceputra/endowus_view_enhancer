@@ -119,15 +119,6 @@
         return String(value);
     }
 
-    function normalizeGoalType(goalType) {
-        const normalized = normalizeString(goalType, UNKNOWN_GOAL_TYPE);
-        return normalized;
-    }
-
-    function normalizeGoalName(goalName) {
-        return normalizeString(goalName, '');
-    }
-
     function normalizePerformanceResponse(response) {
         const safeResponse = response && typeof response === 'object' ? response : {};
         const returnsTable = safeResponse.returnsTable && typeof safeResponse.returnsTable === 'object'
@@ -188,29 +179,24 @@
         return bucket || 'Uncategorized';
     }
 
+    const GOAL_TYPE_LABELS = {
+        GENERAL_WEALTH_ACCUMULATION: 'Investment',
+        CASH_MANAGEMENT: 'Cash',
+        PASSIVE_INCOME: 'Income'
+    };
+
     function getDisplayGoalType(goalType) {
         if (!goalType || goalType === UNKNOWN_GOAL_TYPE) {
             return 'Unknown';
         }
-        switch (goalType) {
-            case 'GENERAL_WEALTH_ACCUMULATION':
-                return 'Investment';
-            case 'CASH_MANAGEMENT':
-                return 'Cash';
-            case 'PASSIVE_INCOME':
-                return 'Income';
-            default:
-                return goalType;
-        }
+        return GOAL_TYPE_LABELS[goalType] ?? goalType;
     }
 
     function sortGoalTypes(goalTypeKeys) {
         const preferred = ['GENERAL_WEALTH_ACCUMULATION', 'PASSIVE_INCOME', 'CASH_MANAGEMENT'];
-        const others = goalTypeKeys.filter(k => !preferred.includes(k)).sort();
-        const sorted = [];
-        preferred.forEach(p => { 
-            if (goalTypeKeys.includes(p)) sorted.push(p); 
-        });
+        const preferredSet = new Set(preferred);
+        const others = goalTypeKeys.filter(k => !preferredSet.has(k)).sort();
+        const sorted = preferred.filter(type => goalTypeKeys.includes(type));
         return [...sorted, ...others];
     }
 
@@ -253,16 +239,9 @@
         return `${sign}${percentValue.toFixed(2)}%`;
     }
 
-    function formatPercentFromRatio(value, options = {}) {
-        return formatPercent(value, { ...options, multiplier: 100 });
-    }
-
-    function formatPercentFromPercent(value, options = {}) {
-        return formatPercent(value, { ...options, multiplier: 1 });
-    }
-
-    function formatPercentDisplay(value, options = {}) {
-        return formatPercent(value, options);
+    function getFiniteNumbers(values) {
+        const numbers = values.map(value => toFiniteNumber(value, null));
+        return numbers.some(value => value === null) ? null : numbers;
     }
 
     function formatGrowthPercentFromEndingBalance(totalReturn, endingBalance) {
@@ -270,10 +249,13 @@
         // where principal = ending balance - return
         // Example: if you invested $100 and now have $110, return is $10
         // Growth = 10 / 100 * 100 = 10%
-        const numericReturn = toFiniteNumber(totalReturn, null);
-        const numericEndingBalance = toFiniteNumber(endingBalance, null);
+        const numericValues = getFiniteNumbers([totalReturn, endingBalance]);
+        if (!numericValues) {
+            return '-';
+        }
+        const [numericReturn, numericEndingBalance] = numericValues;
         const principal = numericEndingBalance - numericReturn;
-        if (numericReturn === null || numericEndingBalance === null || principal <= 0) {
+        if (principal <= 0) {
             return '-';
         }
         return ((numericReturn / principal) * 100).toFixed(2) + '%';
@@ -288,26 +270,27 @@
     }
 
     function calculatePercentOfType(amount, total) {
-        const numericAmount = toFiniteNumber(amount, null);
-        const numericTotal = toFiniteNumber(total, null);
-        if (numericAmount === null || numericTotal === null || numericTotal <= 0) {
+        const numericValues = getFiniteNumbers([amount, total]);
+        if (!numericValues) {
+            return 0;
+        }
+        const [numericAmount, numericTotal] = numericValues;
+        if (numericTotal <= 0) {
             return 0;
         }
         return (numericAmount / numericTotal) * 100;
     }
 
     function calculateGoalDiff(currentAmount, targetPercent, adjustedTypeTotal) {
-        const numericCurrent = toFiniteNumber(currentAmount, null);
-        const numericTarget = toFiniteNumber(targetPercent, null);
-        const numericTotal = toFiniteNumber(adjustedTypeTotal, null);
-        if (
-            targetPercent === null
-            || targetPercent === undefined
-            || numericCurrent === null
-            || numericTarget === null
-            || numericTotal === null
-            || numericTotal <= 0
-        ) {
+        if (targetPercent === null || targetPercent === undefined) {
+            return { diffAmount: null, diffClass: '' };
+        }
+        const numericValues = getFiniteNumbers([currentAmount, targetPercent, adjustedTypeTotal]);
+        if (!numericValues) {
+            return { diffAmount: null, diffClass: '' };
+        }
+        const [numericCurrent, numericTarget, numericTotal] = numericValues;
+        if (numericTotal <= 0) {
             return { diffAmount: null, diffClass: '' };
         }
         const targetAmount = (numericTarget / 100) * numericTotal;
@@ -337,9 +320,12 @@
     // ============================================
 
     function calculateFixedTargetPercent(currentAmount, adjustedTypeTotal) {
-        const numericCurrent = toFiniteNumber(currentAmount, null);
-        const numericTotal = toFiniteNumber(adjustedTypeTotal, null);
-        if (numericCurrent === null || numericTotal === null || numericTotal <= 0) {
+        const numericValues = getFiniteNumbers([currentAmount, adjustedTypeTotal]);
+        if (!numericValues) {
+            return null;
+        }
+        const [numericCurrent, numericTotal] = numericValues;
+        if (numericTotal <= 0) {
             return null;
         }
         return (numericCurrent / numericTotal) * 100;
@@ -361,11 +347,11 @@
     }
 
     function isRemainingTargetAboveThreshold(remainingTargetPercent, threshold = REMAINING_TARGET_ALERT_THRESHOLD) {
-        const numericRemaining = toFiniteNumber(remainingTargetPercent, null);
-        const numericThreshold = toFiniteNumber(threshold, null);
-        if (numericRemaining === null || numericThreshold === null) {
+        const numericValues = getFiniteNumbers([remainingTargetPercent, threshold]);
+        if (!numericValues) {
             return false;
         }
+        const [numericRemaining, numericThreshold] = numericValues;
         return numericRemaining > numericThreshold;
     }
 
@@ -423,41 +409,49 @@
         return sorted;
     }
 
+    function buildGoalModel(goal, totalTypeAmount, adjustedTotal, goalTargets, goalFixed) {
+        const endingBalanceAmount = goal.endingBalanceAmount || 0;
+        const percentOfType = calculatePercentOfType(
+            endingBalanceAmount,
+            totalTypeAmount
+        );
+        const isFixed = goalFixed[goal.goalId] === true;
+        const targetPercent = isFixed
+            ? calculateFixedTargetPercent(endingBalanceAmount, adjustedTotal)
+            : (typeof goalTargets[goal.goalId] === 'number'
+                ? goalTargets[goal.goalId]
+                : null);
+        const diffInfo = calculateGoalDiff(endingBalanceAmount, targetPercent, adjustedTotal);
+        const returnPercent = typeof goal.simpleRateOfReturnPercent === 'number'
+            && Number.isFinite(goal.simpleRateOfReturnPercent)
+            ? goal.simpleRateOfReturnPercent
+            : null;
+        const returnValue = goal.totalCumulativeReturn || 0;
+        return {
+            goalId: goal.goalId,
+            goalName: goal.goalName,
+            endingBalanceAmount,
+            percentOfType,
+            isFixed,
+            targetPercent,
+            diffAmount: diffInfo.diffAmount,
+            diffClass: diffInfo.diffClass,
+            returnValue,
+            returnPercent
+        };
+    }
+
     function buildGoalTypeAllocationModel(goals, totalTypeAmount, adjustedTotal, goalTargets, goalFixed) {
         const safeGoals = sortGoalsByName(goals);
         const safeTargets = goalTargets || {};
         const safeFixed = goalFixed || {};
-        const goalModels = safeGoals.map(goal => {
-            const endingBalanceAmount = goal.endingBalanceAmount || 0;
-            const percentOfType = calculatePercentOfType(
-                endingBalanceAmount,
-                totalTypeAmount
-            );
-            const isFixed = safeFixed[goal.goalId] === true;
-            const targetPercent = isFixed
-                ? calculateFixedTargetPercent(endingBalanceAmount, adjustedTotal)
-                : (typeof safeTargets[goal.goalId] === 'number'
-                    ? safeTargets[goal.goalId]
-                    : null);
-            const diffInfo = calculateGoalDiff(endingBalanceAmount, targetPercent, adjustedTotal);
-            const returnPercent = typeof goal.simpleRateOfReturnPercent === 'number'
-                && Number.isFinite(goal.simpleRateOfReturnPercent)
-                ? goal.simpleRateOfReturnPercent
-                : null;
-            const returnValue = goal.totalCumulativeReturn || 0;
-            return {
-                goalId: goal.goalId,
-                goalName: goal.goalName,
-                endingBalanceAmount,
-                percentOfType,
-                isFixed,
-                targetPercent,
-                diffAmount: diffInfo.diffAmount,
-                diffClass: diffInfo.diffClass,
-                returnValue,
-                returnPercent
-            };
-        });
+        const goalModels = safeGoals.map(goal => buildGoalModel(
+            goal,
+            totalTypeAmount,
+            adjustedTotal,
+            safeTargets,
+            safeFixed
+        ));
         const remainingTargetPercent = calculateRemainingTargetPercent(
             goalModels.map(goal => goal.targetPercent)
         );
@@ -665,17 +659,17 @@
                         projectedAmount,
                         adjustedTotal,
                         remainingTargetPercent: allocationModel.remainingTargetPercent,
-                        remainingTargetDisplay: formatPercentFromPercent(allocationModel.remainingTargetPercent),
+                        remainingTargetDisplay: formatPercent(allocationModel.remainingTargetPercent),
                         remainingTargetIsHigh: isRemainingTargetAboveThreshold(allocationModel.remainingTargetPercent),
                         goalModelsById: allocationModel.goalModelsById,
                         goals: allocationModel.goalModels.map(goal => ({
                             ...goal,
                             endingBalanceDisplay: formatMoney(goal.endingBalanceAmount),
-                            percentOfTypeDisplay: formatPercentFromPercent(goal.percentOfType),
+                            percentOfTypeDisplay: formatPercent(goal.percentOfType),
                             targetDisplay: goal.targetPercent !== null ? goal.targetPercent.toFixed(2) : '',
                             diffDisplay: goal.diffAmount === null ? '-' : formatMoney(goal.diffAmount),
                             returnDisplay: formatMoney(goal.returnValue),
-                            returnPercentDisplay: formatPercentFromRatio(goal.returnPercent, { showSign: false }),
+                            returnPercentDisplay: formatPercent(goal.returnPercent, { multiplier: 100, showSign: false }),
                             returnClass: getReturnClass(goal.returnValue)
                         }))
                     };
@@ -755,7 +749,7 @@
         performanceData.forEach(perf => {
             const invest = investibleMap[perf.goalId] || {};
             const summary = summaryMap[perf.goalId] || {};
-            const goalName = normalizeGoalName(invest.goalName || summary.goalName || '');
+            const goalName = normalizeString(invest.goalName || summary.goalName || '', '');
             // Extract bucket name using "Bucket Name - Goal Description" convention
             const goalBucket = extractBucketName(goalName);
             // Note: investible API `totalInvestmentAmount` is misnamed and represents ending balance.
@@ -776,7 +770,10 @@
                 goalId: perf.goalId,
                 goalName: goalName,
                 goalBucket: goalBucket,
-                goalType: normalizeGoalType(invest.investmentGoalType || summary.investmentGoalType || ''),
+                goalType: normalizeString(
+                    invest.investmentGoalType || summary.investmentGoalType || '',
+                    UNKNOWN_GOAL_TYPE
+                ),
                 endingBalanceAmount: Number.isFinite(endingBalanceAmount) ? endingBalanceAmount : null,
                 totalCumulativeReturn: Number.isFinite(cumulativeReturn) ? cumulativeReturn : null,
                 simpleRateOfReturnPercent: Number.isFinite(perf.simpleRateOfReturnPercent)
@@ -851,7 +848,7 @@
     }
 
     function formatPercentage(value) {
-        return formatPercentFromRatio(value, { showSign: true });
+        return formatPercent(value, { multiplier: 100, showSign: true });
     }
 
     function normalizeTimeSeriesData(timeSeriesData) {
@@ -1269,23 +1266,23 @@
             {
                 key: 'totalReturnPercent',
                 label: 'Total Return %',
-                value: formatPercentFromRatio(metrics?.totalReturnPercent, { showSign: true }),
+                value: formatPercent(metrics?.totalReturnPercent, { multiplier: 100, showSign: true }),
                 info: 'Weighted by net investment over time. Large recent contributions can dilute earlier gains. Compare with Simple Return % to see how contributions affect performance.'
             },
             {
                 key: 'simpleReturnPercent',
                 label: 'Simple Return %',
-                value: formatPercentFromRatio(metrics?.simpleReturnPercent, { showSign: true })
+                value: formatPercent(metrics?.simpleReturnPercent, { multiplier: 100, showSign: true })
             },
             {
                 key: 'twrPercent',
                 label: 'TWR %',
-                value: formatPercentFromRatio(metrics?.twrPercent, { showSign: true })
+                value: formatPercent(metrics?.twrPercent, { multiplier: 100, showSign: true })
             },
             {
                 key: 'annualisedIrrPercent',
                 label: 'Annualised IRR',
-                value: formatPercentFromRatio(metrics?.annualisedIrrPercent, { showSign: true })
+                value: formatPercent(metrics?.annualisedIrrPercent, { multiplier: 100, showSign: true })
             },
             {
                 key: 'totalReturnAmount',
@@ -2393,7 +2390,7 @@
             const value = createElement(
                 'div',
                 'gpv-performance-window-value',
-                formatPercentFromRatio(item.value, { showSign: true })
+                formatPercent(item.value, { multiplier: 100, showSign: true })
             );
             if (typeof item.value === 'number') {
                 value.classList.add(item.value >= 0 ? 'positive' : 'negative');
@@ -2907,7 +2904,7 @@
         const remainingTarget = typeSection.querySelector(`.${CLASS_NAMES.remainingTarget}`);
         if (remainingTarget) {
             const remainingValue = remainingTarget.querySelector('.gpv-remaining-value');
-            const displayValue = formatPercentFromPercent(snapshot.remainingTargetPercent);
+            const displayValue = formatPercent(snapshot.remainingTargetPercent);
             if (remainingValue) {
                 remainingValue.textContent = displayValue;
             } else {
@@ -4398,8 +4395,6 @@
     if (typeof module !== 'undefined' && module.exports) {
         const baseExports = {
             normalizeString,
-            normalizeGoalType,
-            normalizeGoalName,
             indexBy,
             getGoalTargetKey,
             getGoalFixedKey,
@@ -4408,9 +4403,7 @@
             getDisplayGoalType,
             sortGoalTypes,
             formatMoney,
-            formatPercentFromRatio,
-            formatPercentFromPercent,
-            formatPercentDisplay,
+            formatPercent,
             formatGrowthPercentFromEndingBalance,
             getReturnClass,
             calculatePercentOfType,
