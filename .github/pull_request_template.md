@@ -16,22 +16,28 @@
 
 ## Stage Gate Alignment
 **Product**
+- Status: ☐ Approved / ☐ Blocked
 - 
 
 **Staff Engineer**
+- Status: ☐ Approved / ☐ Blocked
 - 
 
 **Devil's Advocate**
+- Status: ☐ Approved / ☐ Blocked
 - 
 
 **QA**
+- Status: ☐ Approved / ☐ Blocked
 - 
 
 **Code Review**
+- Status: ☐ Approved / ☐ Blocked
 - 
 
 ## Risks & Tradeoffs
 - 
+_If not applicable, state "N/A" with a brief rationale._
 
 ## Verification Matrix
 | Acceptance Criterion | Test/Check | Evidence |
@@ -40,9 +46,11 @@
 
 ## Test Plan
 - 
+_If not applicable, state "N/A" with a brief rationale._
 
 ## Verification
 - Command(s) run and outcomes:
+_If not applicable, state "N/A" with a brief rationale._
 
 ## Security & Privacy Checklist
 - [ ] No external data egress

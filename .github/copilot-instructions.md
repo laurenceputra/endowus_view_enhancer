@@ -10,6 +10,8 @@ applies_to:
 
 # Goal Portfolio Viewer - Development Guide
 
+> **Filename standard**: This guidance follows GitHub's recommended `copilot-instructions.md` filename.
+
 ## Project Overview
 
 **Type**: Browser Extension (Tampermonkey Userscript)  
@@ -28,7 +30,7 @@ applies_to:
 - **Privacy-First**: ALL processing happens client-side. Never send data externally.
 - **Financial Data**: Handles sensitive investment information requiring accuracy and security
 - **Single-File**: Entire application in one `.user.js` file for easy distribution
-- **No Dependencies**: Pure vanilla JS - no build process, no external libraries
+- **No Dependencies (Userscript Only)**: Pure vanilla JS for the userscript - no build process, no external libraries
 
 ---
 
@@ -53,12 +55,22 @@ Use this compact workflow for all changes. Keep detailed role guidance in `.gith
 | Performance | Jest + lint + perf check and reasoning about impact |
 | Documentation-only | Lint not required unless code changes; no tests required unless logic changed |
 
+### Trigger Rules for Merged Responsibilities
+- **Security/Privacy**: Required for API interception changes, storage changes, or data handling logic.
+- **UX/Accessibility**: Required for UI/visual changes and any new user interactions.
+- **Release/Docs**: Required for behavior changes, version bumps, and user-facing updates.
+
 ### Role Guides (Single Source of Detail)
 - **Product**: `.github/agents/product-manager.md` (requirements framing)
 - **Architecture/Risks**: `.github/agents/staff-engineer.md`
 - **QA/Test Depth**: `.github/agents/qa-engineer.md`
 - **Review Gates**: `.github/agents/code-reviewer.md`
 - **Devil's Advocate**: `.github/agents/devils-advocate.md` (blind spots)
+
+### Role Extensions (Merged Responsibilities)
+- **Security/Privacy** → Staff Engineer + Code Reviewer
+- **UX/Accessibility** → Product Manager + QA Engineer
+- **Release/Docs** → Staff Engineer + Code Reviewer
 
 ### Agent Interaction Model (Required)
 1. **Product**: Frame the problem, user impact, and acceptance criteria.
