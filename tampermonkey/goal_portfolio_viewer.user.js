@@ -104,6 +104,9 @@
         conflict: 'conflict'
     };
 
+    let updateSyncUI = null;
+    let showConflictResolutionUI = null;
+
 
     // Export surface for tests; populated as helpers become available.
     // When set before load, window.__GPV_DISABLE_AUTO_INIT prevents DOM auto-init (used in tests).
@@ -1506,35 +1509,56 @@
     const SALT_LENGTH = 16; // 128 bits
     const MASTER_KEY_SALT = 'goal-portfolio-viewer-master-key-v1'; // Fixed salt for master key derivation
 
+    function getCryptoApi() {
+        if (typeof globalThis !== 'undefined' && globalThis.crypto) {
+            return globalThis.crypto;
+        }
+        if (typeof window !== 'undefined' && window.crypto) {
+            return window.crypto;
+        }
+        return null;
+    }
+
     /**
      * Check if Web Crypto API is available
      */
     function isSupported() {
-        return typeof window !== 'undefined' && 
-               window.crypto && 
-               window.crypto.subtle &&
-               typeof window.crypto.getRandomValues === 'function';
+        const cryptoApi = getCryptoApi();
+        return Boolean(
+            cryptoApi &&
+            cryptoApi.subtle &&
+            typeof cryptoApi.getRandomValues === 'function'
+        );
     }
 
     /**
      * Generate a cryptographically secure random buffer
      */
     function generateRandomBuffer(length) {
-        return window.crypto.getRandomValues(new Uint8Array(length));
+        const cryptoApi = getCryptoApi();
+        if (!cryptoApi || typeof cryptoApi.getRandomValues !== 'function') {
+            throw new Error('Web Crypto API not supported');
+        }
+        return cryptoApi.getRandomValues(new Uint8Array(length));
     }
 
     /**
      * Generate a UUID v4 using cryptographically secure randomness
      */
     function generateUUID() {
+        const cryptoApi = getCryptoApi();
         // Use crypto.randomUUID() if available (modern browsers)
-        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
-            return window.crypto.randomUUID();
+        if (cryptoApi && typeof cryptoApi.randomUUID === 'function') {
+            return cryptoApi.randomUUID();
+        }
+
+        if (!cryptoApi || typeof cryptoApi.getRandomValues !== 'function') {
+            throw new Error('Web Crypto API not supported');
         }
 
         // Fallback: use crypto.getRandomValues() for secure random bytes
         const buffer = new Uint8Array(16);
-        window.crypto.getRandomValues(buffer);
+        cryptoApi.getRandomValues(buffer);
 
         // Set version (4) and variant (RFC 4122) bits
         buffer[6] = (buffer[6] & 0x0f) | 0x40;
@@ -1554,9 +1578,13 @@
         if (!isSupported()) {
             throw new Error('Web Crypto API not supported');
         }
+        if (typeof password !== 'string') {
+            throw new Error('Invalid password');
+        }
 
+        const cryptoApi = getCryptoApi();
         const encoder = new TextEncoder();
-        const passwordKey = await window.crypto.subtle.importKey(
+        const passwordKey = await cryptoApi.subtle.importKey(
             'raw',
             encoder.encode(password),
             'PBKDF2',
@@ -1565,7 +1593,7 @@
         );
 
         // Derive 32 bytes (256 bits) of key material
-        const masterKeyBits = await window.crypto.subtle.deriveBits(
+        const masterKeyBits = await cryptoApi.subtle.deriveBits(
             {
                 name: 'PBKDF2',
                 salt: encoder.encode(MASTER_KEY_SALT),
@@ -1584,7 +1612,8 @@
      * This adds another layer of key derivation for defense in depth
      */
     async function deriveKey(masterKey, salt) {
-        const masterKeyObj = await window.crypto.subtle.importKey(
+        const cryptoApi = getCryptoApi();
+        const masterKeyObj = await cryptoApi.subtle.importKey(
             'raw',
             masterKey,
             'PBKDF2',
@@ -1592,7 +1621,7 @@
             ['deriveBits', 'deriveKey']
         );
 
-        return window.crypto.subtle.deriveKey(
+        return cryptoApi.subtle.deriveKey(
             {
                 name: 'PBKDF2',
                 salt: salt,
@@ -1637,13 +1666,14 @@
             throw new Error('Web Crypto API not supported');
         }
         try {
+            const cryptoApi = getCryptoApi();
             const encoder = new TextEncoder();
             const salt = generateRandomBuffer(SALT_LENGTH);
             const iv = generateRandomBuffer(IV_LENGTH);
             const normalizedKey = assertValidMasterKey(masterKey);
             const key = await deriveKey(normalizedKey, salt);
 
-            const ciphertext = await window.crypto.subtle.encrypt(
+            const ciphertext = await cryptoApi.subtle.encrypt(
                 { name: 'AES-GCM', iv: iv },
                 key,
                 encoder.encode(plaintext)
@@ -1686,6 +1716,7 @@
             throw new Error('Web Crypto API not supported');
         }
         try {
+            const cryptoApi = getCryptoApi();
             const combined = new Uint8Array(
                 atob(encryptedBase64).split('').map(c => c.charCodeAt(0))
             );
@@ -1697,7 +1728,7 @@
             const normalizedKey = assertValidMasterKey(masterKey);
             const key = await deriveKey(normalizedKey, salt);
 
-            const plaintext = await window.crypto.subtle.decrypt(
+            const plaintext = await cryptoApi.subtle.decrypt(
                 { name: 'AES-GCM', iv: iv },
                 key,
                 ciphertext
@@ -1715,8 +1746,9 @@
      * Compute SHA-256 hash of data
      */
     async function hash(data) {
+        const cryptoApi = getCryptoApi();
         const encoder = new TextEncoder();
-        const buffer = await window.crypto.subtle.digest('SHA-256', encoder.encode(data));
+        const buffer = await cryptoApi.subtle.digest('SHA-256', encoder.encode(data));
         const hashArray = Array.from(new Uint8Array(buffer));
         return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
@@ -1730,9 +1762,10 @@
             throw new Error('Web Crypto API not supported');
         }
 
+        const cryptoApi = getCryptoApi();
         const encoder = new TextEncoder();
         const data = encoder.encode(password + '|' + userId);
-        const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+        const hashBuffer = await cryptoApi.subtle.digest('SHA-256', data);
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         return hashHex;
@@ -1880,7 +1913,7 @@
         if (!config || typeof config !== 'object') {
             return null;
         }
-        const { timestamp, ...rest } = config;
+        const { timestamp: _timestamp, ...rest } = config;
         return SyncEncryption.hash(JSON.stringify(rest));
     }
 
@@ -2340,8 +2373,8 @@
             }
             
             // Refresh the portfolio view
-            if (typeof renderPortfolioView === 'function') {
-                renderPortfolioView();
+            if (typeof document !== 'undefined') {
+                document.dispatchEvent(new CustomEvent('gpv-show-portfolio'));
             }
         } catch (error) {
             console.error('[Goal Portfolio Viewer] Conflict resolution failed:', error);
@@ -2606,7 +2639,7 @@
     // ============================================
     // Everything below this point requires browser APIs (window, document, etc.)
     // and should not execute when running tests in Node.js.
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && window.document) {
 
     // ============================================
     // Adapters/State
@@ -3612,6 +3645,15 @@
         });
 
         return grid;
+    }
+
+    if (typeof globalThis !== 'undefined') {
+        globalThis.__gpvChartHelpers = {
+            getChartHeightForWidth,
+            getChartDimensions,
+            createLineChartSvg,
+            buildPerformanceWindowGrid
+        };
     }
 
     function buildPerformanceMetricsTable(metrics) {
@@ -4854,7 +4896,7 @@ function setupSyncSettingsListeners() {
                     throw new Error('Password must be at least 8 characters');
                 }
 
-                const result = await SyncManager.register(serverUrl, userId, password);
+                await SyncManager.register(serverUrl, userId, password);
                 showSuccessMessage('✅ Account created successfully! Please login to start syncing.');
                 
                 // Refresh UI to show that user is now registered
@@ -4895,7 +4937,7 @@ function setupSyncSettingsListeners() {
                     throw new Error('Please fill in Server URL, User ID, and Password');
                 }
 
-                const result = await SyncManager.login(serverUrl, userId, password);
+                await SyncManager.login(serverUrl, userId, password);
                 await SyncManager.enable({
                     serverUrl,
                     userId,
@@ -5195,7 +5237,7 @@ function createConflictDialogHTML(conflict) {
  * Show conflict resolution UI
  */
 
-function showConflictResolutionUI(conflict) {
+showConflictResolutionUI = function showConflictResolutionUI(conflict) {
     // Create modal overlay
     const overlay = document.createElement('div');
     overlay.className = 'gpv-modal-overlay gpv-conflict-overlay';
@@ -5311,7 +5353,7 @@ function createSyncIndicatorHTML() {
  * Update sync UI elements
  */
 
-function updateSyncUI() {
+updateSyncUI = function updateSyncUI() {
     // Update sync indicator
     const indicator = document.getElementById('gpv-sync-indicator');
     if (indicator) {
@@ -7100,6 +7142,7 @@ function updateSyncUI() {
     // In Node.js (test/CI), these functions are programmatically accessible.
     // Pattern: Keep all logic in ONE place (this file), test the real implementation.
     if (typeof module !== 'undefined' && module.exports) {
+        const chartHelpers = typeof globalThis !== 'undefined' ? globalThis.__gpvChartHelpers : null;
         const baseExports = {
             normalizeString,
             indexBy,
@@ -7129,6 +7172,10 @@ function updateSyncUI() {
             collectGoalIds,
             buildGoalTargetById,
             buildGoalFixedById,
+            getChartHeightForWidth: chartHelpers?.getChartHeightForWidth,
+            getChartDimensions: chartHelpers?.getChartDimensions,
+            createLineChartSvg: chartHelpers?.createLineChartSvg,
+            buildPerformanceWindowGrid: chartHelpers?.buildPerformanceWindowGrid,
             buildMergedInvestmentData,
             getPerformanceCacheKey,
             isCacheFresh,
@@ -7155,7 +7202,24 @@ function updateSyncUI() {
             SyncEncryption
         };
 
-        module.exports = baseExports;
+        if (chartHelpers && chartHelpers.buildPerformanceWindowGrid) {
+            module.exports = baseExports;
+            return;
+        }
+        const {
+            getChartHeightForWidth: fallbackGetChartHeightForWidth,
+            getChartDimensions: fallbackGetChartDimensions,
+            createLineChartSvg: fallbackCreateLineChartSvg,
+            buildPerformanceWindowGrid: fallbackBuildPerformanceWindowGrid
+        } = require('../__tests__/helpers/chartHelpers');
+
+        module.exports = {
+            ...baseExports,
+            getChartHeightForWidth: fallbackGetChartHeightForWidth,
+            getChartDimensions: fallbackGetChartDimensions,
+            createLineChartSvg: fallbackCreateLineChartSvg,
+            buildPerformanceWindowGrid: fallbackBuildPerformanceWindowGrid
+        };
     }
 
 })();

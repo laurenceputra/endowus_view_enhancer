@@ -2,6 +2,8 @@
  * Test script for password-based login + JWT auth
  * 
  * Run with: node test-password-auth.js
+ *
+ * Requires Node.js 18+ (global fetch)
  * 
  * This tests the complete auth flow:
  * 1. Register a new user
@@ -12,7 +14,11 @@
  * 6. Delete data (access token)
  */
 
-const crypto = require('crypto');
+import crypto from 'node:crypto';
+
+if (typeof fetch !== 'function') {
+    throw new Error('Global fetch is required. Use Node.js 18+ or provide a fetch polyfill.');
+}
 
 // Configuration
 const BASE_URL = process.env.SYNC_SERVER_URL || 'http://localhost:8787';

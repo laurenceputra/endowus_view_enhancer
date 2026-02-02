@@ -32,17 +32,27 @@ export default [
         clearTimeout: 'readonly',
         alert: 'readonly',
         history: 'readonly',
+        CustomEvent: 'readonly',
         requestAnimationFrame: 'readonly',
         ResizeObserver: 'readonly',
         GM_setValue: 'readonly',
         GM_getValue: 'readonly',
         GM_deleteValue: 'readonly',
+        GM_listValues: 'readonly',
         GM_cookie: 'readonly',
+        TextEncoder: 'readonly',
+        TextDecoder: 'readonly',
+        atob: 'readonly',
+        btoa: 'readonly',
         fetch: 'readonly',
         Headers: 'readonly',
         AbortController: 'readonly',
         XMLHttpRequest: 'readonly',
-        module: 'readonly'
+        module: 'readonly',
+        require: 'readonly',
+        confirm: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly'
       }
     },
     rules: baseRules
@@ -56,6 +66,7 @@ export default [
         require: 'readonly',
         module: 'readonly',
         exports: 'readonly',
+        Buffer: 'readonly',
         jest: 'readonly',
         describe: 'readonly',
         test: 'readonly',
@@ -71,6 +82,8 @@ export default [
         HTMLElement: 'readonly',
         Node: 'readonly',
         console: 'readonly',
+        atob: 'readonly',
+        btoa: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly'
       }

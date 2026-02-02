@@ -14,7 +14,7 @@
     "tail:production": "wrangler tail --env production",
     "kv:create": "wrangler kv:namespace create SYNC_KV",
     "kv:list": "wrangler kv:namespace list",
-    "test": "echo \"Error: no test specified\" && exit 0"
+    "test": "node test-password-auth.js"
   },
   "keywords": [
     "cloudflare",
