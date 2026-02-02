@@ -3,6 +3,9 @@
  * Validates passwords for secure access
  */
 
+const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
+const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
+
 /**
  * Derive a slow hash from the incoming password hash for storage
  * Uses PBKDF2 with high iterations and per-user salt
@@ -112,6 +115,135 @@ function timingSafeEqual(a, b) {
 	}
 
 	return result === 0;
+}
+
+function base64UrlEncode(input) {
+	const bytes = typeof input === 'string' ? new TextEncoder().encode(input) : input;
+	const binary = Array.from(bytes).map(b => String.fromCharCode(b)).join('');
+	return btoa(binary)
+		.replace(/\+/g, '-')
+		.replace(/\//g, '_')
+		.replace(/=+$/g, '');
+}
+
+function base64UrlDecodeToString(input) {
+	if (!input || typeof input !== 'string') {
+		return null;
+	}
+	const normalized = input.replace(/-/g, '+').replace(/_/g, '/');
+	const padding = '='.repeat((4 - (normalized.length % 4)) % 4);
+	try {
+		return atob(normalized + padding);
+	} catch (_error) {
+		return null;
+	}
+}
+
+async function signJwt(data, secret) {
+	const key = await crypto.subtle.importKey(
+		'raw',
+		new TextEncoder().encode(secret),
+		{ name: 'HMAC', hash: 'SHA-256' },
+		false,
+		['sign']
+	);
+	const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
+	return base64UrlEncode(new Uint8Array(signature));
+}
+
+async function createJwt(payload, secret) {
+	const header = { alg: 'HS256', typ: 'JWT' };
+	const encodedHeader = base64UrlEncode(JSON.stringify(header));
+	const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+	const data = `${encodedHeader}.${encodedPayload}`;
+	const signature = await signJwt(data, secret);
+	return `${data}.${signature}`;
+}
+
+async function verifyJwt(token, secret) {
+	if (!token || typeof token !== 'string') {
+		return null;
+	}
+	const parts = token.split('.');
+	if (parts.length !== 3) {
+		return null;
+	}
+	const [encodedHeader, encodedPayload, signature] = parts;
+	const data = `${encodedHeader}.${encodedPayload}`;
+	const expectedSignature = await signJwt(data, secret);
+	if (!timingSafeEqual(signature, expectedSignature)) {
+		return null;
+	}
+	const decodedPayload = base64UrlDecodeToString(encodedPayload);
+	if (!decodedPayload) {
+		return null;
+	}
+	let payload;
+	try {
+		payload = JSON.parse(decodedPayload);
+	} catch (_error) {
+		return null;
+	}
+	if (payload.exp && typeof payload.exp === 'number') {
+		const now = Math.floor(Date.now() / 1000);
+		if (now >= payload.exp) {
+			return null;
+		}
+	}
+	return payload;
+}
+
+function getJwtSecret(env) {
+	const secret = env.JWT_SECRET;
+	if (!secret) {
+		throw new Error('JWT_SECRET is not configured');
+	}
+	return secret;
+}
+
+async function verifyJwtWithType(token, expectedType, env) {
+	const secret = getJwtSecret(env);
+	const payload = await verifyJwt(token, secret);
+	if (!payload || payload.type !== expectedType || !payload.sub) {
+		return null;
+	}
+	return payload;
+}
+
+export async function issueTokens(userId, env) {
+	const secret = getJwtSecret(env);
+	const now = Math.floor(Date.now() / 1000);
+	const accessExp = now + ACCESS_TOKEN_TTL_SECONDS;
+	const refreshExp = now + REFRESH_TOKEN_TTL_SECONDS;
+
+	const accessToken = await createJwt({
+		sub: userId,
+		type: 'access',
+		iat: now,
+		exp: accessExp
+	}, secret);
+
+	const refreshToken = await createJwt({
+		sub: userId,
+		type: 'refresh',
+		iat: now,
+		exp: refreshExp
+	}, secret);
+
+	return {
+		accessToken,
+		refreshToken,
+		accessExpiresAt: accessExp * 1000,
+		refreshExpiresAt: refreshExp * 1000
+	};
+}
+
+export async function verifyAccessToken(token, env) {
+	return verifyJwtWithType(token, 'access', env);
+}
+
+export async function verifyRefreshToken(token, env) {
+	return verifyJwtWithType(token, 'refresh', env);
 }
 
 /**

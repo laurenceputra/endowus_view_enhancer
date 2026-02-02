@@ -4,14 +4,13 @@ This directory contains the backend sync service for Goal Portfolio Viewer, buil
 
 ## 🌟 Features
 
-- ✅ **Password-based authentication** (no API key needed for users!)
+- ✅ **Password login + JWT access/refresh tokens**
 - ✅ **User registration and login** (self-service account creation)
 - ✅ End-to-end encrypted sync (server never sees plaintext)
 - ✅ Privacy-first architecture (zero-knowledge encryption)
 - ✅ Free tier supports 1000+ users
 - ✅ Global edge network (low latency)
 - ✅ Self-hostable (you control your data)
-- ✅ Backward compatible with legacy API key auth
 
 ## 📋 Prerequisites
 
@@ -62,20 +61,14 @@ id = "YOUR_NAMESPACE_ID_HERE"  # From step 3
 preview_id = "YOUR_PREVIEW_NAMESPACE_ID_HERE"
 ```
 
-### 5. (Optional) Set Legacy API Key
+### 5. Set JWT Secret
 
-**Note**: With password-based authentication, this is optional and only needed for backward compatibility with existing users.
+This backend signs access/refresh tokens with `JWT_SECRET`.
 
 ```bash
-# Generate a secure API key
-node -e "console.log('sk_live_' + require('crypto').randomBytes(32).toString('base64url'))"
-
-# Store it as a secret
-npx wrangler secret put API_KEY
-# Paste the generated key when prompted
+npx wrangler secret put JWT_SECRET
+# Paste a strong random secret when prompted
 ```
-
-**New users don't need this** - they'll use password-based authentication instead!
 
 ### 6. Deploy
 
@@ -98,14 +91,14 @@ curl https://goal-portfolio-sync.YOUR_SUBDOMAIN.workers.dev/health
 # Should return:
 # {"status":"ok","version":"1.0.0","timestamp":1234567890}
 
-# Test password authentication (using test script)
+# Test auth + token flow (using test script)
 cd workers
 node test-password-auth.js
 ```
 
 ### 8. Configure UserScript
 
-**New Password-Based Authentication** (Recommended):
+**Password Login (Recommended)**:
 
 1. Open Goal Portfolio Viewer settings
 2. Click the "⚙️ Sync" button
@@ -114,24 +107,16 @@ node test-password-auth.js
    - **User ID**: Your email or username
    - **Password**: Create a strong password (min 8 characters)
 4. Click "📝 Sign Up" to create your account
-5. Enable sync checkbox and click "Save Settings"
-6. Click "Sync Now" to upload your first configuration
+5. Click "🔑 Login" to generate session tokens
+6. Enable sync checkbox and click "Save Settings"
+7. Click "Sync Now" to upload your first configuration
 
 Done! Your settings will now sync across all devices using the same credentials.
+Your password is never stored locally; use a browser password manager to autofill each session.
 
-**Legacy API Key Method** (For existing users):
+## 🔐 Authentication API
 
-1. Open Goal Portfolio Viewer settings
-2. Navigate to "Sync" tab
-3. Enter:
-   - **Server URL**: Your worker URL
-   - **API Key**: The key from step 5
-   - **Passphrase**: Create a strong passphrase
-4. Click "Enable Sync"
-
-## 🔐 Password Authentication API
-
-The backend now supports password-based authentication in addition to API keys.
+The backend issues JWT access + refresh tokens after password-based login.
 
 ### Authentication Endpoints
 
@@ -169,32 +154,50 @@ Verify user credentials.
 ```json
 {
   "success": true,
-  "message": "Login successful"
+  "message": "Login successful",
+  "tokens": {
+    "accessToken": "eyJhbGciOi...",
+    "refreshToken": "eyJhbGciOi...",
+    "accessExpiresAt": 1710000000000,
+    "refreshExpiresAt": 1712592000000
+  }
+}
+```
+
+#### POST /auth/refresh
+Exchange a refresh token for new tokens.
+
+**Request:**
+```bash
+curl -X POST https://your-worker.workers.dev/auth/refresh \
+  -H "Authorization: Bearer <refreshToken>"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "tokens": {
+    "accessToken": "eyJhbGciOi...",
+    "refreshToken": "eyJhbGciOi...",
+    "accessExpiresAt": 1710000000000,
+    "refreshExpiresAt": 1712592000000
+  }
 }
 ```
 
 ### Authenticated Sync Endpoints
 
-All sync endpoints (POST/GET/DELETE /sync) now accept **either**:
-
-**Option 1: Password-based authentication** (Recommended):
+All sync endpoints (POST/GET/DELETE /sync) require a valid **access token**:
 ```bash
 curl -X POST https://your-worker.workers.dev/sync \
-  -H "X-Password-Hash: a1b2c3d4..." \
+  -H "Authorization: Bearer <accessToken>" \
   -H "X-User-Id: user@example.com" \
   -H "Content-Type: application/json" \
   -d '{"userId":"user@example.com", ...}'
 ```
 
-**Option 2: Legacy API key**:
-```bash
-curl -X POST https://your-worker.workers.dev/sync \
-  -H "X-API-Key: sk_live_..." \
-  -H "Content-Type: application/json" \
-  -d '{"userId":"test-user-123", ...}'
-```
-
-The backend tries password auth first, then falls back to API key for backward compatibility.
+Legacy password-hash auth is still accepted for older clients but is no longer recommended.
 
 ## 🛠️ Development
 
@@ -228,9 +231,9 @@ curl -X POST http://localhost:8787/auth/login \
     "passwordHash": "a1b2c3d4e5f6789..."
   }'
 
-# Upload test with password auth
+# Upload test with access token
 curl -X POST http://localhost:8787/sync \
-  -H "X-Password-Hash: a1b2c3d4e5f6789..." \
+  -H "Authorization: Bearer <accessToken>" \
   -H "X-User-Id: test@example.com" \
   -H "Content-Type: application/json" \
   -d '{
@@ -243,14 +246,14 @@ curl -X POST http://localhost:8787/sync \
 
 # Download test
 curl http://localhost:8787/sync/test@example.com \
-  -H "X-Password-Hash: a1b2c3d4e5f6789..." \
+  -H "Authorization: Bearer <accessToken>" \
   -H "X-User-Id: test@example.com"
 ```
 
 ### Run Tests
 
 ```bash
-# Run password authentication test suite
+# Run auth + token test suite
 node test-password-auth.js
 
 # Note: Ensure local dev server is running first (npm run dev)
@@ -275,7 +278,7 @@ https://goal-portfolio-sync.YOUR_SUBDOMAIN.workers.dev
 ```
 
 ### Authentication
-All endpoints (except `/health`) require an API key in the `X-API-Key` header.
+All endpoints (except `/health`) require a valid access token in the `Authorization` header.
 
 ### Endpoints
 
@@ -296,7 +299,8 @@ Response (200):
 POST /sync
 
 Headers:
-  X-API-Key: <your-api-key>
+  Authorization: Bearer <accessToken>
+  X-User-Id: <userId>
   Content-Type: application/json
 
 Body:
@@ -327,7 +331,8 @@ Response (409 Conflict):
 GET /sync/:userId
 
 Headers:
-  X-API-Key: <your-api-key>
+  Authorization: Bearer <accessToken>
+  X-User-Id: <userId>
 
 Response (200):
 {
@@ -352,7 +357,8 @@ Response (404):
 DELETE /sync/:userId
 
 Headers:
-  X-API-Key: <your-api-key>
+  Authorization: Bearer <accessToken>
+  X-User-Id: <userId>
 
 Response (200):
 {
@@ -362,9 +368,9 @@ Response (200):
 
 ### Rate Limits
 
-- **Upload**: 10 requests/minute per API key
-- **Download**: 60 requests/minute per API key
-- **Delete**: 5 requests/minute per API key
+- **Upload**: 10 requests/minute per user
+- **Download**: 60 requests/minute per user
+- **Delete**: 5 requests/minute per user
 
 If rate limited, server returns `429 Too Many Requests` with `Retry-After` header.
 
@@ -387,9 +393,9 @@ The server **NEVER** sees:
 - Your settings
 
 ### Key Management
-- API keys are stored as Cloudflare secrets (never in code)
-- API keys can be rotated anytime
-- Each user should have a unique API key
+- JWT secrets are stored as Cloudflare secrets (never in code)
+- Access tokens are short-lived; refresh tokens last 30 days
+- Rotate `JWT_SECRET` to invalidate all sessions
 
 ### Audit
 All access is logged (can be reviewed via `wrangler tail`).
@@ -449,11 +455,11 @@ vars = {
 Stored securely, not in code:
 
 ```bash
-# Set API key
-npx wrangler secret put API_KEY
+# Set JWT secret
+npx wrangler secret put JWT_SECRET
 
-# Update API key
-npx wrangler secret put API_KEY --env production
+# Update JWT secret
+npx wrangler secret put JWT_SECRET --env production
 
 # List secrets (doesn't show values)
 npx wrangler secret list
@@ -504,9 +510,9 @@ Setup alerts in Cloudflare dashboard:
 ## 🐛 Troubleshooting
 
 ### Error: "Unauthorized"
-- Check API key is correct
-- Verify secret is set: `npx wrangler secret list`
-- Ensure header is `X-API-Key` (case-sensitive)
+- Check access token is valid (login again if needed)
+- Verify `JWT_SECRET` is set: `npx wrangler secret list`
+- Ensure header is `Authorization: Bearer <accessToken>`
 
 ### Error: "KV namespace not found"
 - Check `wrangler.toml` has correct namespace IDs
@@ -525,7 +531,8 @@ Setup alerts in Cloudflare dashboard:
 
 ### Data not syncing
 - Check server logs: `npx wrangler tail`
-- Verify API key in UserScript settings
+- Verify server URL + user ID in UserScript settings
+- Login again to refresh tokens
 - Test API manually with `curl`
 - Check browser console for errors
 
@@ -533,14 +540,14 @@ Setup alerts in Cloudflare dashboard:
 
 Before deploying to production:
 
-- [ ] Generate strong API key
-- [ ] Store API key as secret (not in code)
+- [ ] Generate strong JWT secret
+- [ ] Store JWT secret as Cloudflare secret (not in code)
 - [ ] Setup KV namespaces (production + staging)
 - [ ] Configure custom domain (optional)
 - [ ] Setup monitoring alerts
 - [ ] Test sync flow end-to-end
-- [ ] Document API key for your users
-- [ ] Plan API key rotation schedule (quarterly recommended)
+- [ ] Document login + token flow for your users
+- [ ] Plan JWT secret rotation schedule (quarterly recommended)
 
 ## 🤝 Contributing
 

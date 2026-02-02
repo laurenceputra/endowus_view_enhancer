@@ -6,7 +6,7 @@
  */
 
 import { handleSync, handleGetSync, handleDeleteSync } from './handlers';
-import { validatePassword, registerUser, loginUser } from './auth';
+import { validatePassword, registerUser, loginUser, issueTokens, verifyAccessToken, verifyRefreshToken } from './auth';
 import { rateLimit } from './ratelimit';
 
 // Configuration
@@ -20,9 +20,18 @@ const CONFIG = {
 const CORS_HEADERS = {
 	'Access-Control-Allow-Origin': CONFIG.CORS_ORIGINS,
 	'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-	'Access-Control-Allow-Headers': 'Content-Type, X-Password-Hash, X-User-Id',
+	'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Password-Hash, X-User-Id',
 	'Access-Control-Max-Age': '86400' // 24 hours
 };
+
+function getBearerToken(request) {
+	const authHeader = request.headers.get('Authorization');
+	if (!authHeader) {
+		return null;
+	}
+	const match = authHeader.match(/^Bearer\s+(.+)$/i);
+	return match ? match[1] : null;
+}
 
 /**
  * Main request handler
@@ -90,31 +99,106 @@ export default {
 				});
 			}
 
+			let body;
 			try {
-				const body = await request.json();
-				const { userId, passwordHash } = body;
-				const result = await loginUser(userId, passwordHash, env);
-				return jsonResponse(result, result.success ? 200 : 401);
-			} catch (error) {
+				body = await request.json();
+			} catch (_error) {
 				return jsonResponse({
 					success: false,
 					error: 'BAD_REQUEST',
 					message: 'Invalid JSON in request body'
 				}, 400);
 			}
+
+			try {
+				const { userId, passwordHash } = body;
+				const result = await loginUser(userId, passwordHash, env);
+				if (!result.success) {
+					return jsonResponse(result, 401);
+				}
+				const tokens = await issueTokens(userId, env);
+				return jsonResponse({
+					...result,
+					tokens
+				}, 200);
+			} catch (error) {
+				return jsonResponse({
+					success: false,
+					error: 'INTERNAL_ERROR',
+					message: env.ENVIRONMENT === 'production' ? 'Internal server error' : error.message
+				}, 500);
+			}
 		}
 
-		// All other endpoints require authentication via password
+		if (method === 'POST' && url.pathname === '/auth/refresh') {
+			// Rate limit refresh attempts
+			const rateLimitResult = await rateLimit(request, env, url.pathname);
+			if (!rateLimitResult.allowed) {
+				return jsonResponse({
+					success: false,
+					error: 'RATE_LIMIT_EXCEEDED',
+					retryAfter: rateLimitResult.retryAfter
+				}, 429, {
+					'Retry-After': String(rateLimitResult.retryAfter)
+				});
+			}
+
+			try {
+				const refreshToken = getBearerToken(request);
+				if (!refreshToken) {
+					return jsonResponse({
+						success: false,
+						error: 'UNAUTHORIZED',
+						message: 'Missing refresh token'
+					}, 401);
+				}
+
+				const payload = await verifyRefreshToken(refreshToken, env);
+				if (!payload) {
+					return jsonResponse({
+						success: false,
+						error: 'UNAUTHORIZED',
+						message: 'Invalid refresh token'
+					}, 401);
+				}
+
+				const tokens = await issueTokens(payload.sub, env);
+				return jsonResponse({
+					success: true,
+					tokens
+				}, 200);
+			} catch (error) {
+				return jsonResponse({
+					success: false,
+					error: 'INTERNAL_ERROR',
+					message: env.ENVIRONMENT === 'production' ? 'Internal server error' : error.message
+				}, 500);
+			}
+		}
+
+		// All other endpoints require authentication (access token preferred)
 		let authenticated = false;
 		let authenticatedUserId = null; // Track which user is authenticated
-		
-		// Password-based authentication
-		const passwordHash = request.headers.get('X-Password-Hash');
-		const headerUserId = request.headers.get('X-User-Id');
-		if (passwordHash && headerUserId) {
-			authenticated = await validatePassword(headerUserId, passwordHash, env);
-			if (authenticated) {
-				authenticatedUserId = headerUserId;
+
+		// Token-based authentication (preferred)
+		const accessToken = getBearerToken(request);
+		if (accessToken) {
+			const payload = await verifyAccessToken(accessToken, env);
+			if (payload) {
+				authenticated = true;
+				authenticatedUserId = payload.sub;
+			}
+		}
+
+		// Password-based authentication (legacy fallback)
+		if (!authenticated) {
+			const passwordHash = request.headers.get('X-Password-Hash');
+			const headerUserId = request.headers.get('X-User-Id');
+			if (passwordHash && headerUserId) {
+				authenticated = await validatePassword(headerUserId, passwordHash, env);
+				if (authenticated) {
+					authenticatedUserId = headerUserId;
+				}
 			}
 		}
 		
@@ -127,7 +211,7 @@ export default {
 		}
 
 		// Rate limiting
-		const rateLimitResult = await rateLimit(request, env, url.pathname);
+		const rateLimitResult = await rateLimit(request, env, url.pathname, authenticatedUserId);
 		if (!rateLimitResult.allowed) {
 			return jsonResponse({
 				success: false,

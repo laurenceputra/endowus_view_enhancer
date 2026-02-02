@@ -6,7 +6,7 @@ Keep your Goal Portfolio Viewer settings synchronized across all your devices wi
 
 - **End-to-end encryption**: Your data is encrypted on your device before upload
 - **Zero-knowledge server**: The server never sees your plaintext data
-- **You control the keys**: Your passphrase never leaves your device
+- **You control the keys**: Your password is used for encryption and is never stored locally
 - **Self-hostable**: Run your own sync server if desired
 
 ## 📋 What Gets Synced?
@@ -32,26 +32,24 @@ Keep your Goal Portfolio Viewer settings synchronized across all your devices wi
    - Click "Enable Sync"
    - The setup wizard will guide you
 
-3. **Create Passphrase**
-   - Choose a strong passphrase (16+ characters recommended)
-   - ⚠️ **Important**: Save this passphrase! It cannot be recovered if lost
-   - Your passphrase encrypts your data - without it, synced data is useless
+3. **Create Password**
+   - Choose a strong password (12+ characters recommended)
+   - ⚠️ **Important**: Save this password! It cannot be recovered if lost
+   - Your password encrypts your data - without it, synced data is useless
 
-4. **Get API Key**
-   - Visit: [https://sync.goal-portfolio-viewer.com](https://sync.goal-portfolio-viewer.com)
-   - Click "Generate API Key"
-   - Copy the generated key (looks like: `sk_live_abc123...`)
-   - Paste into the "API Key" field
+4. **Create Account**
+   - Click "Sign Up" to register
+   - Click "Login" to obtain session tokens
 
 5. **Complete Setup**
-   - Click "Save & Sync"
-   - Your settings will immediately sync to the server
+   - Click "Save Settings"
+   - Click "Sync Now"
    - Status indicator will show ✅ when synced
 
 6. **Setup Other Devices**
    - Install Goal Portfolio Viewer on other devices
-   - Use the **same passphrase** and **same API key**
-   - Settings will automatically sync
+   - Use the **same password** and **same user ID**
+   - Login and sync
 
 ### Option B: Self-Host Your Sync Server (Advanced)
 
@@ -68,8 +66,9 @@ For complete control over your data, you can run your own sync server.
 3. Get your custom server URL (e.g., `https://sync.yourdomain.com`)
 4. In UserScript settings:
    - Enter your custom server URL
-   - Enter your self-generated API key
-   - Create a passphrase
+   - Enter your user ID
+   - Create a password
+   - Click "Login" to obtain session tokens
 5. Done! Your data never touches our servers
 
 ## 🔄 How Sync Works
@@ -123,8 +122,8 @@ Conflicts occur when settings differ between devices. This happens when:
 ### Sync Not Working
 
 **Check 1: Settings**
-- Verify API key is correct
-- Verify passphrase is correct (try re-entering)
+- Verify user ID is correct
+- Verify password is correct (try re-entering)
 - Check server URL (if self-hosting)
 
 **Check 2: Network**
@@ -139,44 +138,44 @@ Conflicts occur when settings differ between devices. This happens when:
 ### "Unauthorized" Error
 
 **Causes**:
-- Incorrect API key
-- API key revoked
+- Incorrect login credentials
+- Session expired (tokens revoked)
 - Self-hosted server not configured
 
 **Solution**:
-1. Regenerate API key
-2. Update UserScript settings
+1. Login again to refresh tokens
+2. Verify server URL + user ID
 3. Try syncing again
 
 ### "Decryption Failed" Error
 
 **Causes**:
-- Incorrect passphrase
+- Incorrect password
 - Data corrupted
 
 **Solution**:
-1. Verify passphrase is correct
+1. Verify password is correct
 2. Try "Use Server" in conflict dialog
 3. If all else fails, disable sync and re-enable (starts fresh)
 
-### Forgot Passphrase
+### Forgot Password
 
 ⚠️ **Cannot recover** - encryption is designed to be unbreakable
 
 **Options**:
 1. **If you have another synced device**: 
-   - Check if passphrase is saved in password manager
+   - Check if password is saved in password manager
    - Copy settings manually from working device
 2. **If completely lost**:
    - Delete synced data (Settings → "Disable Sync")
-   - Re-enable sync with new passphrase
+   - Re-enable sync with new password
    - Re-configure all settings
 
 ### Settings Not Appearing on New Device
 
 **Check**:
-1. Same passphrase used on all devices
-2. Same API key used on all devices
+1. Same password used on all devices
+2. Same user ID used on all devices
 3. Manual sync triggered after setup
 4. Browser console for errors
 
@@ -187,14 +186,14 @@ Conflicts occur when settings differ between devices. This happens when:
 
 ## 🔐 Security Best Practices
 
-### Choose a Strong Passphrase
+### Choose a Strong Password
 
-✅ **Good passphrases**:
+✅ **Good passwords**:
 - `correct horse battery staple` (4 random words)
 - `MyP0rtf0li0!Sync#2024` (mix of words, numbers, symbols)
 - `I love investing in 2024 for retirement!` (long sentence)
 
-❌ **Bad passphrases**:
+❌ **Bad passwords**:
 - `password123`
 - `investtech`
 - Your name or email
@@ -205,18 +204,17 @@ Conflicts occur when settings differ between devices. This happens when:
 - Don't share it with anyone
 - Don't reuse from other services
 
-### Protect Your API Key
+### Protect Your Account
 
-- Treat it like a password
-- Don't share publicly
-- Rotate every 6-12 months
-- Revoke if compromised
+- Treat your password like any other sensitive credential
+- Don't share it publicly
+- Use a password manager
 
 ### Self-Hosting Recommendations
 
 If you self-host:
 - Enable custom domain with HTTPS
-- Rotate API keys quarterly
+- Rotate `JWT_SECRET` quarterly
 - Monitor access logs
 - Keep Wrangler updated
 - Set up Cloudflare alerts
@@ -234,28 +232,27 @@ If you self-host:
 
 3. **Update UserScript**:
    - Change server URL to your server
-   - Change API key to your self-generated key
-   - **Keep same passphrase** (your data is still encrypted with it)
+   - Login with the same user ID + password
+   - **Keep the same password** (your data is still encrypted with it)
 
 4. **Sync**:
    - Click "Sync Now"
    - Your settings upload to your server
 
 5. **Update other devices**:
-   - Update server URL + API key on all devices
-   - Keep same passphrase
+   - Update server URL on all devices
+   - Login with the same user ID + password
    - Sync
 
 ### From Self-Hosted → Official
 
 Same process, but in reverse:
-1. Get API key from official server
-2. Change server URL to official server
-3. Change API key
-4. Keep same passphrase
-5. Sync
+1. Change server URL to official server
+2. Login with the same user ID + password
+3. Keep the same password
+4. Sync
 
-**Note**: Your data remains encrypted with your passphrase, so server migration doesn't compromise security.
+**Note**: Your data remains encrypted with your password, so server migration doesn't compromise security.
 
 ## ❓ FAQ
 
@@ -264,23 +261,23 @@ Same process, but in reverse:
 **A**: No. All data is encrypted client-side before upload. The server only sees:
 - Your user ID (random UUID)
 - Device ID (random UUID)
-- Encrypted blob (unreadable without your passphrase)
+- Encrypted blob (unreadable without your password)
 - Timestamp (metadata)
 
 Goal names, amounts, and settings are never visible to the server.
 
-### Q: Can I use different passphrases on different devices?
+### Q: Can I use different passwords on different devices?
 
-**A**: No. All devices must use the same passphrase to decrypt the shared data.
+**A**: No. All devices must use the same password to decrypt the shared data.
 
 ### Q: What if I lose all my devices?
 
 **A**: If you lose all devices:
 - Your encrypted data is still on the server
-- You need your passphrase to decrypt it
-- If you forgot your passphrase, data is unrecoverable (by design)
+- You need your password to decrypt it
+- If you forgot your password, data is unrecoverable (by design)
 
-**Prevention**: Save passphrase in password manager or secure location.
+**Prevention**: Save password in password manager or secure location.
 
 ### Q: How much does sync cost?
 

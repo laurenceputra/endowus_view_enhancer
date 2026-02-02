@@ -136,7 +136,8 @@ If you want to sync your goal configurations across devices:
 2. **Configure Sync**:
    - Click the sync indicator (bottom-right) or "Sync Settings" button
    - Enable sync
-   - Enter your server URL, user ID, API key, and encryption passphrase
+   - Enter your server URL, user ID, and password
+   - Click "Login" to obtain session tokens
    - Click "Save Settings" then "Sync Now"
 
 3. **Use on Other Devices**:
@@ -145,8 +146,8 @@ If you want to sync your goal configurations across devices:
    - Your goal targets and settings will sync automatically
 
 **Important**: 
-- Your encryption passphrase is used to encrypt data before it leaves your device
-- If you lose your passphrase, your synced data cannot be recovered
+- Your password is used to encrypt data before it leaves your device and is never stored locally
+- If you lose your password, your synced data cannot be recovered
 - The sync server never sees your unencrypted data
 
 For detailed sync setup instructions, see `QUICK_START.md`.

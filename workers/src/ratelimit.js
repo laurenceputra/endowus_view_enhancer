@@ -1,7 +1,7 @@
 /**
  * Rate limiting middleware
  * 
- * Prevents abuse by limiting request rates per API key
+ * Prevents abuse by limiting request rates per user or IP
  * Uses Cloudflare KV for distributed rate limiting
  */
 
@@ -13,6 +13,10 @@ const RATE_LIMITS = {
 	'/auth/login': {
 		// POST /auth/login - Login
 		POST: { limit: 10, window: 60 }, // 10 login attempts per minute
+	},
+	'/auth/refresh': {
+		// POST /auth/refresh - Token refresh
+		POST: { limit: 30, window: 60 }, // 30 refresh requests per minute
 	},
 	'/sync': {
 		// POST /sync - Upload
@@ -31,15 +35,16 @@ const RATE_LIMITS = {
  * @param {Request} request - Incoming request
  * @param {Object} env - Environment with KV binding
  * @param {string} pathname - Request pathname
+ * @param {string|null} identifierOverride - Optional identifier to use for rate limiting
  * @returns {Promise<Object>} { allowed: boolean, retryAfter?: number }
  */
-export async function rateLimit(request, env, pathname) {
+export async function rateLimit(request, env, pathname, identifierOverride = null) {
 	const method = request.method;
 	const userId = request.headers.get('X-User-Id');
 	const connectingIP = request.headers.get('CF-Connecting-IP');
 
 	// Use userId for password auth, or IP as fallback
-	const identifier = userId || connectingIP || 'unknown';
+	const identifier = identifierOverride || userId || connectingIP || 'unknown';
 
 	// Normalize pathname (replace dynamic segments)
 	const normalizedPath = pathname.startsWith('/sync/') && pathname !== '/sync'
@@ -100,7 +105,7 @@ export async function rateLimit(request, env, pathname) {
 }
 
 /**
- * Get rate limit status for an API key (admin endpoint)
+ * Get rate limit status for an identifier (admin endpoint)
  */
 export async function getRateLimitStatus(env, apiKey, pathname, method) {
 	const normalizedPath = pathname.startsWith('/sync/') && pathname !== '/sync'
@@ -126,7 +131,7 @@ export async function getRateLimitStatus(env, apiKey, pathname, method) {
 }
 
 /**
- * Reset rate limit for an API key (admin endpoint)
+ * Reset rate limit for an identifier (admin endpoint)
  */
 export async function resetRateLimit(env, apiKey, pathname, method) {
 	const normalizedPath = pathname.startsWith('/sync/') && pathname !== '/sync'

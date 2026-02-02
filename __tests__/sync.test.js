@@ -14,6 +14,7 @@ if (!global.crypto || !global.crypto.subtle) {
         subtle: webcrypto.subtle
     };
     global.window.location = { href: 'https://test.example.com' };
+    global.window.__GPV_DISABLE_AUTO_INIT = true;
     
     // Mock XMLHttpRequest to prevent errors from browser-only code
     global.XMLHttpRequest = class XMLHttpRequest {
@@ -27,6 +28,9 @@ if (!global.crypto || !global.crypto.subtle) {
         addEventListener: function() {}
     };
 }
+
+global.window = global.window || {};
+global.window.__GPV_DISABLE_AUTO_INIT = true;
 
 // Import the UserScript to get access to SyncEncryption
 const { SyncEncryption } = require('../tampermonkey/goal_portfolio_viewer.user.js');

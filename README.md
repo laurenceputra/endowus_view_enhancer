@@ -53,7 +53,7 @@ Core-satellite strategies complement this approach. The core anchors each goal w
 - **Goal-based clarity:** Keep multiple goals organized without spreadsheets or manual rollups.
 - **Core + satellite aligned:** See long-term core holdings and tactical satellites side-by-side within each life goal.
 - **Asset allocation visibility:** CPF, SRS, and cash investments show together with clear return and growth indicators.
-- **Privacy first:** All data stays on your device and is processed locally in the browser.
+- **Privacy first:** By default, all data stays on your device and is processed locally in the browser. Optional sync is opt-in and only sends encrypted configuration data.
 - **Zero friction:** Use the "Bucket Name - Description" naming pattern in your goal names and the script does the rest.
 
 ---
@@ -91,10 +91,16 @@ Sync your portfolio configuration across multiple devices with end-to-end encryp
 - 🎯 **Conflict Resolution**: Clear UI for handling sync conflicts
 - ⚡ **Fast**: ~5ms encryption, global CDN distribution
 
+**Privacy & Opt-In**:
+- ✅ Sync is completely optional.
+- ✅ No data is sent until you enable sync and click **Save Settings**.
+- ✅ Only encrypted config values (goal targets + fixed flags) are synced.
+- ✅ Your password is never stored locally; use your browser password manager to autofill each session.
+
 **Getting Started**:
 1. Review the [Sync Setup Guide](docs/sync-setup.md)
-2. Configure your passphrase and backend URL
-3. Enable sync and enjoy seamless multi-device experience
+2. Configure your server URL, user ID, and password
+3. Login, enable sync, and enjoy seamless multi-device experience
 
 **For Self-Hosting**:
 - Deploy your own backend: See [workers/README.md](workers/README.md)
@@ -160,7 +166,7 @@ npm run test:watch    # Development mode
 - ✅ Financial calculations manually verified
 - ✅ Documentation updated for behavior changes
 - ✅ Version bumped appropriately
-- 🔒 No data egress (privacy first)
+- 🔒 No data egress unless the user explicitly enables sync
 - 🔒 No `eval()` or unsafe patterns
 
 ---

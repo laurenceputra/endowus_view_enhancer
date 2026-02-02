@@ -37,15 +37,19 @@ This is a streamlined guide for integrating the sync functionality. For detailed
 const SYNC_STORAGE_KEYS = {
     enabled: 'sync_enabled',
     serverUrl: 'sync_server_url',
-    apiKey: 'sync_api_key',
-    passphrase: 'sync_passphrase',
     userId: 'sync_user_id',
     deviceId: 'sync_device_id',
     lastSync: 'sync_last_sync',
     lastSyncHash: 'sync_last_hash',
     autoSync: 'sync_auto_sync',
-    syncInterval: 'sync_interval_minutes'
+    syncInterval: 'sync_interval_minutes',
+    accessToken: 'sync_access_token',
+    refreshToken: 'sync_refresh_token',
+    accessTokenExpiry: 'sync_access_token_expiry',
+    refreshTokenExpiry: 'sync_refresh_token_expiry'
 };
+
+const LEGACY_SYNC_PASSWORD_KEY = 'sync_password';
 
 const SYNC_DEFAULTS = {
     serverUrl: 'https://goal-sync.workers.dev',
@@ -224,7 +228,7 @@ SyncEncryption.encrypt("test", "password").then(encrypted => {
 
 ### Backend Setup
 1. Deploy Cloudflare Workers (see workers/README.md)
-2. Get your API key from the deployment
+2. Set your `JWT_SECRET` in Cloudflare Workers
 3. Note your server URL (e.g., https://goal-sync.yourname.workers.dev)
 
 ### UserScript Setup
@@ -233,11 +237,11 @@ SyncEncryption.encrypt("test", "password").then(encrypted => {
 3. Enter:
    - **Server URL**: Your Cloudflare Workers URL
    - **User ID**: Your email or unique ID
-   - **API Key**: From Cloudflare Workers
-   - **Passphrase**: Strong password (8+ chars)
-4. Click "Save Settings"
-5. Click "Test Connection" (should succeed)
-6. Click "Sync Now" (should succeed)
+   - **Password**: Strong password (8+ chars)
+4. Click "Login" to obtain session tokens
+5. Click "Save Settings"
+6. Click "Test Connection" (should succeed)
+7. Click "Sync Now" (should succeed)
 
 ## Step 10: Verify End-to-End Sync (5 minutes)
 
@@ -277,7 +281,7 @@ SyncEncryption.encrypt("test", "password").then(encrypted => {
 ```javascript
 'Access-Control-Allow-Origin': '*'
 'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS'
-'Access-Control-Allow-Headers': 'Content-Type, X-API-Key'
+'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-User-Id'
 ```
 
 ### Issue: Sync indicator not showing
@@ -287,7 +291,7 @@ SyncEncryption.encrypt("test", "password").then(encrypted => {
 **Solution**: Check console for errors, verify `showSyncSettings()` is defined
 
 ### Issue: Decryption failed
-**Solution**: Check passphrase is correct, or clear sync config and reconfigure
+**Solution**: Check your password is correct, or clear sync config and reconfigure
 
 ### Issue: Auto-sync not working
 **Solution**: Check sync is enabled and configured:

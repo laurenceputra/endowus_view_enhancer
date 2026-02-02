@@ -1,14 +1,15 @@
 /**
- * Test script for password-based authentication
+ * Test script for password-based login + JWT auth
  * 
  * Run with: node test-password-auth.js
  * 
- * This tests the complete password authentication flow:
+ * This tests the complete auth flow:
  * 1. Register a new user
- * 2. Login with credentials
- * 3. Upload encrypted data
- * 4. Download encrypted data
- * 5. Delete data
+ * 2. Login with credentials (issue tokens)
+ * 3. Refresh tokens
+ * 4. Upload encrypted data (access token)
+ * 5. Download encrypted data (access token)
+ * 6. Delete data (access token)
  */
 
 const crypto = require('crypto');
@@ -86,12 +87,41 @@ async function testLogin(passwordHash) {
     }
     
     console.log('✅ Login successful!');
+    if (!result.tokens || !result.tokens.accessToken || !result.tokens.refreshToken) {
+        throw new Error('Login did not return tokens');
+    }
+    return result.tokens;
 }
 
 /**
- * Test upload with password authentication
+ * Test token refresh endpoint
  */
-async function testUpload(passwordHash) {
+async function testRefresh(refreshToken) {
+    console.log('\n=== Testing Token Refresh ===');
+
+    const response = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${refreshToken}`
+        }
+    });
+
+    const result = await response.json();
+    console.log(`Status: ${response.status}`);
+    console.log(`Result:`, result);
+
+    if (!result.success) {
+        throw new Error(`Refresh failed: ${result.error || 'Unknown error'}`);
+    }
+
+    console.log('✅ Refresh successful!');
+    return result.tokens;
+}
+
+/**
+ * Test upload with access token
+ */
+async function testUpload(accessToken) {
     console.log('\n=== Testing Upload ===');
     
     const testData = {
@@ -106,7 +136,7 @@ async function testUpload(passwordHash) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-Password-Hash': passwordHash,
+            'Authorization': `Bearer ${accessToken}`,
             'X-User-Id': TEST_USER_ID
         },
         body: JSON.stringify(testData)
@@ -124,15 +154,15 @@ async function testUpload(passwordHash) {
 }
 
 /**
- * Test download with password authentication
+ * Test download with access token
  */
-async function testDownload(passwordHash) {
+async function testDownload(accessToken) {
     console.log('\n=== Testing Download ===');
     
     const response = await fetch(`${BASE_URL}/sync/${TEST_USER_ID}`, {
         method: 'GET',
         headers: {
-            'X-Password-Hash': passwordHash,
+            'Authorization': `Bearer ${accessToken}`,
             'X-User-Id': TEST_USER_ID
         }
     });
@@ -149,15 +179,15 @@ async function testDownload(passwordHash) {
 }
 
 /**
- * Test delete with password authentication
+ * Test delete with access token
  */
-async function testDelete(passwordHash) {
+async function testDelete(accessToken) {
     console.log('\n=== Testing Delete ===');
     
     const response = await fetch(`${BASE_URL}/sync/${TEST_USER_ID}`, {
         method: 'DELETE',
         headers: {
-            'X-Password-Hash': passwordHash,
+            'Authorization': `Bearer ${accessToken}`,
             'X-User-Id': TEST_USER_ID
         }
     });
@@ -208,7 +238,7 @@ async function testInvalidCredentials() {
  */
 async function runTests() {
     console.log('==========================================');
-    console.log('Password Authentication Test Suite');
+    console.log('Token Authentication Test Suite');
     console.log('==========================================');
     console.log(`Server: ${BASE_URL}`);
     console.log(`Test User: ${TEST_USER_ID}`);
@@ -218,16 +248,20 @@ async function runTests() {
         const passwordHash = await testRegister();
         
         // Test login
-        await testLogin(passwordHash);
+        const tokens = await testLogin(passwordHash);
+
+        // Test refresh
+        const refreshedTokens = await testRefresh(tokens.refreshToken);
+        const accessToken = refreshedTokens.accessToken || tokens.accessToken;
         
-        // Test upload with password auth
-        await testUpload(passwordHash);
+        // Test upload with access token
+        await testUpload(accessToken);
         
-        // Test download with password auth
-        await testDownload(passwordHash);
+        // Test download with access token
+        await testDownload(accessToken);
         
-        // Test delete with password auth
-        await testDelete(passwordHash);
+        // Test delete with access token
+        await testDelete(accessToken);
         
         // Test invalid credentials
         await testInvalidCredentials();
