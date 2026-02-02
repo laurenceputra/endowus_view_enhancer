@@ -84,7 +84,7 @@
     const LEGACY_SYNC_PASSWORD_KEY = 'sync_password';
 
     const SYNC_DEFAULTS = {
-        serverUrl: 'https://goal-sync.workers.dev',
+        serverUrl: 'https://goal-portfolio-sync.laurenceputra.workers.dev',
         autoSync: false,
         syncInterval: 30 // minutes
     };
@@ -2039,6 +2039,23 @@
         });
     }
 
+    function createApiError(response, errorData, fallbackMessage) {
+        const message = (errorData && (errorData.message || errorData.error)) || fallbackMessage;
+        const error = new Error(message);
+        if (errorData && errorData.error) {
+            error.code = errorData.error;
+        }
+        if (response && response.status === 429) {
+            error.code = 'RATE_LIMIT_EXCEEDED';
+        }
+        const retryAfterHeader = response?.headers?.get('Retry-After');
+        const retryAfterSeconds = Number(errorData?.retryAfter || retryAfterHeader);
+        if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+            error.retryAfterSeconds = retryAfterSeconds;
+        }
+        return error;
+    }
+
     /**
      * Upload config to server
      */
@@ -2080,7 +2097,7 @@
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || `Upload failed: ${response.status}`);
+            throw createApiError(response, errorData, `Upload failed: ${response.status}`);
         }
 
         return response.json();
@@ -2115,7 +2132,7 @@
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || `Download failed: ${response.status}`);
+            throw createApiError(response, errorData, `Download failed: ${response.status}`);
         }
 
         const serverData = await response.json();
@@ -4484,7 +4501,6 @@ function createSyncSettingsHTML() {
                     </div>
                 ` : ''}
             </div>
-            <div class="gpv-sync-message" id="gpv-sync-message" role="status" aria-live="polite"></div>
 
             <div class="gpv-sync-form">
                 <div class="gpv-sync-form-group">
@@ -4568,6 +4584,7 @@ function createSyncSettingsHTML() {
                     </label>
                     <p class="gpv-sync-help">
                         Stores a derived encryption key locally in Tampermonkey storage to keep sync running across browser sessions. Only enable on a trusted device.
+                        This key encrypts only your goal targets and fixed flags; portfolio balances, holdings, transactions, and personal data never leave your browser.
                     </p>
                 </div>
 
@@ -4613,6 +4630,8 @@ function createSyncSettingsHTML() {
                         How often to automatically sync (5-1440 minutes)
                     </p>
                 </div>
+
+                <div class="gpv-sync-message" id="gpv-sync-message" role="status" aria-live="polite"></div>
 
                 <div class="gpv-sync-actions">
                     <button 
@@ -4950,7 +4969,14 @@ function setupSyncSettingsListeners() {
                 }, 1000);
             } catch (error) {
                 console.error('[Goal Portfolio Viewer] Sync failed:', error);
-                showErrorMessage(`Sync failed: ${error.message}`);
+                if (error && error.code === 'RATE_LIMIT_EXCEEDED') {
+                    const retrySeconds = Number(error.retryAfterSeconds);
+                    const retryMinutes = Number.isFinite(retrySeconds) ? Math.max(1, Math.ceil(retrySeconds / 60)) : null;
+                    const retryText = retryMinutes ? ` Try again in ${retryMinutes} minute${retryMinutes === 1 ? '' : 's'}.` : '';
+                    showErrorMessage(`Too many syncs in a short time.${retryText} You can keep working locally and sync later.`);
+                } else {
+                    showErrorMessage(`Sync failed: ${error.message}`);
+                }
             } finally {
                 syncNowBtn.disabled = false;
                 syncNowBtn.textContent = 'Sync Now';

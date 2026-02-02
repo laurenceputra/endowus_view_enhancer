@@ -37,6 +37,7 @@ Keep your Goal Portfolio Viewer settings synchronized across all your devices wi
    - ⚠️ **Important**: Save this password! It cannot be recovered if lost
    - Your password encrypts your data - without it, synced data is useless
    - Optional: Enable **"Remember encryption key on this device"** to keep sync unlocked across browser sessions (trusted devices only)
+   - Only encrypted goal targets + fixed flags are synced; holdings, balances, and transactions never leave your browser
 
 4. **Create Account**
    - Click "Sign Up" to register

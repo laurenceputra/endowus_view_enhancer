@@ -131,7 +131,7 @@ If you want to sync your goal configurations across devices:
 
 1. **Deploy Backend** (one-time setup):
    - See `../workers/README.md` for Cloudflare Workers deployment instructions
-   - Or use the default public server: `https://goal-sync.workers.dev`
+   - Or use the default public server: `https://goal-portfolio-sync.laurenceputra.workers.dev`
 
 2. **Configure Sync**:
    - Click the sync indicator (bottom-right) or "Sync Settings" button
@@ -150,6 +150,7 @@ If you want to sync your goal configurations across devices:
 - If you lose your password, your synced data cannot be recovered
 - You can optionally remember the encryption key on trusted devices to keep sync unlocked across sessions
 - The sync server never sees your unencrypted data
+- Only encrypted goal targets + fixed flags are synced; holdings, balances, and transactions never leave your browser
 
 For detailed sync setup instructions, see `QUICK_START.md`.
 
