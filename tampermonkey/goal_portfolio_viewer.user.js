@@ -65,20 +65,32 @@
     const SYNC_STORAGE_KEYS = {
         enabled: 'sync_enabled',
         serverUrl: 'sync_server_url',
-        password: 'sync_password', // Single password for both auth and encryption
         userId: 'sync_user_id',
         deviceId: 'sync_device_id',
         lastSync: 'sync_last_sync',
         lastSyncHash: 'sync_last_hash',
         autoSync: 'sync_auto_sync',
-        syncInterval: 'sync_interval_minutes'
+        syncInterval: 'sync_interval_minutes',
+        accessToken: 'sync_access_token',
+        refreshToken: 'sync_refresh_token',
+        accessTokenExpiry: 'sync_access_token_expiry',
+        refreshTokenExpiry: 'sync_refresh_token_expiry'
     };
+
+    const LEGACY_SYNC_PASSWORD_KEY = 'sync_password';
 
     const SYNC_DEFAULTS = {
         serverUrl: 'https://goal-sync.workers.dev',
         autoSync: false,
         syncInterval: 30 // minutes
     };
+
+    function normalizeServerUrl(serverUrl) {
+        if (!serverUrl || typeof serverUrl !== 'string') {
+            return '';
+        }
+        return serverUrl.trim().replace(/\/+$/, '');
+    }
 
     const SYNC_STATUS = {
         idle: 'idle',
@@ -1653,9 +1665,168 @@
     // ============================================
 
     const SyncManager = (() => {
+    const TOKEN_EXPIRY_SKEW_MS = 60 * 1000;
     let syncStatus = SYNC_STATUS.idle;
     let lastError = null;
     let autoSyncTimer = null;
+    let sessionPassword = null;
+
+    function getStoredServerUrl(fallback = '') {
+        const stored = Storage.get(SYNC_STORAGE_KEYS.serverUrl, fallback);
+        return normalizeServerUrl(stored || '');
+    }
+
+    function clearLegacyPasswordIfPresent() {
+        if (typeof GM_getValue !== 'function' || typeof GM_deleteValue !== 'function') {
+            return;
+        }
+        const legacyPassword = Storage.get(LEGACY_SYNC_PASSWORD_KEY, null);
+        if (legacyPassword !== null) {
+            Storage.remove(LEGACY_SYNC_PASSWORD_KEY);
+            logDebug('[Goal Portfolio Viewer] Cleared legacy sync password from storage');
+        }
+    }
+
+    function decodeBase64Url(value) {
+        if (!value || typeof value !== 'string') {
+            return null;
+        }
+        const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+        const paddingNeeded = (4 - (normalized.length % 4)) % 4;
+        const padded = normalized + '='.repeat(paddingNeeded);
+        try {
+            return atob(padded);
+        } catch (_error) {
+            return null;
+        }
+    }
+
+    function parseJwtPayload(token) {
+        if (!token || typeof token !== 'string') {
+            return null;
+        }
+        const parts = token.split('.');
+        if (parts.length !== 3) {
+            return null;
+        }
+        const decoded = decodeBase64Url(parts[1]);
+        if (!decoded) {
+            return null;
+        }
+        return parseJsonSafely(decoded);
+    }
+
+    function getStoredTokenExpiry(storageKey, token) {
+        const storedExpiry = Storage.get(storageKey, null);
+        if (typeof storedExpiry === 'number' && Number.isFinite(storedExpiry)) {
+            return storedExpiry;
+        }
+        const payload = parseJwtPayload(token);
+        if (payload && typeof payload.exp === 'number') {
+            return payload.exp * 1000;
+        }
+        return null;
+    }
+
+    function isTokenValid(token, expiryKey) {
+        if (!token) {
+            return false;
+        }
+        const expiry = getStoredTokenExpiry(expiryKey, token);
+        if (!expiry) {
+            return false;
+        }
+        return Date.now() < expiry - TOKEN_EXPIRY_SKEW_MS;
+    }
+
+    function hasValidRefreshToken() {
+        const refreshToken = Storage.get(SYNC_STORAGE_KEYS.refreshToken, null);
+        return isTokenValid(refreshToken, SYNC_STORAGE_KEYS.refreshTokenExpiry);
+    }
+
+    function setSessionPassword(password) {
+        if (!password || typeof password !== 'string') {
+            sessionPassword = null;
+            return;
+        }
+        sessionPassword = password;
+    }
+
+    function requireSessionPassword() {
+        if (!sessionPassword) {
+            throw new Error('Password not set for this session. Enter your password and save settings to unlock sync.');
+        }
+        return sessionPassword;
+    }
+
+    async function hashConfigData(config) {
+        if (!config || typeof config !== 'object') {
+            return null;
+        }
+        const { timestamp, ...rest } = config;
+        return SyncEncryption.hash(JSON.stringify(rest));
+    }
+
+    function storeTokens(tokens) {
+        if (!tokens || typeof tokens !== 'object') {
+            return;
+        }
+        if (tokens.accessToken) {
+            Storage.set(SYNC_STORAGE_KEYS.accessToken, tokens.accessToken);
+        }
+        if (tokens.refreshToken) {
+            Storage.set(SYNC_STORAGE_KEYS.refreshToken, tokens.refreshToken);
+        }
+        if (tokens.accessExpiresAt) {
+            Storage.set(SYNC_STORAGE_KEYS.accessTokenExpiry, tokens.accessExpiresAt);
+        }
+        if (tokens.refreshExpiresAt) {
+            Storage.set(SYNC_STORAGE_KEYS.refreshTokenExpiry, tokens.refreshExpiresAt);
+        }
+    }
+
+    function clearTokens() {
+        Storage.remove(SYNC_STORAGE_KEYS.accessToken);
+        Storage.remove(SYNC_STORAGE_KEYS.refreshToken);
+        Storage.remove(SYNC_STORAGE_KEYS.accessTokenExpiry);
+        Storage.remove(SYNC_STORAGE_KEYS.refreshTokenExpiry);
+    }
+
+    async function refreshAccessToken() {
+        const serverUrl = getStoredServerUrl(SYNC_DEFAULTS.serverUrl);
+        const refreshToken = Storage.get(SYNC_STORAGE_KEYS.refreshToken, null);
+        const userId = Storage.get(SYNC_STORAGE_KEYS.userId, null);
+        if (!refreshToken) {
+            throw new Error('Not logged in. Please login again.');
+        }
+
+        const response = await fetch(`${serverUrl}/auth/refresh`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${refreshToken}`,
+                ...(userId ? { 'X-User-Id': userId } : {})
+            }
+        });
+
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) {
+            clearTokens();
+            throw new Error(result.message || 'Session expired. Please login again.');
+        }
+
+        storeTokens(result.tokens);
+        return result.tokens?.accessToken || null;
+    }
+
+    async function getAccessToken() {
+        const accessToken = Storage.get(SYNC_STORAGE_KEYS.accessToken, null);
+        if (isTokenValid(accessToken, SYNC_STORAGE_KEYS.accessTokenExpiry)) {
+            return accessToken;
+        }
+        return refreshAccessToken();
+    }
+
+    clearLegacyPasswordIfPresent();
 
     /**
      * Check if sync is enabled
@@ -1668,10 +1839,9 @@
      * Check if sync is configured
      */
     function isConfigured() {
-        const serverUrl = Storage.get(SYNC_STORAGE_KEYS.serverUrl, null);
-        const password = Storage.get(SYNC_STORAGE_KEYS.password, null);
+        const serverUrl = getStoredServerUrl('');
         const userId = Storage.get(SYNC_STORAGE_KEYS.userId, null);
-        return serverUrl && password && userId;
+        return Boolean(serverUrl && userId && hasValidRefreshToken());
     }
 
     /**
@@ -1750,20 +1920,20 @@
      * Upload config to server
      */
     async function uploadConfig(config) {
-        const serverUrl = Storage.get(SYNC_STORAGE_KEYS.serverUrl, SYNC_DEFAULTS.serverUrl);
-        const password = Storage.get(SYNC_STORAGE_KEYS.password, null);
+        const serverUrl = getStoredServerUrl(SYNC_DEFAULTS.serverUrl);
         const userId = Storage.get(SYNC_STORAGE_KEYS.userId, null);
 
-        if (!password || !userId) {
+        if (!userId) {
             throw new Error('Sync not configured');
         }
+
+        const password = requireSessionPassword();
 
         // Encrypt config using password
         const plaintext = JSON.stringify(config);
         const encryptedData = await SyncEncryption.encrypt(plaintext, password);
 
-        // Hash password for authentication
-        const passwordHash = await SyncEncryption.hashPasswordForAuth(password, userId);
+        const accessToken = await getAccessToken();
 
         // Prepare payload
         const payload = {
@@ -1779,7 +1949,7 @@
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Password-Hash': passwordHash,
+                'Authorization': `Bearer ${accessToken}`,
                 'X-User-Id': userId
             },
             body: JSON.stringify(payload)
@@ -1797,22 +1967,20 @@
      * Download config from server
      */
     async function downloadConfig() {
-        const serverUrl = Storage.get(SYNC_STORAGE_KEYS.serverUrl, SYNC_DEFAULTS.serverUrl);
-        const password = Storage.get(SYNC_STORAGE_KEYS.password, null);
+        const serverUrl = getStoredServerUrl(SYNC_DEFAULTS.serverUrl);
         const userId = Storage.get(SYNC_STORAGE_KEYS.userId, null);
 
-        if (!password || !userId) {
+        if (!userId) {
             throw new Error('Sync not configured');
         }
 
-        // Hash password for authentication
-        const passwordHash = await SyncEncryption.hashPasswordForAuth(password, userId);
+        const accessToken = await getAccessToken();
 
         // Download from server
         const response = await fetch(`${serverUrl}/sync/${userId}`, {
             method: 'GET',
             headers: {
-                'X-Password-Hash': passwordHash,
+                'Authorization': `Bearer ${accessToken}`,
                 'X-User-Id': userId
             }
         });
@@ -1837,6 +2005,7 @@
         }
 
         // Decrypt config using password
+        const password = requireSessionPassword();
         const plaintext = await SyncEncryption.decrypt(data.encryptedData, password);
         const config = JSON.parse(plaintext);
 
@@ -1896,6 +2065,8 @@
             throw new Error('Web Crypto API not supported in this browser');
         }
 
+        requireSessionPassword();
+
         syncStatus = SYNC_STATUS.syncing;
         if (typeof updateSyncUI === 'function') {
             updateSyncUI();
@@ -1903,54 +2074,80 @@
 
         try {
             const localConfig = collectConfigData();
+            const localHash = await hashConfigData(localConfig);
+            const lastSyncHash = Storage.get(SYNC_STORAGE_KEYS.lastSyncHash, null);
+            const lastSyncTimestamp = Storage.get(SYNC_STORAGE_KEYS.lastSync, null);
+            if (localHash && lastSyncHash === localHash && typeof lastSyncTimestamp === 'number') {
+                localConfig.timestamp = lastSyncTimestamp;
+            }
             
-            if (direction === 'upload' || direction === 'both') {
-                // Upload local config
+            if (direction === 'upload') {
                 await uploadConfig(localConfig);
                 Storage.set(SYNC_STORAGE_KEYS.lastSync, Date.now());
-                
-                const hash = await SyncEncryption.hash(JSON.stringify(localConfig));
-                Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, hash);
+                Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, localHash);
 
                 syncStatus = SYNC_STATUS.success;
                 lastError = null;
                 logDebug('[Goal Portfolio Viewer] Sync upload successful');
-            }
-
-            if (direction === 'download' || direction === 'both') {
-                // Download and check for conflicts
+            } else if (direction === 'download') {
                 const serverData = await downloadConfig();
-                
                 if (!serverData) {
-                    // No server data, upload local
-                    if (direction === 'both') {
-                        await uploadConfig(localConfig);
-                        Storage.set(SYNC_STORAGE_KEYS.lastSync, Date.now());
-                    }
+                    syncStatus = SYNC_STATUS.success;
+                    lastError = null;
+                    logDebug('[Goal Portfolio Viewer] No server data to download');
+                } else {
+                    applyConfigData(serverData.config);
+                    Storage.set(SYNC_STORAGE_KEYS.lastSync, Date.now());
+                    const hash = await hashConfigData(serverData.config);
+                    Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, hash);
+
+                    syncStatus = SYNC_STATUS.success;
+                    lastError = null;
+                    logDebug('[Goal Portfolio Viewer] Sync download successful');
+                }
+            } else {
+                const serverData = await downloadConfig();
+
+                if (!serverData) {
+                    await uploadConfig(localConfig);
+                    Storage.set(SYNC_STORAGE_KEYS.lastSync, Date.now());
+                    Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, localHash);
+
                     syncStatus = SYNC_STATUS.success;
                     lastError = null;
                     logDebug('[Goal Portfolio Viewer] No server data, uploaded local config');
                 } else {
-                    // Check for conflicts
                     const conflict = await detectConflict(localConfig, serverData);
-                    
+
                     if (conflict && !force) {
                         syncStatus = SYNC_STATUS.conflict;
                         if (typeof showConflictResolutionUI === 'function') {
                             showConflictResolutionUI(conflict);
                         }
                         return { status: 'conflict', conflict };
-                    } else if (serverData) {
-                        // Apply server data
+                    }
+
+                    if (localConfig.timestamp > serverData.metadata.timestamp) {
+                        await uploadConfig(localConfig);
+                        Storage.set(SYNC_STORAGE_KEYS.lastSync, Date.now());
+                        Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, localHash);
+
+                        syncStatus = SYNC_STATUS.success;
+                        lastError = null;
+                        logDebug('[Goal Portfolio Viewer] Local config newer, uploaded to server');
+                    } else if (localConfig.timestamp < serverData.metadata.timestamp) {
                         applyConfigData(serverData.config);
                         Storage.set(SYNC_STORAGE_KEYS.lastSync, Date.now());
-                        
-                        const hash = await SyncEncryption.hash(JSON.stringify(serverData.config));
+                        const hash = await hashConfigData(serverData.config);
                         Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, hash);
 
                         syncStatus = SYNC_STATUS.success;
                         lastError = null;
-                        logDebug('[Goal Portfolio Viewer] Sync download successful');
+                        logDebug('[Goal Portfolio Viewer] Server config newer, applied locally');
+                    } else {
+                        syncStatus = SYNC_STATUS.success;
+                        lastError = null;
+                        logDebug('[Goal Portfolio Viewer] Sync already up to date');
                     }
                 }
             }
@@ -1984,10 +2181,14 @@
                 // Upload local, overwrite server
                 await uploadConfig(conflict.local);
                 Storage.set(SYNC_STORAGE_KEYS.lastSync, Date.now());
+                const hash = await hashConfigData(conflict.local);
+                Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, hash);
             } else if (resolution === 'remote') {
                 // Apply remote, keep server
                 applyConfigData(conflict.remote);
                 Storage.set(SYNC_STORAGE_KEYS.lastSync, Date.now());
+                const hash = await hashConfigData(conflict.remote);
+                Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, hash);
             } else {
                 throw new Error('Invalid resolution');
             }
@@ -2026,6 +2227,11 @@
             return;
         }
 
+        if (!sessionPassword) {
+            logDebug('[Goal Portfolio Viewer] Auto-sync requires an unlocked session password');
+            return;
+        }
+
         const intervalMs = intervalMinutes * 60 * 1000;
         autoSyncTimer = setInterval(() => {
             performSync({ direction: 'both' }).catch(error => {
@@ -2057,7 +2263,9 @@
             lastSync: Storage.get(SYNC_STORAGE_KEYS.lastSync, null),
             isEnabled: isEnabled(),
             isConfigured: isConfigured(),
-            cryptoSupported: SyncEncryption.isSupported()
+            cryptoSupported: SyncEncryption.isSupported(),
+            hasSessionPassword: Boolean(sessionPassword),
+            hasValidRefreshToken: hasValidRefreshToken()
         };
     }
 
@@ -2065,13 +2273,28 @@
      * Enable sync
      */
     function enable(config) {
-        if (!config || !config.serverUrl || !config.password || !config.userId) {
-            throw new Error('Invalid sync configuration: serverUrl, password, and userId required');
+        const normalizedServerUrl = normalizeServerUrl(config?.serverUrl);
+        if (!config || !normalizedServerUrl || !config.userId) {
+            throw new Error('Invalid sync configuration: serverUrl and userId required');
+        }
+
+        if (config.password) {
+            setSessionPassword(config.password);
+        }
+
+        if (!sessionPassword) {
+            throw new Error('Password required to unlock sync for this session');
+        }
+
+        const previousUserId = Storage.get(SYNC_STORAGE_KEYS.userId, null);
+        const previousServerUrl = Storage.get(SYNC_STORAGE_KEYS.serverUrl, null);
+        if ((previousUserId && previousUserId !== config.userId) ||
+            (previousServerUrl && previousServerUrl !== normalizedServerUrl)) {
+            clearTokens();
         }
 
         Storage.set(SYNC_STORAGE_KEYS.enabled, true);
-        Storage.set(SYNC_STORAGE_KEYS.serverUrl, config.serverUrl);
-        Storage.set(SYNC_STORAGE_KEYS.password, config.password);
+        Storage.set(SYNC_STORAGE_KEYS.serverUrl, normalizedServerUrl);
         Storage.set(SYNC_STORAGE_KEYS.userId, config.userId);
         
         if (config.autoSync !== undefined) {
@@ -2089,7 +2312,8 @@
      * Register a new user account
      */
     async function register(serverUrl, userId, password) {
-        if (!serverUrl || !userId || !password) {
+        const normalizedServerUrl = normalizeServerUrl(serverUrl);
+        if (!normalizedServerUrl || !userId || !password) {
             throw new Error('serverUrl, userId, and password are required');
         }
 
@@ -2101,7 +2325,7 @@
         const passwordHash = await SyncEncryption.hashPasswordForAuth(password, userId);
 
         // Call register endpoint
-        const response = await fetch(`${serverUrl}/auth/register`, {
+        const response = await fetch(`${normalizedServerUrl}/auth/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -2118,6 +2342,10 @@
             throw new Error(result.message || 'Registration failed');
         }
 
+        Storage.set(SYNC_STORAGE_KEYS.serverUrl, normalizedServerUrl);
+        Storage.set(SYNC_STORAGE_KEYS.userId, userId);
+        setSessionPassword(password);
+
         return result;
     }
 
@@ -2125,7 +2353,8 @@
      * Login (verify credentials)
      */
     async function login(serverUrl, userId, password) {
-        if (!serverUrl || !userId || !password) {
+        const normalizedServerUrl = normalizeServerUrl(serverUrl);
+        if (!normalizedServerUrl || !userId || !password) {
             throw new Error('serverUrl, userId, and password are required');
         }
 
@@ -2133,7 +2362,7 @@
         const passwordHash = await SyncEncryption.hashPasswordForAuth(password, userId);
 
         // Call login endpoint
-        const response = await fetch(`${serverUrl}/auth/login`, {
+        const response = await fetch(`${normalizedServerUrl}/auth/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -2150,6 +2379,19 @@
             throw new Error(result.message || 'Login failed');
         }
 
+        if (!result.tokens || !result.tokens.refreshToken) {
+            throw new Error('Login did not return valid session tokens');
+        }
+
+        storeTokens(result.tokens);
+        Storage.set(SYNC_STORAGE_KEYS.serverUrl, normalizedServerUrl);
+        Storage.set(SYNC_STORAGE_KEYS.userId, userId);
+        setSessionPassword(password);
+
+        if (isEnabled()) {
+            startAutoSync();
+        }
+
         return result;
     }
 
@@ -2159,6 +2401,7 @@
     function disable() {
         stopAutoSync();
         Storage.set(SYNC_STORAGE_KEYS.enabled, false);
+        setSessionPassword(null);
         logDebug('[Goal Portfolio Viewer] Sync disabled');
     }
 
@@ -2171,6 +2414,9 @@
         Object.values(SYNC_STORAGE_KEYS).forEach(key => {
             Storage.remove(key);
         });
+        Storage.remove(LEGACY_SYNC_PASSWORD_KEY);
+        clearTokens();
+        setSessionPassword(null);
         
         syncStatus = SYNC_STATUS.idle;
         lastError = null;
@@ -3975,6 +4221,42 @@
         }, 3000);
     }
 
+    function getSyncMessageContainer() {
+        return document.getElementById('gpv-sync-message');
+    }
+
+    function setSyncMessage(message, type) {
+        const container = getSyncMessageContainer();
+        if (!container) {
+            showNotification(message, type);
+            return;
+        }
+        container.textContent = message;
+        container.classList.remove('gpv-sync-message-success', 'gpv-sync-message-error', 'gpv-sync-message-info');
+        container.classList.add(`gpv-sync-message-${type}`, 'gpv-sync-message-visible');
+    }
+
+    function clearSyncMessage() {
+        const container = getSyncMessageContainer();
+        if (!container) {
+            return;
+        }
+        container.textContent = '';
+        container.classList.remove('gpv-sync-message-success', 'gpv-sync-message-error', 'gpv-sync-message-info', 'gpv-sync-message-visible');
+    }
+
+    function showSuccessMessage(message) {
+        setSyncMessage(message, 'success');
+    }
+
+    function showErrorMessage(message) {
+        setSyncMessage(message, 'error');
+    }
+
+    function showInfoMessage(message) {
+        setSyncMessage(message, 'info');
+    }
+
     /**
      * Format timestamp for display
      */
@@ -3989,15 +4271,31 @@
     // UI: Sync Functions
     // ============================================
 
+function getSyncServerUrlFromInput() {
+    const input = document.getElementById('gpv-sync-server-url');
+    if (!input) {
+        return '';
+    }
+    return input.value.trim();
+}
+
+function resolveSyncServerUrl(preferInput = true) {
+    const inputValue = preferInput ? getSyncServerUrlFromInput() : '';
+    const fallback = Storage.get(SYNC_STORAGE_KEYS.serverUrl, SYNC_DEFAULTS.serverUrl);
+    return normalizeServerUrl(inputValue || fallback || '');
+}
+
 function createSyncSettingsHTML() {
     const syncStatus = SyncManager.getStatus();
     const isEnabled = syncStatus.isEnabled;
     const isConfigured = syncStatus.isConfigured;
     const cryptoSupported = syncStatus.cryptoSupported;
+    const hasSessionPassword = syncStatus.hasSessionPassword;
+    const hasValidRefreshToken = syncStatus.hasValidRefreshToken;
     
-    const serverUrl = Storage.get(SYNC_STORAGE_KEYS.serverUrl, SYNC_DEFAULTS.serverUrl);
+    const serverUrl = normalizeServerUrl(Storage.get(SYNC_STORAGE_KEYS.serverUrl, SYNC_DEFAULTS.serverUrl)) || SYNC_DEFAULTS.serverUrl;
     const userId = Storage.get(SYNC_STORAGE_KEYS.userId, '');
-    const password = Storage.get(SYNC_STORAGE_KEYS.password, '');
+    const password = '';
     const autoSync = Storage.get(SYNC_STORAGE_KEYS.autoSync, SYNC_DEFAULTS.autoSync);
     const syncInterval = Storage.get(SYNC_STORAGE_KEYS.syncInterval, SYNC_DEFAULTS.syncInterval);
     
@@ -4025,6 +4323,14 @@ function createSyncSettingsHTML() {
                     </span>
                 </div>
                 <div class="gpv-sync-status-item">
+                    <span class="gpv-sync-label">Auth:</span>
+                    <span class="gpv-sync-value">${hasValidRefreshToken ? 'Connected' : 'Login required'}</span>
+                </div>
+                <div class="gpv-sync-status-item">
+                    <span class="gpv-sync-label">Session:</span>
+                    <span class="gpv-sync-value">${hasSessionPassword ? 'Unlocked' : 'Locked'}</span>
+                </div>
+                <div class="gpv-sync-status-item">
                     <span class="gpv-sync-label">Last Sync:</span>
                     <span class="gpv-sync-value">${lastSyncText}</span>
                 </div>
@@ -4035,6 +4341,7 @@ function createSyncSettingsHTML() {
                     </div>
                 ` : ''}
             </div>
+            <div class="gpv-sync-message" id="gpv-sync-message" role="status" aria-live="polite"></div>
 
             <div class="gpv-sync-form">
                 <div class="gpv-sync-form-group">
@@ -4052,6 +4359,9 @@ function createSyncSettingsHTML() {
                         <a href="https://github.com/laurenceputra/goal-portfolio-viewer/blob/main/SYNC_ARCHITECTURE.md" 
                            target="_blank" 
                            rel="noopener noreferrer">Learn more</a>
+                    </p>
+                    <p class="gpv-sync-help">
+                        🔒 <strong>No data is sent</strong> until you enable sync and click <strong>Save Settings</strong>.
                     </p>
                 </div>
 
@@ -4086,18 +4396,20 @@ function createSyncSettingsHTML() {
                 </div>
 
                 <div class="gpv-sync-form-group">
-                    <label for="gpv-sync-password">Password</label>
+                    <label for="gpv-sync-password">Password (not stored)</label>
                     <input 
                         type="password" 
                         id="gpv-sync-password"
                         class="gpv-sync-input"
                         value="${escapeHtml(password)}"
                         placeholder="Strong password (min 8 characters)"
+                        autocomplete="current-password"
                         ${!isEnabled || !cryptoSupported ? 'disabled' : ''}
                     />
                     <p class="gpv-sync-help">
-                        🔒 Your password is used for both authentication and encryption.<br>
+                        🔒 Your password is used for both authentication and encryption and is never stored locally.<br>
                         ⚠️ <strong>Keep it safe!</strong> If lost, your data cannot be recovered.
+                        Use your browser's password manager to autofill each session.
                     </p>
                 </div>
 
@@ -4162,7 +4474,7 @@ function createSyncSettingsHTML() {
                     <button 
                         class="gpv-sync-btn gpv-sync-btn-secondary"
                         id="gpv-sync-now-btn"
-                        ${!isEnabled || !isConfigured || !cryptoSupported ? 'disabled' : ''}
+                        ${!isEnabled || !isConfigured || !cryptoSupported || !hasSessionPassword ? 'disabled' : ''}
                     >
                         Sync Now
                     </button>
@@ -4179,6 +4491,7 @@ function createSyncSettingsHTML() {
 }
 
 function setupSyncSettingsListeners() {
+    // TODO: Improve sync auth error handling and user-visible feedback (centralize messaging, handle non-JSON/network failures).
     // Enable/disable sync
     const enabledCheckbox = document.getElementById('gpv-sync-enabled');
     if (enabledCheckbox) {
@@ -4188,9 +4501,14 @@ function setupSyncSettingsListeners() {
                 input.disabled = !e.target.checked;
             });
             
+            const status = SyncManager.getStatus();
             const buttons = document.querySelectorAll('#gpv-sync-test-btn, #gpv-sync-now-btn');
             buttons.forEach(btn => {
-                btn.disabled = !e.target.checked;
+                if (btn.id === 'gpv-sync-now-btn') {
+                    btn.disabled = !e.target.checked || !status.isConfigured || !status.hasSessionPassword;
+                } else {
+                    btn.disabled = !e.target.checked || !status.isConfigured;
+                }
             });
         });
     }
@@ -4211,22 +4529,28 @@ function setupSyncSettingsListeners() {
     if (saveBtn) {
         saveBtn.addEventListener('click', async () => {
             try {
+                clearSyncMessage();
                 saveBtn.disabled = true;
                 saveBtn.textContent = 'Saving...';
 
                 const enabled = document.getElementById('gpv-sync-enabled').checked;
-                const serverUrl = document.getElementById('gpv-sync-server-url').value.trim();
+                const rawServerUrl = getSyncServerUrlFromInput();
+                const serverUrl = normalizeServerUrl(rawServerUrl);
                 const userId = document.getElementById('gpv-sync-user-id').value.trim();
                 const password = document.getElementById('gpv-sync-password').value;
                 const autoSync = document.getElementById('gpv-sync-auto').checked;
                 const syncInterval = parseInt(document.getElementById('gpv-sync-interval').value) || SYNC_DEFAULTS.syncInterval;
+                const { hasSessionPassword } = SyncManager.getStatus();
 
                 // Validation
                 if (enabled) {
-                    if (!serverUrl || !userId || !password) {
-                        throw new Error('All fields are required when sync is enabled');
+                    if (!serverUrl || !userId) {
+                        throw new Error('Server URL and User ID are required when sync is enabled');
                     }
-                    if (password.length < 8) {
+                    if (!password && !hasSessionPassword) {
+                        throw new Error('Password is required to unlock sync for this session');
+                    }
+                    if (password && password.length < 8) {
                         throw new Error('Password must be at least 8 characters');
                     }
                     if (syncInterval < 5 || syncInterval > 1440) {
@@ -4238,7 +4562,7 @@ function setupSyncSettingsListeners() {
                     SyncManager.enable({
                         serverUrl,
                         userId,
-                        password,
+                        password: password || null,
                         autoSync,
                         syncInterval
                     });
@@ -4271,10 +4595,11 @@ function setupSyncSettingsListeners() {
     if (registerBtn) {
         registerBtn.addEventListener('click', async () => {
             try {
+                clearSyncMessage();
                 registerBtn.disabled = true;
                 registerBtn.textContent = 'Signing up...';
 
-                const serverUrl = document.getElementById('gpv-sync-server-url').value.trim();
+                const serverUrl = normalizeServerUrl(getSyncServerUrlFromInput());
                 const userId = document.getElementById('gpv-sync-user-id').value.trim();
                 const password = document.getElementById('gpv-sync-password').value;
 
@@ -4287,7 +4612,7 @@ function setupSyncSettingsListeners() {
                 }
 
                 const result = await SyncManager.register(serverUrl, userId, password);
-                showSuccessMessage('✅ Account created successfully! You can now enable sync.');
+                showSuccessMessage('✅ Account created successfully! Please login to start syncing.');
                 
                 // Refresh UI to show that user is now registered
                 setTimeout(() => {
@@ -4312,10 +4637,11 @@ function setupSyncSettingsListeners() {
     if (loginBtn) {
         loginBtn.addEventListener('click', async () => {
             try {
+                clearSyncMessage();
                 loginBtn.disabled = true;
                 loginBtn.textContent = 'Logging in...';
 
-                const serverUrl = document.getElementById('gpv-sync-server-url').value.trim();
+                const serverUrl = normalizeServerUrl(getSyncServerUrlFromInput());
                 const userId = document.getElementById('gpv-sync-user-id').value.trim();
                 const password = document.getElementById('gpv-sync-password').value;
 
@@ -4324,11 +4650,11 @@ function setupSyncSettingsListeners() {
                 }
 
                 const result = await SyncManager.login(serverUrl, userId, password);
-                showSuccessMessage('✅ Login successful! You can now enable sync.');
-                
-                // Auto-enable sync after successful login
-                document.getElementById('gpv-sync-enabled').checked = true;
-                document.getElementById('gpv-sync-enabled').dispatchEvent(new Event('change'));
+                showSuccessMessage('✅ Login successful! Enable sync and click Save to start.');
+
+                if (typeof updateSyncUI === 'function') {
+                    updateSyncUI();
+                }
                 
             } catch (error) {
                 console.error('[Goal Portfolio Viewer] Login failed:', error);
@@ -4345,17 +4671,21 @@ function setupSyncSettingsListeners() {
     if (testBtn) {
         testBtn.addEventListener('click', async () => {
             try {
+                clearSyncMessage();
                 testBtn.disabled = true;
                 testBtn.textContent = 'Testing...';
 
-                const serverUrl = Storage.get(SYNC_STORAGE_KEYS.serverUrl, SYNC_DEFAULTS.serverUrl);
+                const serverUrl = resolveSyncServerUrl(true);
+                if (!serverUrl) {
+                    throw new Error('Server URL is required to test the connection');
+                }
                 const response = await fetch(`${serverUrl}/health`);
-                const data = await response.json();
+                const data = await response.json().catch(() => ({}));
 
                 if (response.ok && data.status === 'ok') {
                     showSuccessMessage(`Connection successful! Server version: ${data.version}`);
                 } else {
-                    throw new Error('Server returned unexpected response');
+                    throw new Error(data.message || 'Server returned unexpected response');
                 }
             } catch (error) {
                 console.error('[Goal Portfolio Viewer] Test connection failed:', error);
@@ -4372,8 +4702,14 @@ function setupSyncSettingsListeners() {
     if (syncNowBtn) {
         syncNowBtn.addEventListener('click', async () => {
             try {
+                clearSyncMessage();
                 syncNowBtn.disabled = true;
                 syncNowBtn.textContent = 'Syncing...';
+
+                const { hasSessionPassword } = SyncManager.getStatus();
+                if (!hasSessionPassword) {
+                    throw new Error('Password required. Enter your password and Save Settings to unlock sync.');
+                }
 
                 const result = await SyncManager.performSync({ direction: 'both' });
                 
@@ -4410,6 +4746,7 @@ function setupSyncSettingsListeners() {
     const clearBtn = document.getElementById('gpv-sync-clear-btn');
     if (clearBtn) {
         clearBtn.addEventListener('click', () => {
+            clearSyncMessage();
             if (confirm('Are you sure you want to clear sync configuration? This will not delete data from the server.')) {
                 SyncManager.clearConfig();
                 showInfoMessage('Sync configuration cleared');
@@ -4668,7 +5005,8 @@ function showConflictResolutionUI(conflict) {
 // ============================================
 
 /**
-
+ * Create sync status indicator HTML
+ */
 function createSyncIndicatorHTML() {
     const syncStatus = SyncManager.getStatus();
     
@@ -5700,6 +6038,37 @@ function updateSyncUI() {
                     margin-bottom: 20px;
                 }
 
+                .gpv-sync-message {
+                    display: none;
+                    margin-bottom: 16px;
+                    padding: 10px 12px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                    line-height: 1.4;
+                }
+
+                .gpv-sync-message-visible {
+                    display: block;
+                }
+
+                .gpv-sync-message-success {
+                    background-color: #e6f4ea;
+                    border: 1px solid #b7e1c1;
+                    color: #1e7e34;
+                }
+
+                .gpv-sync-message-error {
+                    background-color: #f8d7da;
+                    border: 1px solid #f5c6cb;
+                    color: #a71d2a;
+                }
+
+                .gpv-sync-message-info {
+                    background-color: #e7f1ff;
+                    border: 1px solid #cfe2ff;
+                    color: #084298;
+                }
+
                 .gpv-sync-status-item {
                     display: flex;
                     align-items: center;
@@ -6505,7 +6874,8 @@ function updateSyncUI() {
             summarizePerformanceMetrics,
             buildPerformanceMetricsRows,
             derivePerformanceWindows,
-            createSequentialRequestQueue
+            createSequentialRequestQueue,
+            SyncEncryption
         };
 
         module.exports = baseExports;
