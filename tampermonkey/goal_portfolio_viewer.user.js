@@ -4755,20 +4755,33 @@ function setupSyncSettingsListeners() {
                         syncInterval,
                         rememberKey
                     });
-                    showSuccessMessage('Sync settings saved successfully!');
+                    const successMessage = 'Sync settings saved successfully!';
+                    showSuccessMessage(successMessage);
+
+                    // Refresh the settings panel and preserve the message
+                    setTimeout(() => {
+                        const settingsPanel = document.querySelector('.gpv-sync-settings');
+                        if (settingsPanel) {
+                            settingsPanel.outerHTML = createSyncSettingsHTML();
+                            setupSyncSettingsListeners();
+                            showSuccessMessage(successMessage);
+                        }
+                    }, 300);
                 } else {
                     SyncManager.disable();
-                    showSuccessMessage('Sync disabled');
+                    const disabledMessage = 'Sync disabled';
+                    showSuccessMessage(disabledMessage);
+
+                    setTimeout(() => {
+                        const settingsPanel = document.querySelector('.gpv-sync-settings');
+                        if (settingsPanel) {
+                            settingsPanel.outerHTML = createSyncSettingsHTML();
+                            setupSyncSettingsListeners();
+                            showSuccessMessage(disabledMessage);
+                        }
+                    }, 300);
                 }
 
-                // Refresh the settings panel
-                setTimeout(() => {
-                    const settingsPanel = document.querySelector('.gpv-sync-settings');
-                    if (settingsPanel) {
-                        settingsPanel.outerHTML = createSyncSettingsHTML();
-                        setupSyncSettingsListeners();
-                    }
-                }, 1000);
             } catch (error) {
                 console.error('[Goal Portfolio Viewer] Save sync settings failed:', error);
                 showErrorMessage(`Failed to save settings: ${error.message}`);
@@ -4925,11 +4938,6 @@ function setupSyncSettingsListeners() {
                     showInfoMessage('Sync conflict detected. Please resolve the conflict.');
                 } else {
                     showSuccessMessage('Sync completed successfully!');
-                    
-                    // Refresh the portfolio view
-                    if (typeof renderPortfolioView === 'function') {
-                        renderPortfolioView();
-                    }
                 }
 
                 // Refresh the settings panel
@@ -6424,6 +6432,8 @@ function updateSyncUI() {
                 }
 
                 .gpv-sync-btn-primary:hover:not(:disabled) {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: #fff;
                     transform: translateY(-2px);
                     box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
                 }
