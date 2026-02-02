@@ -4380,28 +4380,52 @@
         }, 3000);
     }
 
-    function getSyncMessageContainer() {
-        return document.getElementById('gpv-sync-message');
+    let syncToastTimer = null;
+
+    function getSyncToastContainer() {
+        const overlay = document.getElementById('gpv-overlay');
+        if (!overlay) {
+            return null;
+        }
+        const container = overlay.querySelector('.gpv-container') || overlay;
+        let toast = container.querySelector('#gpv-sync-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'gpv-sync-toast';
+            toast.className = 'gpv-sync-toast';
+            container.appendChild(toast);
+        }
+        return toast;
     }
 
     function setSyncMessage(message, type) {
-        const container = getSyncMessageContainer();
-        if (!container) {
+        const container = getSyncToastContainer();
+        if (!container || !message) {
             showNotification(message, type);
             return;
         }
         container.textContent = message;
-        container.classList.remove('gpv-sync-message-success', 'gpv-sync-message-error', 'gpv-sync-message-info');
-        container.classList.add(`gpv-sync-message-${type}`, 'gpv-sync-message-visible');
+        container.classList.remove('gpv-sync-toast-success', 'gpv-sync-toast-error', 'gpv-sync-toast-info');
+        container.classList.add(`gpv-sync-toast-${type}`, 'gpv-sync-toast-visible');
+        if (syncToastTimer) {
+            clearTimeout(syncToastTimer);
+        }
+        syncToastTimer = setTimeout(() => {
+            clearSyncMessage();
+        }, 10000);
     }
 
     function clearSyncMessage() {
-        const container = getSyncMessageContainer();
+        const container = getSyncToastContainer();
         if (!container) {
             return;
         }
         container.textContent = '';
-        container.classList.remove('gpv-sync-message-success', 'gpv-sync-message-error', 'gpv-sync-message-info', 'gpv-sync-message-visible');
+        container.classList.remove('gpv-sync-toast-success', 'gpv-sync-toast-error', 'gpv-sync-toast-info', 'gpv-sync-toast-visible');
+        if (syncToastTimer) {
+            clearTimeout(syncToastTimer);
+            syncToastTimer = null;
+        }
     }
 
     function showSuccessMessage(message) {
@@ -4630,8 +4654,6 @@ function createSyncSettingsHTML() {
                         How often to automatically sync (5-1440 minutes)
                     </p>
                 </div>
-
-                <div class="gpv-sync-message" id="gpv-sync-message" role="status" aria-live="polite"></div>
 
                 <div class="gpv-sync-actions">
                     <button 
@@ -6280,32 +6302,43 @@ function updateSyncUI() {
                     margin-bottom: 20px;
                 }
 
-                .gpv-sync-message {
-                    display: none;
-                    margin-bottom: 16px;
-                    padding: 10px 12px;
-                    border-radius: 6px;
+                .gpv-sync-toast {
+                    position: absolute;
+                    left: 50%;
+                    bottom: 18px;
+                    transform: translate(-50%, 12px);
+                    opacity: 0;
+                    pointer-events: none;
+                    padding: 10px 14px;
+                    border-radius: 10px;
                     font-size: 13px;
                     line-height: 1.4;
+                    min-width: 220px;
+                    max-width: 70%;
+                    text-align: center;
+                    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+                    transition: opacity 0.2s ease, transform 0.2s ease;
+                    z-index: 2;
                 }
 
-                .gpv-sync-message-visible {
-                    display: block;
+                .gpv-sync-toast-visible {
+                    opacity: 1;
+                    transform: translate(-50%, 0);
                 }
 
-                .gpv-sync-message-success {
+                .gpv-sync-toast-success {
                     background-color: #e6f4ea;
                     border: 1px solid #b7e1c1;
                     color: #1e7e34;
                 }
 
-                .gpv-sync-message-error {
+                .gpv-sync-toast-error {
                     background-color: #f8d7da;
                     border: 1px solid #f5c6cb;
                     color: #a71d2a;
                 }
 
-                .gpv-sync-message-info {
+                .gpv-sync-toast-info {
                     background-color: #e7f1ff;
                     border: 1px solid #cfe2ff;
                     color: #084298;
