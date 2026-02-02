@@ -6,6 +6,15 @@
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 const REFRESH_TOKEN_TTL_SECONDS = 60 * 24 * 60 * 60;
 
+function getKvBinding(env) {
+	const bindingName = env?.SYNC_KV_BINDING || 'SYNC_KV';
+	const binding = env?.[bindingName];
+	if (!binding) {
+		throw new Error(`KV binding "${bindingName}" is not configured`);
+	}
+	return binding;
+}
+
 /**
  * Derive a slow hash from the incoming password hash for storage
  * Uses PBKDF2 with high iterations and per-user salt
@@ -83,7 +92,7 @@ export async function validatePassword(userId, passwordHash, env) {
 
 	// Retrieve user credentials from KV
 	const userKey = `user:${userId}`;
-	const userData = await env.SYNC_KV.get(userKey, 'json');
+	const userData = await getKvBinding(env).get(userKey, 'json');
 	
 	if (!userData) {
 		return false;
@@ -267,7 +276,8 @@ export async function registerUser(userId, passwordHash, env) {
 
 	// Check if user already exists
 	const userKey = `user:${userId}`;
-	const existing = await env.SYNC_KV.get(userKey);
+	const kv = getKvBinding(env);
+	const existing = await kv.get(userKey);
 	
 	if (existing) {
 		return { success: false, message: 'User already exists' };
@@ -288,7 +298,7 @@ export async function registerUser(userId, passwordHash, env) {
 		lastLogin: null
 	};
 
-	await env.SYNC_KV.put(userKey, JSON.stringify(userData));
+	await kv.put(userKey, JSON.stringify(userData));
 
 	return { success: true, message: 'User registered successfully' };
 }
@@ -310,11 +320,12 @@ export async function loginUser(userId, passwordHash, env) {
 
 	// Update last login time
 	const userKey = `user:${userId}`;
-	const userData = await env.SYNC_KV.get(userKey, 'json');
+	const kv = getKvBinding(env);
+	const userData = await kv.get(userKey, 'json');
 	
 	if (userData) {
 		userData.lastLogin = Date.now();
-		await env.SYNC_KV.put(userKey, JSON.stringify(userData));
+		await kv.put(userKey, JSON.stringify(userData));
 	}
 
 	return { success: true, message: 'Login successful' };

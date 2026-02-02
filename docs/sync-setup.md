@@ -76,8 +76,8 @@ For complete control over your data, you can run your own sync server.
 ## 🔄 How Sync Works
 
 ### Automatic Sync
-- Syncs every 5 minutes automatically
-- Syncs immediately when you change settings
+- Disabled by default; enable in Sync Settings
+- Runs on the configured interval (default: 30 minutes, min: 5)
 - Only syncs when online (gracefully handles offline mode)
 
 ### Manual Sync
@@ -218,6 +218,7 @@ If you self-host:
 - Enable custom domain with HTTPS
 - Rotate `JWT_SECRET` quarterly
 - Monitor access logs
+- Use a unique `JWT_SECRET` per environment
 - Keep Wrangler updated
 - Set up Cloudflare alerts
 

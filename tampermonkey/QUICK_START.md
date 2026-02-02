@@ -57,7 +57,7 @@ const LEGACY_SYNC_PASSWORD_KEY = 'sync_password';
 
 const SYNC_DEFAULTS = {
     serverUrl: 'https://goal-portfolio-sync.laurenceputra.workers.dev',
-    autoSync: true,
+    autoSync: false,
     syncInterval: 30 // minutes
 };
 

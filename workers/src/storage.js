@@ -6,6 +6,15 @@
 
 const KEY_PREFIX = 'sync_user:';
 
+function getKvBinding(env) {
+	const bindingName = env?.SYNC_KV_BINDING || 'SYNC_KV';
+	const binding = env?.[bindingName];
+	if (!binding) {
+		throw new Error(`KV binding "${bindingName}" is not configured`);
+	}
+	return binding;
+}
+
 /**
  * Get user config from KV
  * @param {Object} env - Environment with KV binding
@@ -14,7 +23,8 @@ const KEY_PREFIX = 'sync_user:';
  */
 export async function getFromKV(env, userId) {
 	const key = KEY_PREFIX + userId;
-	const value = await env.SYNC_KV.get(key, 'json');
+	const kv = getKvBinding(env);
+	const value = await kv.get(key, 'json');
 	return value;
 }
 
@@ -34,7 +44,8 @@ export async function putToKV(env, userId, data) {
 	};
 
 	// Store in KV (no expiration - data persists until deleted)
-	await env.SYNC_KV.put(key, JSON.stringify(valueWithMetadata));
+	const kv = getKvBinding(env);
+	await kv.put(key, JSON.stringify(valueWithMetadata));
 }
 
 /**
@@ -44,7 +55,8 @@ export async function putToKV(env, userId, data) {
  */
 export async function deleteFromKV(env, userId) {
 	const key = KEY_PREFIX + userId;
-	await env.SYNC_KV.delete(key);
+	const kv = getKvBinding(env);
+	await kv.delete(key);
 }
 
 /**
@@ -53,7 +65,8 @@ export async function deleteFromKV(env, userId) {
  * @returns {Promise<string[]>} Array of user IDs
  */
 export async function listUsers(env) {
-	const list = await env.SYNC_KV.list({ prefix: KEY_PREFIX });
+	const kv = getKvBinding(env);
+	const list = await kv.list({ prefix: KEY_PREFIX });
 	return list.keys.map(k => k.name.substring(KEY_PREFIX.length));
 }
 
@@ -63,7 +76,8 @@ export async function listUsers(env) {
  * @returns {Promise<Object>} Storage stats
  */
 export async function getStorageStats(env) {
-	const list = await env.SYNC_KV.list({ prefix: KEY_PREFIX });
+	const kv = getKvBinding(env);
+	const list = await kv.list({ prefix: KEY_PREFIX });
 	
 	// Note: KV doesn't provide size info per key, so we estimate
 	const userCount = list.keys.length;
@@ -82,16 +96,17 @@ export async function getStorageStats(env) {
  * Run this as a scheduled Cron Trigger
  */
 export async function cleanupStaleData(env, maxAgeMs = 90 * 24 * 60 * 60 * 1000) {
-	const list = await env.SYNC_KV.list({ prefix: KEY_PREFIX });
+	const kv = getKvBinding(env);
+	const list = await kv.list({ prefix: KEY_PREFIX });
 	const now = Date.now();
 	let deletedCount = 0;
 
 	for (const key of list.keys) {
-		const data = await env.SYNC_KV.get(key.name, 'json');
+		const data = await kv.get(key.name, 'json');
 		if (data && data.serverTimestamp) {
 			const age = now - data.serverTimestamp;
 			if (age > maxAgeMs) {
-				await env.SYNC_KV.delete(key.name);
+				await kv.delete(key.name);
 				deletedCount++;
 			}
 		}

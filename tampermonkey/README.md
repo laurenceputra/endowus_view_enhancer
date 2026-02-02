@@ -134,11 +134,11 @@ If you want to sync your goal configurations across devices:
    - Or use the default public server: `https://goal-portfolio-sync.laurenceputra.workers.dev`
 
 2. **Configure Sync**:
-   - Click the sync indicator (bottom-right) or "Sync Settings" button
-   - Enable sync
-   - Enter your server URL, user ID, and password
-   - Click "Login" to obtain session tokens
-   - Click "Save Settings" then "Sync Now"
+    - Click the sync indicator (bottom-right) or "Sync Settings" button
+    - Enable sync
+    - Enter your server URL, user ID, and password
+    - Click "Login" to obtain session tokens
+    - Click "Save Settings" then "Sync Now"
 
 3. **Use on Other Devices**:
    - Install the UserScript on other devices
@@ -151,6 +151,7 @@ If you want to sync your goal configurations across devices:
 - You can optionally remember the encryption key on trusted devices to keep sync unlocked across sessions
 - The sync server never sees your unencrypted data
 - Only encrypted goal targets + fixed flags are synced; holdings, balances, and transactions never leave your browser
+- Auto-sync is disabled by default; enable it in Sync Settings to use the configured interval
 
 For detailed sync setup instructions, see `QUICK_START.md`.
 

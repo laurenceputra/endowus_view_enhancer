@@ -69,7 +69,7 @@ This document provides the complete technical architecture for adding optional, 
                 │                                  │
                 │  ┌───────────────────────────┐  │
                 │  │   Sync API                │  │
-                │  │   - Auth via API Key      │  │
+                │  │   - Auth via JWT tokens   │  │
                 │  │   - Store encrypted blob  │  │
                 │  │   - Return metadata only  │  │
                 │  └───────────┬───────────────┘  │
@@ -170,7 +170,7 @@ goal-portfolio-viewer/
 ├── workers/                             # NEW: Backend code
 │   ├── src/
 │   │   ├── index.js                    # API routes
-│   │   ├── auth.js                     # API key validation
+│   │   ├── auth.js                     # Password + token auth
 │   │   ├── storage.js                  # KV operations
 │   │   └── ratelimit.js                # Rate limiting
 │   ├── test/
@@ -210,7 +210,8 @@ https://sync.your-domain.workers.dev
 ```
 
 ### Authentication
-API Key passed in `X-API-Key` header
+Access tokens issued via password login. Send `Authorization: Bearer <accessToken>` and `X-User-Id`.
+Legacy password-hash auth is supported via `X-Password-Hash` + `X-User-Id`.
 
 ### Endpoints
 
@@ -219,7 +220,8 @@ API Key passed in `X-API-Key` header
 POST /sync
 
 Headers:
-  X-API-Key: <api-key>
+  Authorization: Bearer <accessToken>
+  X-User-Id: <user-id>
   Content-Type: application/json
 
 Request Body:
@@ -269,7 +271,8 @@ Response (429 Too Many Requests):
 GET /sync/:userId
 
 Headers:
-  X-API-Key: <api-key>
+  Authorization: Bearer <accessToken>
+  X-User-Id: <user-id>
 
 Response (200 OK):
 {
@@ -300,7 +303,8 @@ Response (401 Unauthorized):
 DELETE /sync/:userId
 
 Headers:
-  X-API-Key: <api-key>
+  Authorization: Bearer <accessToken>
+  X-User-Id: <user-id>
 
 Response (200 OK):
 {
@@ -328,9 +332,9 @@ Response (200 OK):
 
 ### Rate Limits
 
-- **Upload**: 10 requests per minute per API key
-- **Download**: 60 requests per minute per API key
-- **Delete**: 5 requests per minute per API key
+- **Upload**: 10 requests per minute per user/IP
+- **Download**: 60 requests per minute per user/IP
+- **Delete**: 5 requests per minute per user/IP
 
 ### Data Size Limits
 
@@ -342,7 +346,7 @@ Response (200 OK):
 | Code | Meaning | Action |
 |------|---------|--------|
 | 400 | Bad Request | Invalid payload format |
-| 401 | Unauthorized | Invalid API key |
+| 401 | Unauthorized | Invalid credentials |
 | 404 | Not Found | No config stored for user |
 | 409 | Conflict | Server has newer data |
 | 413 | Payload Too Large | Data exceeds 10KB |
@@ -552,13 +556,17 @@ UserScript will add these new storage keys:
 |-----|---------|---------|
 | `sync_enabled` | Whether sync is enabled | `true` / `false` |
 | `sync_server_url` | Custom server URL | `https://sync.example.com` |
-| `sync_api_key` | API key for auth | `gpv_key_abc123...` |
+| `sync_access_token` | JWT access token | `eyJhbGci...` |
+| `sync_refresh_token` | JWT refresh token | `eyJhbGci...` |
+| `sync_access_token_expiry` | Access token expiry timestamp | `1710000000000` |
+| `sync_refresh_token_expiry` | Refresh token expiry timestamp | `1712592000000` |
 | `sync_user_id` | User identifier | `uuid-v4` or `sha256(email)` |
 | `sync_device_id` | Device identifier | `uuid-v4` |
 | `sync_last_sync` | Last sync timestamp | `1234567890000` |
-| `sync_passphrase_hash` | Bcrypt hash of passphrase (for verification only) | `$2a$10$...` |
+| `sync_master_key` | Remembered master key (encrypted) | `base64(...)` |
+| `sync_remember_key` | Remember-key toggle | `true` |
 
-**Note**: The actual encryption passphrase is NEVER stored. Only a hash for verification.
+**Note**: The actual encryption passphrase is NEVER stored. Only the derived key may be remembered when explicitly enabled.
 
 ### What Gets Synced
 
@@ -640,9 +648,9 @@ Add new "Sync" tab in settings:
 │  └────────────────────────────────────────┘    │
 │  ℹ️  Leave blank for default server             │
 │                                                  │
-│  🔐 API Key                                      │
+│  🔐 Password Login                               │
 │  ┌────────────────────────────────────────┐    │
-│  │ gpv_key_●●●●●●●●●●●●●●●●●●●●●         │    │
+│  │ ●●●●●●●●●●●●●●●●●●●●●●●●             │    │
 │  └────────────────────────────────────────┘    │
 │                                                  │
 │  📊 Sync Status                                  │
@@ -707,12 +715,12 @@ States:
 // Add to existing initialization code
 if (Storage.get('sync_enabled', false)) {
     SyncManager.init({
-        serverUrl: Storage.get('sync_server_url', DEFAULT_SYNC_SERVER),
-        apiKey: Storage.get('sync_api_key'),
+        serverUrl: Storage.get('sync_server_url', SYNC_DEFAULTS.serverUrl),
+        accessToken: Storage.get('sync_access_token'),
         userId: Storage.get('sync_user_id'),
         deviceId: Storage.get('sync_device_id'),
-        autoSync: true,
-        syncInterval: 5 * 60 * 1000 // 5 minutes
+        autoSync: Storage.get('sync_auto_sync', false),
+        syncInterval: Storage.get('sync_interval_minutes', 30) * 60 * 1000
     });
 }
 ```
@@ -779,11 +787,11 @@ const SyncManager = (() => {
     function init(options) {
         config = {
             serverUrl: options.serverUrl,
-            apiKey: options.apiKey,
+            accessToken: options.accessToken,
             userId: options.userId,
             deviceId: options.deviceId,
             autoSync: options.autoSync || false,
-            syncInterval: options.syncInterval || 5 * 60 * 1000
+            syncInterval: options.syncInterval || 30 * 60 * 1000
         };
 
         // Start auto-sync if enabled
@@ -889,23 +897,21 @@ const SyncManager = (() => {
         try {
             // 1. Collect local data
             const localData = collectSyncData();
-            const passphrase = Storage.get('sync_passphrase_raw'); // Temporary, in memory only
-            if (!passphrase) {
-                throw new Error('No passphrase configured');
-            }
+    const masterKey = getSessionMasterKey();
 
             // 2. Encrypt local data
-            const encrypted = await SyncEncryption.encrypt(
-                JSON.stringify(localData),
-                passphrase
-            );
+    const encrypted = await SyncEncryption.encryptWithMasterKey(
+        JSON.stringify(localData),
+        masterKey
+    );
 
             // 3. Upload to server
             const response = await fetch(`${config.serverUrl}/sync`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-API-Key': config.apiKey
+                    'Authorization': `Bearer ${config.accessToken}`,
+                    'X-User-Id': config.userId
                 },
                 body: JSON.stringify({
                     userId: config.userId,
@@ -920,7 +926,7 @@ const SyncManager = (() => {
                 if (response.status === 409) {
                     // Conflict detected
                     const conflict = await response.json();
-                    await handleConflict(localData, conflict.serverData, passphrase);
+    await handleConflict(localData, conflict.serverData, masterKey);
                     return;
                 }
                 throw new Error(`Sync failed: ${response.status}`);
@@ -946,7 +952,8 @@ const SyncManager = (() => {
     async function downloadConfig() {
         const response = await fetch(`${config.serverUrl}/sync/${config.userId}`, {
             headers: {
-                'X-API-Key': config.apiKey
+                'Authorization': `Bearer ${config.accessToken}`,
+                'X-User-Id': config.userId
             }
         });
 
@@ -959,21 +966,21 @@ const SyncManager = (() => {
         }
 
         const result = await response.json();
-        const passphrase = Storage.get('sync_passphrase_raw');
-        const decrypted = await SyncEncryption.decrypt(
-            result.data.encryptedData,
-            passphrase
-        );
+    const masterKey = getSessionMasterKey();
+    const decrypted = await SyncEncryption.decryptWithMasterKey(
+        result.data.encryptedData,
+        masterKey
+    );
         return JSON.parse(decrypted);
     }
 
     /**
      * Handle sync conflict
      */
-    async function handleConflict(localData, serverEncryptedData, passphrase) {
+    async function handleConflict(localData, serverEncryptedData, masterKey) {
         // Decrypt server data
         const serverData = JSON.parse(
-            await SyncEncryption.decrypt(serverEncryptedData.encryptedData, passphrase)
+            await SyncEncryption.decryptWithMasterKey(serverEncryptedData.encryptedData, masterKey)
         );
 
         // Show conflict resolution UI
@@ -981,7 +988,7 @@ const SyncManager = (() => {
 
         if (resolution === 'local') {
             // Force upload local data
-            await forceUpload(localData, passphrase);
+            await forceUpload(localData, masterKey);
         } else if (resolution === 'server') {
             // Apply server data locally
             applySyncData(serverData);
@@ -989,7 +996,7 @@ const SyncManager = (() => {
             // Merge both (last-write-wins per goal)
             const merged = mergeConfigs(localData, serverData);
             applySyncData(merged);
-            await forceUpload(merged, passphrase);
+            await forceUpload(merged, masterKey);
         }
     }
 
@@ -1082,12 +1089,11 @@ const SyncManager = (() => {
 5. Click "Enable Sync"
 6. Enter passphrase (with strength meter)
 7. Optionally enter custom server URL
-8. Get API key from our hosted service (or self-host)
-9. Sync automatically starts
+8. Register/login to obtain access token
+9. Sync automatically starts (if enabled)
 
 **Required**:
 - Sync setup wizard
-- API key generation service (simple webpage)
 - Documentation for self-hosting
 
 ### Phase 2: Existing Users (Optional Upgrade)
@@ -1118,12 +1124,11 @@ const SyncManager = (() => {
 1. Cloudflare account setup
 2. Workers deployment (via Wrangler CLI)
 3. KV namespace creation
-4. API key management
+4. JWT secret management
 5. Custom domain setup (optional)
 
 **Tools Provided**:
 - Deployment script
-- API key generator
 - Health check dashboard
 - Migration script (import existing keys)
 
@@ -1156,9 +1161,9 @@ const SyncManager = (() => {
 2. **Random IV**: New IV for every encryption
 3. **Authenticated Encryption**: AES-GCM provides authenticity
 4. **Secure Random**: Web Crypto API (not Math.random)
-5. **No Key Storage**: Passphrase never stored, only hash for verification
+5. **No Key Storage**: Passphrase never stored; derived key only remembered when enabled
 6. **Rate Limiting**: Prevents brute force attacks on API
-7. **API Key Rotation**: Users can regenerate keys anytime
+7. **Token Rotation**: Refresh tokens to obtain new access tokens
 8. **Minimal Data**: Only sync critical settings, not cached data
 
 ### Privacy Analysis
@@ -1169,7 +1174,7 @@ const SyncManager = (() => {
 | Device ID | KV Store | ❌ No (metadata) | ✅ Yes |
 | User ID | KV Store | ❌ No (key) | ✅ Yes |
 | Timestamp | KV Store | ❌ No (metadata) | ✅ Yes |
-| API Key | UserScript | ❌ No | ✅ Yes (auth) |
+| Access/Refresh Tokens | UserScript | ❌ No | ✅ Yes (auth) |
 | Passphrase | UserScript (memory only) | N/A | ❌ Never transmitted |
 
 **Server Visibility**:
@@ -1280,7 +1285,7 @@ const SyncManager = (() => {
 **Tasks**:
 1. Setup Cloudflare Workers project structure
 2. Implement API routes (POST/GET/DELETE /sync)
-3. Add authentication middleware (API key validation)
+3. Add authentication middleware (JWT tokens + password hash)
 4. Add rate limiting
 5. Add KV storage operations
 6. Write unit tests
@@ -1388,7 +1393,7 @@ const SyncManager = (() => {
 - ✅ Forgotten passphrase
 - ✅ Disable sync, re-enable
 - ✅ Custom server URL
-- ✅ API key rotation
+- ✅ Token rotation
 - ✅ Large config (100+ goals)
 - ✅ Encrypted data integrity
 
@@ -1579,15 +1584,18 @@ compatibility_date = "2024-01-01"
 
 # KV Namespace for production
 [[kv_namespaces]]
-binding = "SYNC_KV"
+binding = "SYNC_KV_PROD"
 id = "your-kv-namespace-id"
 
 # Environment variables
 [env.production]
-vars = { ENVIRONMENT = "production" }
+vars = { ENVIRONMENT = "production", SYNC_KV_BINDING = "SYNC_KV_PROD", CORS_ORIGINS = "https://app.your-domain.com" }
 
 [env.staging]
-vars = { ENVIRONMENT = "staging" }
+vars = { ENVIRONMENT = "staging", SYNC_KV_BINDING = "SYNC_KV_STAGING", CORS_ORIGINS = "https://staging.your-domain.com" }
+kv_namespaces = [
+  { binding = "SYNC_KV_STAGING", id = "staging-kv-namespace-id" }
+]
 
 # Build configuration
 [build]
@@ -1599,21 +1607,16 @@ routes = [
 ]
 ```
 
-### F. Sample API Key Generation
+### F. Sample Token Flow
 
 ```javascript
-// Simple API key generator (for hosted service dashboard)
-function generateApiKey() {
-    const randomBytes = window.crypto.getRandomValues(new Uint8Array(32));
-    const base64 = btoa(String.fromCharCode(...randomBytes));
-    const urlSafe = base64
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=/g, '');
-    return `gpv_key_${urlSafe}`;
-}
-
-// Example output: gpv_key_xQ7KmP9vRZeLB4FnWz8aGcTyHjU3dJ2sN6i1hV5oXw
+// Login to obtain tokens
+const response = await fetch(`${serverUrl}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, passwordHash })
+});
+const { tokens } = await response.json();
 ```
 
 ### G. Monitoring & Observability
@@ -1628,7 +1631,7 @@ function generateApiKey() {
 - Sync success rate per user
 - Conflict rate
 - Average payload size
-- API key usage
+- Token usage
 - Rate limit hits
 
 **Alerts to configure**:

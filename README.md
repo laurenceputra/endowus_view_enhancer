@@ -87,7 +87,7 @@ Sync your portfolio configuration across multiple devices with end-to-end encryp
 **Key Features**:
 - 🔒 **Zero-Knowledge**: All encryption happens on your device
 - 🌐 **Self-Hostable**: Run your own backend on Cloudflare Workers
-- 🔄 **Automatic Sync**: Keep configs in sync across devices
+- 🔄 **Automatic Sync**: Optional background sync with configurable interval
 - 🎯 **Conflict Resolution**: Clear UI for handling sync conflicts
 - ⚡ **Fast**: ~5ms encryption, global CDN distribution
 
@@ -100,7 +100,7 @@ Sync your portfolio configuration across multiple devices with end-to-end encryp
 **Getting Started**:
 1. Review the [Sync Setup Guide](docs/sync-setup.md)
 2. Configure your server URL, user ID, and password
-3. Login, enable sync, and enjoy seamless multi-device experience
+3. Login, enable sync, and choose auto-sync if desired
 
 **For Self-Hosting**:
 - Deploy your own backend: See [workers/README.md](workers/README.md)

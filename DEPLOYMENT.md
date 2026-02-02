@@ -7,7 +7,7 @@ This guide covers deploying the sync backend to Cloudflare Workers for productio
 ## Prerequisites
 
 - Cloudflare account (free tier sufficient for testing)
-- Node.js 16+ installed
+- Node.js 18+ installed
 - Wrangler CLI (`npm install -g wrangler`)
 - GitHub account (for secrets management)
 
@@ -43,6 +43,8 @@ binding = "SYNC_KV"
 id = "your-namespace-id-here"  # ← Paste the ID here
 ```
 
+If you run multiple instances, create a dedicated namespace per instance and set `SYNC_KV_BINDING` per environment.
+
 ### Step 4: Deploy to Staging
 
 ```bash
@@ -51,13 +53,11 @@ npx wrangler deploy --env staging
 
 This deploys to: `https://goal-sync-staging.your-subdomain.workers.dev`
 
-### Step 5: Configure Secrets (Optional for Demo)
-
-For production with API key authentication:
+### Step 5: Configure JWT Secret
 
 ```bash
-npx wrangler secret put API_KEY --env staging
-# Enter a secure random string when prompted
+npx wrangler secret put JWT_SECRET --env staging
+# Enter a secure random secret when prompted
 ```
 
 ### Step 6: Test Deployment
@@ -80,6 +80,8 @@ npx wrangler kv:namespace create "SYNC_KV" --env production
 
 Update `wrangler.toml` with the production ID.
 
+For multiple instances, use separate `name`, `routes`, `JWT_SECRET`, `CORS_ORIGINS`, and KV namespaces per env.
+
 ### Step 2: Deploy to Production
 
 ```bash
@@ -89,8 +91,8 @@ npx wrangler deploy --env production
 ### Step 3: Configure Production Secrets
 
 ```bash
-# Set production API key
-npx wrangler secret put API_KEY --env production
+# Set production JWT secret
+npx wrangler secret put JWT_SECRET --env production
 
 # Verify secrets
 npx wrangler secret list --env production
@@ -118,11 +120,48 @@ const SYNC_DEFAULTS = {
 
 ## Testing Deployment
 
+## Multi-Instance Configuration (Optional)
+
+For isolated instances, define unique worker names, routes, KV namespaces, and secrets per environment:
+
+```toml
+[env.staging]
+name = "goal-portfolio-sync-staging"
+vars = {
+  ENVIRONMENT = "staging",
+  CORS_ORIGINS = "https://staging.yourdomain.com",
+  SYNC_KV_BINDING = "SYNC_KV_STAGING"
+}
+kv_namespaces = [
+  { binding = "SYNC_KV_STAGING", id = "staging-kv-id", preview_id = "staging-preview-id" }
+]
+
+[env.production]
+name = "goal-portfolio-sync"
+vars = {
+  ENVIRONMENT = "production",
+  CORS_ORIGINS = "https://app.yourdomain.com",
+  SYNC_KV_BINDING = "SYNC_KV_PROD"
+}
+kv_namespaces = [
+  { binding = "SYNC_KV_PROD", id = "prod-kv-id", preview_id = "prod-preview-id" }
+]
+```
+
+Use a unique `JWT_SECRET` per environment:
+
+```bash
+npx wrangler secret put JWT_SECRET --env staging
+npx wrangler secret put JWT_SECRET --env production
+```
+
 ### Manual Testing
 
 ```bash
 # Test POST (upload config)
 curl -X POST https://your-worker.workers.dev/sync \
+  -H "Authorization: Bearer <accessToken>" \
+  -H "X-User-Id: test-user-123" \
   -H "Content-Type: application/json" \
   -d '{
     "userId": "test-user-123",
@@ -136,13 +175,17 @@ curl -X POST https://your-worker.workers.dev/sync \
 # {"success":true,"timestamp":1738368000000}
 
 # Test GET (download config)
-curl https://your-worker.workers.dev/sync/test-user-123
+curl https://your-worker.workers.dev/sync/test-user-123 \
+  -H "Authorization: Bearer <accessToken>" \
+  -H "X-User-Id: test-user-123"
 
 # Expected response:
 # {"success":true,"data":{...}}
 
 # Test DELETE
-curl -X DELETE https://your-worker.workers.dev/sync/test-user-123
+curl -X DELETE https://your-worker.workers.dev/sync/test-user-123 \
+  -H "Authorization: Bearer <accessToken>" \
+  -H "X-User-Id: test-user-123"
 
 # Expected response:
 # {"success":true,"message":"Config deleted"}
@@ -303,13 +346,13 @@ Update `src/index.js`:
 const CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',  // ← Change to specific domain in production
     'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-API-Key'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Password-Hash, X-User-Id'
 };
 ```
 
 ## Security Checklist
 
-- [ ] API key configured (if using authentication)
+- [ ] JWT secret configured
 - [ ] CORS restricted to specific domain (production only)
 - [ ] Rate limiting enabled
 - [ ] HTTPS enforced
@@ -326,7 +369,7 @@ Users can deploy their own backend:
 2. **Clone fork**: `git clone https://github.com/your-username/goal-portfolio-viewer.git`
 3. **Follow Quick Deploy** above
 4. **Update UserScript** with your worker URL
-5. **Generate your own API key** (optional)
+5. **Set your JWT secret**
 
 Share your worker URL with your other devices only.
 

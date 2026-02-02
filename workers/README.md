@@ -61,6 +61,22 @@ id = "YOUR_NAMESPACE_ID_HERE"  # From step 3
 preview_id = "YOUR_PREVIEW_NAMESPACE_ID_HERE"
 ```
 
+For multiple instances, set a unique `SYNC_KV_BINDING` per environment and match the KV binding name in `kv_namespaces`.
+
+Example:
+
+```toml
+[env.staging]
+name = "goal-portfolio-sync-staging"
+vars = { ENVIRONMENT = "staging", CORS_ORIGINS = "https://staging.yourdomain.com", SYNC_KV_BINDING = "SYNC_KV_STAGING" }
+kv_namespaces = [{ binding = "SYNC_KV_STAGING", id = "staging-kv-id", preview_id = "staging-preview-id" }]
+
+[env.production]
+name = "goal-portfolio-sync"
+vars = { ENVIRONMENT = "production", CORS_ORIGINS = "https://app.yourdomain.com", SYNC_KV_BINDING = "SYNC_KV_PROD" }
+kv_namespaces = [{ binding = "SYNC_KV_PROD", id = "prod-kv-id", preview_id = "prod-preview-id" }]
+```
+
 ### 5. Set JWT Secret
 
 This backend signs access/refresh tokens with `JWT_SECRET`.
@@ -438,15 +454,15 @@ Set in `wrangler.toml`:
 [env.production]
 vars = { 
   ENVIRONMENT = "production",
-  MAX_PAYLOAD_SIZE = "10240",  # 10KB
-  ENABLE_DEBUG = "false"
+  CORS_ORIGINS = "https://app.yourdomain.com",
+  SYNC_KV_BINDING = "SYNC_KV_PROD"
 }
 
 [env.staging]
 vars = { 
   ENVIRONMENT = "staging",
-  MAX_PAYLOAD_SIZE = "10240",
-  ENABLE_DEBUG = "true"
+  CORS_ORIGINS = "https://staging.yourdomain.com",
+  SYNC_KV_BINDING = "SYNC_KV_STAGING"
 }
 ```
 
@@ -463,6 +479,13 @@ npx wrangler secret put JWT_SECRET --env production
 
 # List secrets (doesn't show values)
 npx wrangler secret list
+```
+
+Use unique secrets per environment:
+
+```bash
+npx wrangler secret put JWT_SECRET --env staging
+npx wrangler secret put JWT_SECRET --env production
 ```
 
 ### Custom Domain

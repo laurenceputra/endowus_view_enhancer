@@ -30,6 +30,15 @@ const RATE_LIMITS = {
 	}
 };
 
+function getKvBinding(env) {
+	const bindingName = env?.SYNC_KV_BINDING || 'SYNC_KV';
+	const binding = env?.[bindingName];
+	if (!binding) {
+		throw new Error(`KV binding "${bindingName}" is not configured`);
+	}
+	return binding;
+}
+
 /**
  * Rate limit check
  * @param {Request} request - Incoming request
@@ -64,12 +73,13 @@ export async function rateLimit(request, env, pathname, identifierOverride = nul
 	const rateLimitKey = `ratelimit:${identifier}:${normalizedPath}:${method}`;
 
 	// Get current count
-	const currentData = await env.SYNC_KV.get(rateLimitKey, 'json');
+	const kv = getKvBinding(env);
+	const currentData = await kv.get(rateLimitKey, 'json');
 	const now = Date.now();
 
 	if (!currentData) {
 		// First request in window
-		await env.SYNC_KV.put(
+		await kv.put(
 			rateLimitKey,
 			JSON.stringify({ count: 1, resetAt: now + window * 1000 }),
 			{ expirationTtl: window }
@@ -80,7 +90,7 @@ export async function rateLimit(request, env, pathname, identifierOverride = nul
 	// Check if window has expired
 	if (now >= currentData.resetAt) {
 		// Window expired, reset counter
-		await env.SYNC_KV.put(
+		await kv.put(
 			rateLimitKey,
 			JSON.stringify({ count: 1, resetAt: now + window * 1000 }),
 			{ expirationTtl: window }
@@ -95,7 +105,7 @@ export async function rateLimit(request, env, pathname, identifierOverride = nul
 	}
 
 	// Increment counter
-	await env.SYNC_KV.put(
+	await kv.put(
 		rateLimitKey,
 		JSON.stringify({ count: currentData.count + 1, resetAt: currentData.resetAt }),
 		{ expirationTtl: Math.ceil((currentData.resetAt - now) / 1000) }
@@ -113,7 +123,8 @@ export async function getRateLimitStatus(env, apiKey, pathname, method) {
 		: pathname;
 
 	const rateLimitKey = `ratelimit:${apiKey}:${normalizedPath}:${method}`;
-	const data = await env.SYNC_KV.get(rateLimitKey, 'json');
+	const kv = getKvBinding(env);
+	const data = await kv.get(rateLimitKey, 'json');
 
 	if (!data) {
 		return {
@@ -139,5 +150,6 @@ export async function resetRateLimit(env, apiKey, pathname, method) {
 		: pathname;
 
 	const rateLimitKey = `ratelimit:${apiKey}:${normalizedPath}:${method}`;
-	await env.SYNC_KV.delete(rateLimitKey);
+	const kv = getKvBinding(env);
+	await kv.delete(rateLimitKey);
 }

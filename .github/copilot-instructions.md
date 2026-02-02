@@ -72,6 +72,23 @@ Use this compact workflow for all changes. Keep detailed role guidance in `.gith
 - **UX/Accessibility** → Product Manager + QA Engineer
 - **Release/Docs** → Staff Engineer + Code Reviewer
 
+### Skill Alignment (Required)
+When a workflow phase starts, align on the relevant skills and record them in the PR template:
+
+| Phase | Primary Skills |
+| --- | --- |
+| Planning (PM) | `documentation`, `security-scanner` |
+| Design (SE) | `refactoring-expert`, `performance-optimization` |
+| Risk (DA) | `security-scanner` |
+| Implementation (SE) | `debugging-assistant`, `refactoring-expert` |
+| QA | `qa-testing` |
+| Review | `code-review`, `security-scanner` |
+| Release/Docs | `release-management`, `documentation` |
+
+**Precedence**: Workflow gates override skill guidance if they conflict.
+
+**Checklist**: Add a `Skills used:` line under each phase gate in the PR template (e.g., `Skills used: qa-testing, documentation`).
+
 ### Agent Interaction Model (Required)
 1. **Product**: Frame the problem, user impact, and acceptance criteria.
 2. **Staff Engineer**: Confirm architecture fit, call out risks/tradeoffs, and own implementation.

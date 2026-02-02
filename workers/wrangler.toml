@@ -14,15 +14,18 @@ binding = "SYNC_KV"
 id = "YOUR_KV_NAMESPACE_ID_HERE"
 preview_id = "YOUR_PREVIEW_KV_NAMESPACE_ID_HERE"
 
+# Optional override for KV binding name (defaults to SYNC_KV)
+# vars = { SYNC_KV_BINDING = "SYNC_KV" }
+
 # Production environment
 [env.production]
 name = "goal-portfolio-sync"
-vars = { ENVIRONMENT = "production" }
+vars = { ENVIRONMENT = "production", SYNC_KV_BINDING = "SYNC_KV", CORS_ORIGINS = "https://app.yourdomain.com" }
 
 # Staging environment
 [env.staging]
 name = "goal-portfolio-sync-staging"
-vars = { ENVIRONMENT = "staging" }
+vars = { ENVIRONMENT = "staging", SYNC_KV_BINDING = "SYNC_KV", CORS_ORIGINS = "https://staging.yourdomain.com" }
 
 # Custom domain routing (optional)
 # Uncomment and configure if you want a custom domain

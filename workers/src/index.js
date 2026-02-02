@@ -13,12 +13,12 @@ import { rateLimit } from './ratelimit';
 const CONFIG = {
 	MAX_PAYLOAD_SIZE: 10 * 1024, // 10KB
 	CORS_ORIGINS: '*', // In production, restrict to your domain
+	SYNC_KV_BINDING: 'SYNC_KV',
 	VERSION: '1.0.0'
 };
 
 // CORS headers
 const CORS_HEADERS = {
-	'Access-Control-Allow-Origin': CONFIG.CORS_ORIGINS,
 	'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
 	'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Password-Hash, X-User-Id',
 	'Access-Control-Max-Age': '86400' // 24 hours
@@ -38,6 +38,11 @@ function getBearerToken(request) {
  */
 export default {
 	async fetch(request, env, ctx) {
+		const resolvedEnv = {
+			...env,
+			CORS_ORIGINS: env.CORS_ORIGINS || CONFIG.CORS_ORIGINS,
+			SYNC_KV_BINDING: env.SYNC_KV_BINDING || CONFIG.SYNC_KV_BINDING
+		};
 		const url = new URL(request.url);
 		const method = request.method;
 
@@ -45,7 +50,10 @@ export default {
 		if (method === 'OPTIONS') {
 			return new Response(null, {
 				status: 204,
-				headers: CORS_HEADERS
+				headers: {
+					...CORS_HEADERS,
+					'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS
+				}
 			});
 		}
 
@@ -55,13 +63,13 @@ export default {
 				status: 'ok',
 				version: CONFIG.VERSION,
 				timestamp: Date.now()
-			});
+			}, 200, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 		}
 
 		// Auth endpoints (rate limited but no auth required)
 		if (method === 'POST' && url.pathname === '/auth/register') {
 			// Rate limit registration attempts
-			const rateLimitResult = await rateLimit(request, env, url.pathname);
+			const rateLimitResult = await rateLimit(request, resolvedEnv, url.pathname);
 			if (!rateLimitResult.allowed) {
 				return jsonResponse({
 					success: false,
@@ -75,20 +83,20 @@ export default {
 			try {
 				const body = await request.json();
 				const { userId, passwordHash } = body;
-				const result = await registerUser(userId, passwordHash, env);
-				return jsonResponse(result, result.success ? 200 : 400);
+				const result = await registerUser(userId, passwordHash, resolvedEnv);
+				return jsonResponse(result, result.success ? 200 : 400, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 			} catch (error) {
 				return jsonResponse({
 					success: false,
 					error: 'BAD_REQUEST',
 					message: 'Invalid JSON in request body'
-				}, 400);
+				}, 400, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 			}
 		}
 
 		if (method === 'POST' && url.pathname === '/auth/login') {
 			// Rate limit login attempts
-			const rateLimitResult = await rateLimit(request, env, url.pathname);
+			const rateLimitResult = await rateLimit(request, resolvedEnv, url.pathname);
 			if (!rateLimitResult.allowed) {
 				return jsonResponse({
 					success: false,
@@ -107,32 +115,32 @@ export default {
 					success: false,
 					error: 'BAD_REQUEST',
 					message: 'Invalid JSON in request body'
-				}, 400);
+				}, 400, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 			}
 
 			try {
 				const { userId, passwordHash } = body;
-				const result = await loginUser(userId, passwordHash, env);
+				const result = await loginUser(userId, passwordHash, resolvedEnv);
 				if (!result.success) {
-					return jsonResponse(result, 401);
+					return jsonResponse(result, 401, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 				}
-				const tokens = await issueTokens(userId, env);
+				const tokens = await issueTokens(userId, resolvedEnv);
 				return jsonResponse({
 					...result,
 					tokens
-				}, 200);
+				}, 200, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 			} catch (error) {
 				return jsonResponse({
 					success: false,
 					error: 'INTERNAL_ERROR',
-					message: env.ENVIRONMENT === 'production' ? 'Internal server error' : error.message
-				}, 500);
+					message: resolvedEnv.ENVIRONMENT === 'production' ? 'Internal server error' : error.message
+				}, 500, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 			}
 		}
 
 		if (method === 'POST' && url.pathname === '/auth/refresh') {
 			// Rate limit refresh attempts
-			const rateLimitResult = await rateLimit(request, env, url.pathname);
+			const rateLimitResult = await rateLimit(request, resolvedEnv, url.pathname);
 			if (!rateLimitResult.allowed) {
 				return jsonResponse({
 					success: false,
@@ -150,29 +158,29 @@ export default {
 						success: false,
 						error: 'UNAUTHORIZED',
 						message: 'Missing refresh token'
-					}, 401);
+					}, 401, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 				}
 
-				const payload = await verifyRefreshToken(refreshToken, env);
+				const payload = await verifyRefreshToken(refreshToken, resolvedEnv);
 				if (!payload) {
 					return jsonResponse({
 						success: false,
 						error: 'UNAUTHORIZED',
 						message: 'Invalid refresh token'
-					}, 401);
+					}, 401, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 				}
 
-				const tokens = await issueTokens(payload.sub, env);
+				const tokens = await issueTokens(payload.sub, resolvedEnv);
 				return jsonResponse({
 					success: true,
 					tokens
-				}, 200);
+				}, 200, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 			} catch (error) {
 				return jsonResponse({
 					success: false,
 					error: 'INTERNAL_ERROR',
-					message: env.ENVIRONMENT === 'production' ? 'Internal server error' : error.message
-				}, 500);
+					message: resolvedEnv.ENVIRONMENT === 'production' ? 'Internal server error' : error.message
+				}, 500, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 			}
 		}
 
@@ -183,7 +191,7 @@ export default {
 		// Token-based authentication (preferred)
 		const accessToken = getBearerToken(request);
 		if (accessToken) {
-			const payload = await verifyAccessToken(accessToken, env);
+			const payload = await verifyAccessToken(accessToken, resolvedEnv);
 			if (payload) {
 				authenticated = true;
 				authenticatedUserId = payload.sub;
@@ -195,7 +203,7 @@ export default {
 			const passwordHash = request.headers.get('X-Password-Hash');
 			const headerUserId = request.headers.get('X-User-Id');
 			if (passwordHash && headerUserId) {
-				authenticated = await validatePassword(headerUserId, passwordHash, env);
+				authenticated = await validatePassword(headerUserId, passwordHash, resolvedEnv);
 				if (authenticated) {
 					authenticatedUserId = headerUserId;
 				}
@@ -207,18 +215,19 @@ export default {
 				success: false,
 				error: 'UNAUTHORIZED',
 				message: 'Invalid credentials'
-			}, 401);
+			}, 401, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 		}
 
 		// Rate limiting
-		const rateLimitResult = await rateLimit(request, env, url.pathname, authenticatedUserId);
+		const rateLimitResult = await rateLimit(request, resolvedEnv, url.pathname, authenticatedUserId);
 		if (!rateLimitResult.allowed) {
 			return jsonResponse({
 				success: false,
 				error: 'RATE_LIMIT_EXCEEDED',
 				retryAfter: rateLimitResult.retryAfter
 			}, 429, {
-				'Retry-After': String(rateLimitResult.retryAfter)
+				'Retry-After': String(rateLimitResult.retryAfter),
+				'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS
 			});
 		}
 
@@ -233,7 +242,7 @@ export default {
 						success: false,
 						error: 'PAYLOAD_TOO_LARGE',
 						maxSize: CONFIG.MAX_PAYLOAD_SIZE
-					}, 413);
+					}, 413, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 				}
 
 				const body = await request.json();
@@ -244,10 +253,10 @@ export default {
 						success: false,
 						error: 'FORBIDDEN',
 						message: 'Cannot upload data for another user'
-					}, 403);
+					}, 403, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 				}
 				
-				return await handleSync(body, env);
+				return await handleSync(body, resolvedEnv);
 			}
 
 			// GET /sync/:userId - Download config
@@ -258,7 +267,7 @@ export default {
 						success: false,
 						error: 'BAD_REQUEST',
 						message: 'userId required'
-					}, 400);
+					}, 400, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 				}
 				
 				// Authorization check: ensure authenticated user matches requested userId
@@ -267,10 +276,10 @@ export default {
 						success: false,
 						error: 'FORBIDDEN',
 						message: 'Cannot access another user\'s data'
-					}, 403);
+					}, 403, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 				}
 				
-				return await handleGetSync(userId, env);
+				return await handleGetSync(userId, resolvedEnv);
 			}
 
 			// DELETE /sync/:userId - Delete config
@@ -281,7 +290,7 @@ export default {
 						success: false,
 						error: 'BAD_REQUEST',
 						message: 'userId required'
-					}, 400);
+					}, 400, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 				}
 				
 				// Authorization check: ensure authenticated user matches requested userId
@@ -290,10 +299,10 @@ export default {
 						success: false,
 						error: 'FORBIDDEN',
 						message: 'Cannot delete another user\'s data'
-					}, 403);
+					}, 403, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 				}
 				
-				return await handleDeleteSync(userId, env);
+				return await handleDeleteSync(userId, resolvedEnv);
 			}
 
 			// Route not found
@@ -301,15 +310,15 @@ export default {
 				success: false,
 				error: 'NOT_FOUND',
 				message: 'Endpoint not found'
-			}, 404);
+			}, 404, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 
 		} catch (error) {
 			console.error('Request error:', error);
 			return jsonResponse({
 				success: false,
 				error: 'INTERNAL_ERROR',
-				message: env.ENVIRONMENT === 'production' ? 'Internal server error' : error.message
-			}, 500);
+				message: resolvedEnv.ENVIRONMENT === 'production' ? 'Internal server error' : error.message
+			}, 500, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
 		}
 	}
 };
