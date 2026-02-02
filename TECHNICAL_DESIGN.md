@@ -32,6 +32,11 @@ tampermonkey/
 └── README.md                          # User documentation
 ```
 
+### Optional Sync (Cross-Device)
+
+The sync feature is opt-in and encrypts configuration data client-side before upload. Users may optionally
+remember a **derived encryption key** on trusted devices to keep sync unlocked across browser sessions.
+
 ---
 
 ## API Interception

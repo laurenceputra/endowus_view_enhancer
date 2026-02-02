@@ -74,7 +74,11 @@
         accessToken: 'sync_access_token',
         refreshToken: 'sync_refresh_token',
         accessTokenExpiry: 'sync_access_token_expiry',
-        refreshTokenExpiry: 'sync_refresh_token_expiry'
+        refreshTokenExpiry: 'sync_refresh_token_expiry',
+        rememberKey: 'sync_remember_key',
+        rememberedMasterKey: 'sync_master_key',
+        legacyRememberPassword: 'sync_remember_password',
+        legacyRememberedPassword: 'sync_remembered_password'
     };
 
     const LEGACY_SYNC_PASSWORD_KEY = 'sync_password';
@@ -1427,6 +1431,69 @@
         }
     };
 
+    function bytesToBase64(bytes) {
+        if (!bytes || !(bytes instanceof Uint8Array)) {
+            return '';
+        }
+        return btoa(String.fromCharCode(...bytes));
+    }
+
+    function base64ToBytes(base64) {
+        if (!base64 || typeof base64 !== 'string') {
+            return null;
+        }
+        try {
+            return new Uint8Array(atob(base64).split('').map(char => char.charCodeAt(0)));
+        } catch (_error) {
+            return null;
+        }
+    }
+
+    function getRememberedMasterKey() {
+        const remember = Storage.get(SYNC_STORAGE_KEYS.rememberKey, false);
+        if (!remember) {
+            return null;
+        }
+        const stored = Storage.get(SYNC_STORAGE_KEYS.rememberedMasterKey, null);
+        const bytes = base64ToBytes(stored);
+        return bytes && bytes.length ? bytes : null;
+    }
+
+    function setRememberedMasterKey(masterKey, remember) {
+        if (!remember) {
+            Storage.set(SYNC_STORAGE_KEYS.rememberKey, false);
+            Storage.remove(SYNC_STORAGE_KEYS.rememberedMasterKey);
+            return;
+        }
+        if (!masterKey || !(masterKey instanceof Uint8Array) || !masterKey.length) {
+            return;
+        }
+        Storage.set(SYNC_STORAGE_KEYS.rememberKey, true);
+        Storage.set(SYNC_STORAGE_KEYS.rememberedMasterKey, bytesToBase64(masterKey));
+    }
+
+    function clearRememberedMasterKey() {
+        Storage.set(SYNC_STORAGE_KEYS.rememberKey, false);
+        Storage.remove(SYNC_STORAGE_KEYS.rememberedMasterKey);
+    }
+
+    function getLegacyRememberedPassword() {
+        const remember = Storage.get(SYNC_STORAGE_KEYS.legacyRememberPassword, false);
+        if (!remember) {
+            return null;
+        }
+        const stored = Storage.get(SYNC_STORAGE_KEYS.legacyRememberedPassword, null);
+        if (typeof stored === 'string' && stored.trim()) {
+            return stored;
+        }
+        return null;
+    }
+
+    function clearLegacyRememberedPassword() {
+        Storage.set(SYNC_STORAGE_KEYS.legacyRememberPassword, false);
+        Storage.remove(SYNC_STORAGE_KEYS.legacyRememberedPassword);
+    }
+
     // ============================================
     // Sync Modules (Cross-Device Sync Feature)
     // ============================================
@@ -1539,6 +1606,13 @@
         );
     }
 
+    function assertValidMasterKey(masterKey) {
+        if (!masterKey || !(masterKey instanceof Uint8Array) || !masterKey.length) {
+            throw new Error('Invalid encryption key');
+        }
+        return masterKey;
+    }
+
     /**
      * Encrypt data with AES-GCM
      * Password is used as proxy to derive master key, which then derives encryption key
@@ -1550,15 +1624,24 @@
         }
 
         try {
+            const masterKey = await deriveMasterKey(password);
+            return encryptWithMasterKey(plaintext, masterKey);
+        } catch (error) {
+            console.error('[Goal Portfolio Viewer] Encryption failed:', error);
+            throw new Error('Encryption failed');
+        }
+    }
+
+    async function encryptWithMasterKey(plaintext, masterKey) {
+        if (!isSupported()) {
+            throw new Error('Web Crypto API not supported');
+        }
+        try {
             const encoder = new TextEncoder();
             const salt = generateRandomBuffer(SALT_LENGTH);
             const iv = generateRandomBuffer(IV_LENGTH);
-            
-            // Step 1: Derive master key from password (password is proxy)
-            const masterKey = await deriveMasterKey(password);
-            
-            // Step 2: Derive encryption key from master key
-            const key = await deriveKey(masterKey, salt);
+            const normalizedKey = assertValidMasterKey(masterKey);
+            const key = await deriveKey(normalizedKey, salt);
 
             const ciphertext = await window.crypto.subtle.encrypt(
                 { name: 'AES-GCM', iv: iv },
@@ -1566,7 +1649,6 @@
                 encoder.encode(plaintext)
             );
 
-            // Concatenate: salt + iv + ciphertext (includes auth tag)
             const combined = new Uint8Array(
                 salt.length + iv.length + ciphertext.byteLength
             );
@@ -1574,7 +1656,6 @@
             combined.set(iv, salt.length);
             combined.set(new Uint8Array(ciphertext), salt.length + iv.length);
 
-            // Convert to base64 for transmission
             return btoa(String.fromCharCode(...combined));
         } catch (error) {
             console.error('[Goal Portfolio Viewer] Encryption failed:', error);
@@ -1592,21 +1673,29 @@
         }
 
         try {
-            // Decode from base64
+            const masterKey = await deriveMasterKey(password);
+            return decryptWithMasterKey(encryptedBase64, masterKey);
+        } catch (error) {
+            console.error('[Goal Portfolio Viewer] Decryption failed:', error);
+            throw new Error('Decryption failed - check password');
+        }
+    }
+
+    async function decryptWithMasterKey(encryptedBase64, masterKey) {
+        if (!isSupported()) {
+            throw new Error('Web Crypto API not supported');
+        }
+        try {
             const combined = new Uint8Array(
                 atob(encryptedBase64).split('').map(c => c.charCodeAt(0))
             );
 
-            // Extract components
             const salt = combined.slice(0, SALT_LENGTH);
             const iv = combined.slice(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
             const ciphertext = combined.slice(SALT_LENGTH + IV_LENGTH);
 
-            // Step 1: Derive master key from password (password is proxy)
-            const masterKey = await deriveMasterKey(password);
-            
-            // Step 2: Derive decryption key from master key
-            const key = await deriveKey(masterKey, salt);
+            const normalizedKey = assertValidMasterKey(masterKey);
+            const key = await deriveKey(normalizedKey, salt);
 
             const plaintext = await window.crypto.subtle.decrypt(
                 { name: 'AES-GCM', iv: iv },
@@ -1653,6 +1742,8 @@
         isSupported,
         generateUUID,
         deriveMasterKey,
+        encryptWithMasterKey,
+        decryptWithMasterKey,
         encrypt,
         decrypt,
         hash,
@@ -1669,7 +1760,8 @@
     let syncStatus = SYNC_STATUS.idle;
     let lastError = null;
     let autoSyncTimer = null;
-    let sessionPassword = null;
+    let sessionMasterKey = getRememberedMasterKey();
+    let legacyMigrationPromise = null;
 
     function getStoredServerUrl(fallback = '') {
         const stored = Storage.get(SYNC_STORAGE_KEYS.serverUrl, fallback);
@@ -1744,19 +1836,44 @@
         return isTokenValid(refreshToken, SYNC_STORAGE_KEYS.refreshTokenExpiry);
     }
 
-    function setSessionPassword(password) {
-        if (!password || typeof password !== 'string') {
-            sessionPassword = null;
+    function setSessionMasterKey(masterKey) {
+        if (!masterKey || !(masterKey instanceof Uint8Array) || !masterKey.length) {
+            sessionMasterKey = null;
             return;
         }
-        sessionPassword = password;
+        sessionMasterKey = masterKey;
     }
 
-    function requireSessionPassword() {
-        if (!sessionPassword) {
-            throw new Error('Password not set for this session. Enter your password and save settings to unlock sync.');
+    function requireSessionKey() {
+        if (!sessionMasterKey) {
+            throw new Error('Encryption key not set for this session. Enter your password and save settings to unlock sync.');
         }
-        return sessionPassword;
+        return sessionMasterKey;
+    }
+
+    function migrateLegacyPasswordIfNeeded() {
+        if (sessionMasterKey || legacyMigrationPromise) {
+            return;
+        }
+        const legacyPassword = getLegacyRememberedPassword();
+        if (!legacyPassword) {
+            return;
+        }
+        legacyMigrationPromise = SyncEncryption.deriveMasterKey(legacyPassword)
+            .then(masterKey => {
+                setSessionMasterKey(masterKey);
+                setRememberedMasterKey(masterKey, true);
+                clearLegacyRememberedPassword();
+                if (isEnabled() && hasValidRefreshToken()) {
+                    startAutoSync();
+                }
+            })
+            .catch(error => {
+                console.warn('[Goal Portfolio Viewer] Failed to migrate legacy remembered password:', error);
+            })
+            .finally(() => {
+                legacyMigrationPromise = null;
+            });
     }
 
     async function hashConfigData(config) {
@@ -1827,6 +1944,12 @@
     }
 
     clearLegacyPasswordIfPresent();
+
+    migrateLegacyPasswordIfNeeded();
+
+    if (isEnabled() && hasValidRefreshToken() && sessionMasterKey) {
+        startAutoSync();
+    }
 
     /**
      * Check if sync is enabled
@@ -1927,11 +2050,11 @@
             throw new Error('Sync not configured');
         }
 
-        const password = requireSessionPassword();
+        const masterKey = requireSessionKey();
 
-        // Encrypt config using password
+        // Encrypt config using master key
         const plaintext = JSON.stringify(config);
-        const encryptedData = await SyncEncryption.encrypt(plaintext, password);
+        const encryptedData = await SyncEncryption.encryptWithMasterKey(plaintext, masterKey);
 
         const accessToken = await getAccessToken();
 
@@ -2004,9 +2127,9 @@
             throw new Error('Invalid server response: missing encrypted data');
         }
 
-        // Decrypt config using password
-        const password = requireSessionPassword();
-        const plaintext = await SyncEncryption.decrypt(data.encryptedData, password);
+        // Decrypt config using master key
+        const masterKey = requireSessionKey();
+        const plaintext = await SyncEncryption.decryptWithMasterKey(data.encryptedData, masterKey);
         const config = JSON.parse(plaintext);
 
         return {
@@ -2065,7 +2188,7 @@
             throw new Error('Web Crypto API not supported in this browser');
         }
 
-        requireSessionPassword();
+        requireSessionKey();
 
         syncStatus = SYNC_STATUS.syncing;
         if (typeof updateSyncUI === 'function') {
@@ -2227,8 +2350,8 @@
             return;
         }
 
-        if (!sessionPassword) {
-            logDebug('[Goal Portfolio Viewer] Auto-sync requires an unlocked session password');
+        if (!sessionMasterKey) {
+            logDebug('[Goal Portfolio Viewer] Auto-sync requires an unlocked encryption key');
             return;
         }
 
@@ -2264,7 +2387,7 @@
             isEnabled: isEnabled(),
             isConfigured: isConfigured(),
             cryptoSupported: SyncEncryption.isSupported(),
-            hasSessionPassword: Boolean(sessionPassword),
+            hasSessionKey: Boolean(sessionMasterKey),
             hasValidRefreshToken: hasValidRefreshToken()
         };
     }
@@ -2272,18 +2395,26 @@
     /**
      * Enable sync
      */
-    function enable(config) {
+    async function enable(config) {
         const normalizedServerUrl = normalizeServerUrl(config?.serverUrl);
         if (!config || !normalizedServerUrl || !config.userId) {
             throw new Error('Invalid sync configuration: serverUrl and userId required');
         }
 
-        if (config.password) {
-            setSessionPassword(config.password);
+        if (config.masterKey) {
+            setSessionMasterKey(config.masterKey);
+        } else if (config.password) {
+            const derivedKey = await SyncEncryption.deriveMasterKey(config.password);
+            setSessionMasterKey(derivedKey);
+        } else if (!sessionMasterKey) {
+            const storedKey = getRememberedMasterKey();
+            if (storedKey) {
+                setSessionMasterKey(storedKey);
+            }
         }
 
-        if (!sessionPassword) {
-            throw new Error('Password required to unlock sync for this session');
+        if (!sessionMasterKey) {
+            throw new Error('Encryption key required to unlock sync for this session');
         }
 
         const previousUserId = Storage.get(SYNC_STORAGE_KEYS.userId, null);
@@ -2302,6 +2433,12 @@
         }
         if (config.syncInterval !== undefined) {
             Storage.set(SYNC_STORAGE_KEYS.syncInterval, config.syncInterval);
+        }
+
+        if (config.rememberKey === true) {
+            setRememberedMasterKey(sessionMasterKey, true);
+        } else if (config.rememberKey === false) {
+            clearRememberedMasterKey();
         }
 
         startAutoSync();
@@ -2344,7 +2481,8 @@
 
         Storage.set(SYNC_STORAGE_KEYS.serverUrl, normalizedServerUrl);
         Storage.set(SYNC_STORAGE_KEYS.userId, userId);
-        setSessionPassword(password);
+        const masterKey = await SyncEncryption.deriveMasterKey(password);
+        setSessionMasterKey(masterKey);
 
         return result;
     }
@@ -2383,10 +2521,12 @@
             throw new Error('Login did not return valid session tokens');
         }
 
+        const masterKey = await SyncEncryption.deriveMasterKey(password);
+        setSessionMasterKey(masterKey);
+
         storeTokens(result.tokens);
         Storage.set(SYNC_STORAGE_KEYS.serverUrl, normalizedServerUrl);
         Storage.set(SYNC_STORAGE_KEYS.userId, userId);
-        setSessionPassword(password);
 
         if (isEnabled()) {
             startAutoSync();
@@ -2401,7 +2541,7 @@
     function disable() {
         stopAutoSync();
         Storage.set(SYNC_STORAGE_KEYS.enabled, false);
-        setSessionPassword(null);
+        setSessionMasterKey(null);
         logDebug('[Goal Portfolio Viewer] Sync disabled');
     }
 
@@ -2416,7 +2556,9 @@
         });
         Storage.remove(LEGACY_SYNC_PASSWORD_KEY);
         clearTokens();
-        setSessionPassword(null);
+        setSessionMasterKey(null);
+        clearRememberedMasterKey();
+        clearLegacyRememberedPassword();
         
         syncStatus = SYNC_STATUS.idle;
         lastError = null;
@@ -4290,11 +4432,12 @@ function createSyncSettingsHTML() {
     const isEnabled = syncStatus.isEnabled;
     const isConfigured = syncStatus.isConfigured;
     const cryptoSupported = syncStatus.cryptoSupported;
-    const hasSessionPassword = syncStatus.hasSessionPassword;
+    const hasSessionKey = syncStatus.hasSessionKey;
     const hasValidRefreshToken = syncStatus.hasValidRefreshToken;
     
     const serverUrl = normalizeServerUrl(Storage.get(SYNC_STORAGE_KEYS.serverUrl, SYNC_DEFAULTS.serverUrl)) || SYNC_DEFAULTS.serverUrl;
     const userId = Storage.get(SYNC_STORAGE_KEYS.userId, '');
+    const rememberKey = Storage.get(SYNC_STORAGE_KEYS.rememberKey, false);
     const password = '';
     const autoSync = Storage.get(SYNC_STORAGE_KEYS.autoSync, SYNC_DEFAULTS.autoSync);
     const syncInterval = Storage.get(SYNC_STORAGE_KEYS.syncInterval, SYNC_DEFAULTS.syncInterval);
@@ -4328,7 +4471,7 @@ function createSyncSettingsHTML() {
                 </div>
                 <div class="gpv-sync-status-item">
                     <span class="gpv-sync-label">Session:</span>
-                    <span class="gpv-sync-value">${hasSessionPassword ? 'Unlocked' : 'Locked'}</span>
+                    <span class="gpv-sync-value">${hasSessionKey ? 'Unlocked' : 'Locked'}</span>
                 </div>
                 <div class="gpv-sync-status-item">
                     <span class="gpv-sync-label">Last Sync:</span>
@@ -4407,9 +4550,24 @@ function createSyncSettingsHTML() {
                         ${!isEnabled || !cryptoSupported ? 'disabled' : ''}
                     />
                     <p class="gpv-sync-help">
-                        🔒 Your password is used for both authentication and encryption and is never stored locally.<br>
+                        🔒 Your password is used for both authentication and encryption and is not stored locally unless you opt in below.<br>
                         ⚠️ <strong>Keep it safe!</strong> If lost, your data cannot be recovered.
                         Use your browser's password manager to autofill each session.
+                    </p>
+                </div>
+
+                <div class="gpv-sync-form-group">
+                    <label class="gpv-sync-toggle">
+                        <input 
+                            type="checkbox" 
+                            id="gpv-sync-remember-key"
+                            ${rememberKey ? 'checked' : ''}
+                            ${!isEnabled || !cryptoSupported ? 'disabled' : ''}
+                        />
+                        <span>Remember encryption key on this device</span>
+                    </label>
+                    <p class="gpv-sync-help">
+                        Stores a derived encryption key locally in Tampermonkey storage to keep sync running across browser sessions. Only enable on a trusted device.
                     </p>
                 </div>
 
@@ -4424,7 +4582,7 @@ function createSyncSettingsHTML() {
                     </div>
                     <p class="gpv-sync-help" style="text-align: center; margin-top: 8px;">
                         New user? Click <strong>Sign Up</strong> to create an account.<br>
-                        Existing user? Click <strong>Login</strong> to verify credentials.
+                        Existing user? Click <strong>Login</strong> to enable sync and verify credentials.
                     </p>
                 ` : ''}
 
@@ -4474,7 +4632,7 @@ function createSyncSettingsHTML() {
                     <button 
                         class="gpv-sync-btn gpv-sync-btn-secondary"
                         id="gpv-sync-now-btn"
-                        ${!isEnabled || !isConfigured || !cryptoSupported || !hasSessionPassword ? 'disabled' : ''}
+                        ${!isEnabled || !isConfigured || !cryptoSupported || !hasSessionKey ? 'disabled' : ''}
                     >
                         Sync Now
                     </button>
@@ -4492,6 +4650,35 @@ function createSyncSettingsHTML() {
 
 function setupSyncSettingsListeners() {
     // TODO: Improve sync auth error handling and user-visible feedback (centralize messaging, handle non-JSON/network failures).
+    const serverUrlInput = document.getElementById('gpv-sync-server-url');
+    if (serverUrlInput) {
+        serverUrlInput.addEventListener('blur', () => {
+            const normalized = normalizeServerUrl(serverUrlInput.value);
+            if (normalized) {
+                Storage.set(SYNC_STORAGE_KEYS.serverUrl, normalized);
+            }
+        });
+    }
+
+    const userIdInput = document.getElementById('gpv-sync-user-id');
+    if (userIdInput) {
+        userIdInput.addEventListener('blur', () => {
+            const value = userIdInput.value.trim();
+            if (value) {
+                Storage.set(SYNC_STORAGE_KEYS.userId, value);
+            }
+        });
+    }
+
+    const rememberKeyCheckbox = document.getElementById('gpv-sync-remember-key');
+    if (rememberKeyCheckbox) {
+        rememberKeyCheckbox.addEventListener('change', (e) => {
+            if (!e.target.checked) {
+                clearRememberedMasterKey();
+            }
+        });
+    }
+
     // Enable/disable sync
     const enabledCheckbox = document.getElementById('gpv-sync-enabled');
     if (enabledCheckbox) {
@@ -4505,7 +4692,7 @@ function setupSyncSettingsListeners() {
             const buttons = document.querySelectorAll('#gpv-sync-test-btn, #gpv-sync-now-btn');
             buttons.forEach(btn => {
                 if (btn.id === 'gpv-sync-now-btn') {
-                    btn.disabled = !e.target.checked || !status.isConfigured || !status.hasSessionPassword;
+                    btn.disabled = !e.target.checked || !status.isConfigured || !status.hasSessionKey;
                 } else {
                     btn.disabled = !e.target.checked || !status.isConfigured;
                 }
@@ -4538,17 +4725,18 @@ function setupSyncSettingsListeners() {
                 const serverUrl = normalizeServerUrl(rawServerUrl);
                 const userId = document.getElementById('gpv-sync-user-id').value.trim();
                 const password = document.getElementById('gpv-sync-password').value;
+                const rememberKey = document.getElementById('gpv-sync-remember-key')?.checked === true;
                 const autoSync = document.getElementById('gpv-sync-auto').checked;
                 const syncInterval = parseInt(document.getElementById('gpv-sync-interval').value) || SYNC_DEFAULTS.syncInterval;
-                const { hasSessionPassword } = SyncManager.getStatus();
+                const { hasSessionKey } = SyncManager.getStatus();
 
                 // Validation
                 if (enabled) {
                     if (!serverUrl || !userId) {
                         throw new Error('Server URL and User ID are required when sync is enabled');
                     }
-                    if (!password && !hasSessionPassword) {
-                        throw new Error('Password is required to unlock sync for this session');
+                    if (!password && !hasSessionKey) {
+                        throw new Error('Password is required to unlock sync for this session (or enable remember key)');
                     }
                     if (password && password.length < 8) {
                         throw new Error('Password must be at least 8 characters');
@@ -4559,12 +4747,13 @@ function setupSyncSettingsListeners() {
                 }
 
                 if (enabled) {
-                    SyncManager.enable({
+                    await SyncManager.enable({
                         serverUrl,
                         userId,
                         password: password || null,
                         autoSync,
-                        syncInterval
+                        syncInterval,
+                        rememberKey
                     });
                     showSuccessMessage('Sync settings saved successfully!');
                 } else {
@@ -4644,17 +4833,35 @@ function setupSyncSettingsListeners() {
                 const serverUrl = normalizeServerUrl(getSyncServerUrlFromInput());
                 const userId = document.getElementById('gpv-sync-user-id').value.trim();
                 const password = document.getElementById('gpv-sync-password').value;
+                const rememberKey = document.getElementById('gpv-sync-remember-key')?.checked === true;
+                const autoSync = document.getElementById('gpv-sync-auto').checked;
+                const syncInterval = parseInt(document.getElementById('gpv-sync-interval').value) || SYNC_DEFAULTS.syncInterval;
 
                 if (!serverUrl || !userId || !password) {
                     throw new Error('Please fill in Server URL, User ID, and Password');
                 }
 
                 const result = await SyncManager.login(serverUrl, userId, password);
-                showSuccessMessage('✅ Login successful! Enable sync and click Save to start.');
+                await SyncManager.enable({
+                    serverUrl,
+                    userId,
+                    autoSync,
+                    syncInterval,
+                    rememberKey
+                });
+                showSuccessMessage('✅ Login successful! Sync enabled. Click Sync Now to start.');
 
                 if (typeof updateSyncUI === 'function') {
                     updateSyncUI();
                 }
+
+                setTimeout(() => {
+                    const settingsPanel = document.querySelector('.gpv-sync-settings');
+                    if (settingsPanel) {
+                        settingsPanel.outerHTML = createSyncSettingsHTML();
+                        setupSyncSettingsListeners();
+                    }
+                }, 500);
                 
             } catch (error) {
                 console.error('[Goal Portfolio Viewer] Login failed:', error);
@@ -4679,6 +4886,7 @@ function setupSyncSettingsListeners() {
                 if (!serverUrl) {
                     throw new Error('Server URL is required to test the connection');
                 }
+                Storage.set(SYNC_STORAGE_KEYS.serverUrl, serverUrl);
                 const response = await fetch(`${serverUrl}/health`);
                 const data = await response.json().catch(() => ({}));
 
@@ -4706,9 +4914,9 @@ function setupSyncSettingsListeners() {
                 syncNowBtn.disabled = true;
                 syncNowBtn.textContent = 'Syncing...';
 
-                const { hasSessionPassword } = SyncManager.getStatus();
-                if (!hasSessionPassword) {
-                    throw new Error('Password required. Enter your password and Save Settings to unlock sync.');
+                const { hasSessionKey } = SyncManager.getStatus();
+                if (!hasSessionKey) {
+                    throw new Error('Encryption key required. Enter your password and Save Settings to unlock sync.');
                 }
 
                 const result = await SyncManager.performSync({ direction: 'both' });

@@ -36,6 +36,7 @@ Keep your Goal Portfolio Viewer settings synchronized across all your devices wi
    - Choose a strong password (12+ characters recommended)
    - ⚠️ **Important**: Save this password! It cannot be recovered if lost
    - Your password encrypts your data - without it, synced data is useless
+   - Optional: Enable **"Remember encryption key on this device"** to keep sync unlocked across browser sessions (trusted devices only)
 
 4. **Create Account**
    - Click "Sign Up" to register

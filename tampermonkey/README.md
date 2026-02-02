@@ -146,8 +146,9 @@ If you want to sync your goal configurations across devices:
    - Your goal targets and settings will sync automatically
 
 **Important**: 
-- Your password is used to encrypt data before it leaves your device and is never stored locally
+- Your password is used to encrypt data before it leaves your device and is not stored locally unless you opt to remember the encryption key
 - If you lose your password, your synced data cannot be recovered
+- You can optionally remember the encryption key on trusted devices to keep sync unlocked across sessions
 - The sync server never sees your unencrypted data
 
 For detailed sync setup instructions, see `QUICK_START.md`.

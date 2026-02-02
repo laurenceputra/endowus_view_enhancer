@@ -95,7 +95,7 @@ Sync your portfolio configuration across multiple devices with end-to-end encryp
 - ✅ Sync is completely optional.
 - ✅ No data is sent until you enable sync and click **Save Settings**.
 - ✅ Only encrypted config values (goal targets + fixed flags) are synced.
-- ✅ Your password is never stored locally; use your browser password manager to autofill each session.
+- ✅ Your password is not stored locally unless you opt to remember the encryption key on a trusted device.
 
 **Getting Started**:
 1. Review the [Sync Setup Guide](docs/sync-setup.md)

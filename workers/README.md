@@ -394,7 +394,7 @@ The server **NEVER** sees:
 
 ### Key Management
 - JWT secrets are stored as Cloudflare secrets (never in code)
-- Access tokens are short-lived; refresh tokens last 30 days
+- Access tokens are short-lived; refresh tokens last 60 days
 - Rotate `JWT_SECRET` to invalidate all sessions
 
 ### Audit

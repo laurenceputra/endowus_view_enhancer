@@ -46,7 +46,11 @@ const SYNC_STORAGE_KEYS = {
     accessToken: 'sync_access_token',
     refreshToken: 'sync_refresh_token',
     accessTokenExpiry: 'sync_access_token_expiry',
-    refreshTokenExpiry: 'sync_refresh_token_expiry'
+    refreshTokenExpiry: 'sync_refresh_token_expiry',
+    rememberKey: 'sync_remember_key',
+    rememberedMasterKey: 'sync_master_key',
+    legacyRememberPassword: 'sync_remember_password',
+    legacyRememberedPassword: 'sync_remembered_password'
 };
 
 const LEGACY_SYNC_PASSWORD_KEY = 'sync_password';
@@ -238,10 +242,11 @@ SyncEncryption.encrypt("test", "password").then(encrypted => {
    - **Server URL**: Your Cloudflare Workers URL
    - **User ID**: Your email or unique ID
    - **Password**: Strong password (8+ chars)
-4. Click "Login" to obtain session tokens
-5. Click "Save Settings"
-6. Click "Test Connection" (should succeed)
-7. Click "Sync Now" (should succeed)
+4. Optional: Enable **"Remember encryption key on this device"** (trusted devices only)
+5. Click "Login" to obtain session tokens
+6. Click "Save Settings"
+7. Click "Test Connection" (should succeed)
+8. Click "Sync Now" (should succeed)
 
 ## Step 10: Verify End-to-End Sync (5 minutes)
 

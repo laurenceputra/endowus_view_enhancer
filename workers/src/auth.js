@@ -4,7 +4,7 @@
  */
 
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
-const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
+const REFRESH_TOKEN_TTL_SECONDS = 60 * 24 * 60 * 60;
 
 /**
  * Derive a slow hash from the incoming password hash for storage
