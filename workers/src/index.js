@@ -8,6 +8,7 @@
 import { handleSync, handleGetSync, handleDeleteSync } from './handlers';
 import { validatePassword, registerUser, loginUser, issueTokens, verifyAccessToken, verifyRefreshToken } from './auth';
 import { rateLimit } from './ratelimit';
+import { applyCorsHeaders } from './cors';
 
 // Configuration
 const CONFIG = {
@@ -18,9 +19,7 @@ const CONFIG = {
 };
 
 // CORS headers
-const CORS_HEADERS = {
-	'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-	'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Password-Hash, X-User-Id',
+const CORS_MAX_AGE = {
 	'Access-Control-Max-Age': '86400' // 24 hours
 };
 
@@ -50,10 +49,7 @@ export default {
 		if (method === 'OPTIONS') {
 			return new Response(null, {
 				status: 204,
-				headers: {
-					...CORS_HEADERS,
-					'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS
-				}
+				headers: applyCorsHeaders(resolvedEnv, CORS_MAX_AGE)
 			});
 		}
 
@@ -63,7 +59,7 @@ export default {
 				status: 'ok',
 				version: CONFIG.VERSION,
 				timestamp: Date.now()
-			}, 200, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+			}, 200, {}, resolvedEnv);
 		}
 
 		// Auth endpoints (rate limited but no auth required)
@@ -76,21 +72,22 @@ export default {
 					error: 'RATE_LIMIT_EXCEEDED',
 					retryAfter: rateLimitResult.retryAfter
 				}, 429, {
-					'Retry-After': String(rateLimitResult.retryAfter)
-				});
+					'Retry-After': String(rateLimitResult.retryAfter),
+					'Access-Control-Allow-Origin': null
+				}, resolvedEnv);
 			}
 
 			try {
 				const body = await request.json();
 				const { userId, passwordHash } = body;
 				const result = await registerUser(userId, passwordHash, resolvedEnv);
-				return jsonResponse(result, result.success ? 200 : 400, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+				return jsonResponse(result, result.success ? 200 : 400, {}, resolvedEnv);
 			} catch (error) {
 				return jsonResponse({
 					success: false,
 					error: 'BAD_REQUEST',
 					message: 'Invalid JSON in request body'
-				}, 400, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+				}, 400, {}, resolvedEnv);
 			}
 		}
 
@@ -103,8 +100,9 @@ export default {
 					error: 'RATE_LIMIT_EXCEEDED',
 					retryAfter: rateLimitResult.retryAfter
 				}, 429, {
-					'Retry-After': String(rateLimitResult.retryAfter)
-				});
+					'Retry-After': String(rateLimitResult.retryAfter),
+					'Access-Control-Allow-Origin': null
+				}, resolvedEnv);
 			}
 
 			let body;
@@ -115,26 +113,26 @@ export default {
 					success: false,
 					error: 'BAD_REQUEST',
 					message: 'Invalid JSON in request body'
-				}, 400, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+				}, 400, {}, resolvedEnv);
 			}
 
 			try {
 				const { userId, passwordHash } = body;
 				const result = await loginUser(userId, passwordHash, resolvedEnv);
 				if (!result.success) {
-					return jsonResponse(result, 401, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+					return jsonResponse(result, 401, {}, resolvedEnv);
 				}
 				const tokens = await issueTokens(userId, resolvedEnv);
 				return jsonResponse({
 					...result,
 					tokens
-				}, 200, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+				}, 200, {}, resolvedEnv);
 			} catch (error) {
 				return jsonResponse({
 					success: false,
 					error: 'INTERNAL_ERROR',
 					message: resolvedEnv.ENVIRONMENT === 'production' ? 'Internal server error' : error.message
-				}, 500, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+				}, 500, {}, resolvedEnv);
 			}
 		}
 
@@ -147,8 +145,9 @@ export default {
 					error: 'RATE_LIMIT_EXCEEDED',
 					retryAfter: rateLimitResult.retryAfter
 				}, 429, {
-					'Retry-After': String(rateLimitResult.retryAfter)
-				});
+					'Retry-After': String(rateLimitResult.retryAfter),
+					'Access-Control-Allow-Origin': null
+				}, resolvedEnv);
 			}
 
 			try {
@@ -158,7 +157,7 @@ export default {
 						success: false,
 						error: 'UNAUTHORIZED',
 						message: 'Missing refresh token'
-					}, 401, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+					}, 401, {}, resolvedEnv);
 				}
 
 				const payload = await verifyRefreshToken(refreshToken, resolvedEnv);
@@ -167,20 +166,20 @@ export default {
 						success: false,
 						error: 'UNAUTHORIZED',
 						message: 'Invalid refresh token'
-					}, 401, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+					}, 401, {}, resolvedEnv);
 				}
 
 				const tokens = await issueTokens(payload.sub, resolvedEnv);
 				return jsonResponse({
 					success: true,
 					tokens
-				}, 200, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+				}, 200, {}, resolvedEnv);
 			} catch (error) {
 				return jsonResponse({
 					success: false,
 					error: 'INTERNAL_ERROR',
 					message: resolvedEnv.ENVIRONMENT === 'production' ? 'Internal server error' : error.message
-				}, 500, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+				}, 500, {}, resolvedEnv);
 			}
 		}
 
@@ -215,7 +214,7 @@ export default {
 				success: false,
 				error: 'UNAUTHORIZED',
 				message: 'Invalid credentials'
-			}, 401, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+			}, 401, {}, resolvedEnv);
 		}
 
 		// Rate limiting
@@ -227,8 +226,8 @@ export default {
 				retryAfter: rateLimitResult.retryAfter
 			}, 429, {
 				'Retry-After': String(rateLimitResult.retryAfter),
-				'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS
-			});
+				'Access-Control-Allow-Origin': null
+			}, resolvedEnv);
 		}
 
 		// Route handling
@@ -242,7 +241,7 @@ export default {
 						success: false,
 						error: 'PAYLOAD_TOO_LARGE',
 						maxSize: CONFIG.MAX_PAYLOAD_SIZE
-					}, 413, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+					}, 413, {}, resolvedEnv);
 				}
 
 				const body = await request.json();
@@ -253,7 +252,7 @@ export default {
 						success: false,
 						error: 'FORBIDDEN',
 						message: 'Cannot upload data for another user'
-					}, 403, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+					}, 403, {}, resolvedEnv);
 				}
 				
 				return await handleSync(body, resolvedEnv);
@@ -267,7 +266,7 @@ export default {
 						success: false,
 						error: 'BAD_REQUEST',
 						message: 'userId required'
-					}, 400, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+					}, 400, {}, resolvedEnv);
 				}
 				
 				// Authorization check: ensure authenticated user matches requested userId
@@ -276,7 +275,7 @@ export default {
 						success: false,
 						error: 'FORBIDDEN',
 						message: 'Cannot access another user\'s data'
-					}, 403, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+					}, 403, {}, resolvedEnv);
 				}
 				
 				return await handleGetSync(userId, resolvedEnv);
@@ -290,7 +289,7 @@ export default {
 						success: false,
 						error: 'BAD_REQUEST',
 						message: 'userId required'
-					}, 400, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+					}, 400, {}, resolvedEnv);
 				}
 				
 				// Authorization check: ensure authenticated user matches requested userId
@@ -299,7 +298,7 @@ export default {
 						success: false,
 						error: 'FORBIDDEN',
 						message: 'Cannot delete another user\'s data'
-					}, 403, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+					}, 403, {}, resolvedEnv);
 				}
 				
 				return await handleDeleteSync(userId, resolvedEnv);
@@ -310,7 +309,7 @@ export default {
 				success: false,
 				error: 'NOT_FOUND',
 				message: 'Endpoint not found'
-			}, 404, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+			}, 404, {}, resolvedEnv);
 
 		} catch (error) {
 			console.error('Request error:', error);
@@ -318,7 +317,7 @@ export default {
 				success: false,
 				error: 'INTERNAL_ERROR',
 				message: resolvedEnv.ENVIRONMENT === 'production' ? 'Internal server error' : error.message
-			}, 500, { 'Access-Control-Allow-Origin': resolvedEnv.CORS_ORIGINS });
+			}, 500, {}, resolvedEnv);
 		}
 	}
 };
@@ -326,13 +325,13 @@ export default {
 /**
  * Helper to create JSON responses with CORS headers
  */
-function jsonResponse(data, status = 200, additionalHeaders = {}) {
+function jsonResponse(data, status = 200, additionalHeaders = {}, env = {}) {
 	return new Response(JSON.stringify(data), {
 		status,
-		headers: {
+		headers: applyCorsHeaders(env, {
 			'Content-Type': 'application/json',
-			...CORS_HEADERS,
+			...CORS_MAX_AGE,
 			...additionalHeaders
-		}
+		})
 	});
 }

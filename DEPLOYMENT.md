@@ -129,7 +129,7 @@ For isolated instances, define unique worker names, routes, KV namespaces, and s
 name = "goal-portfolio-sync-staging"
 vars = {
   ENVIRONMENT = "staging",
-  CORS_ORIGINS = "https://staging.yourdomain.com",
+  CORS_ORIGINS = "https://app.sg.endowus.com",
   SYNC_KV_BINDING = "SYNC_KV_STAGING"
 }
 kv_namespaces = [
@@ -140,7 +140,7 @@ kv_namespaces = [
 name = "goal-portfolio-sync"
 vars = {
   ENVIRONMENT = "production",
-  CORS_ORIGINS = "https://app.yourdomain.com",
+  CORS_ORIGINS = "https://app.sg.endowus.com",
   SYNC_KV_BINDING = "SYNC_KV_PROD"
 }
 kv_namespaces = [
@@ -154,6 +154,12 @@ Use a unique `JWT_SECRET` per environment:
 npx wrangler secret put JWT_SECRET --env staging
 npx wrangler secret put JWT_SECRET --env production
 ```
+
+### Preview Deploys (Shared KV Namespace)
+- Previews use `wrangler versions upload --preview-alias <alias>` and follow:
+  `<alias>-goal-portfolio-sync.<your-subdomain>.workers.dev`
+- Previews use a shared KV namespace via `SYNC_KV_ID` (no per-PR KV creation).
+- Set `CLOUDFLARE_WORKERS_SUBDOMAIN` to include the subdomain in PR comments.
 
 ### Manual Testing
 

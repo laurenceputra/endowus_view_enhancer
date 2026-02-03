@@ -2634,6 +2634,60 @@
     };
 })();
 
+function buildConflictDiffItemsForMap(conflict, nameMapOverride = {}) {
+    if (!conflict || !conflict.local || !conflict.remote) {
+        return [];
+    }
+    const localTargets = conflict.local.goalTargets || {};
+    const remoteTargets = conflict.remote.goalTargets || {};
+    const localFixed = conflict.local.goalFixed || {};
+    const remoteFixed = conflict.remote.goalFixed || {};
+    const goalIds = new Set([
+        ...Object.keys(localTargets),
+        ...Object.keys(remoteTargets),
+        ...Object.keys(localFixed),
+        ...Object.keys(remoteFixed)
+    ]);
+    if (goalIds.size === 0) {
+        return [];
+    }
+
+    const nameMap = nameMapOverride && typeof nameMapOverride === 'object'
+        ? nameMapOverride
+        : {};
+    return Array.from(goalIds)
+        .map(goalId => {
+            const localTarget = localTargets[goalId];
+            const remoteTarget = remoteTargets[goalId];
+            const localFixedValue = localFixed[goalId] === true;
+            const remoteFixedValue = remoteFixed[goalId] === true;
+            const targetChanged = localTarget !== remoteTarget;
+            const fixedChanged = localFixedValue !== remoteFixedValue;
+            if (!targetChanged && !fixedChanged) {
+                return null;
+            }
+            const goalName = nameMap[goalId] || `Goal ${goalId.slice(0, 8)}...`;
+            return {
+                goalId,
+                goalName,
+                localTargetDisplay: formatSyncTarget(localTarget),
+                remoteTargetDisplay: formatSyncTarget(remoteTarget),
+                localFixedDisplay: formatSyncFixed(localFixedValue),
+                remoteFixedDisplay: formatSyncFixed(remoteFixedValue)
+            };
+        })
+        .filter(Boolean)
+        .sort((left, right) => left.goalName.localeCompare(right.goalName));
+}
+
+function formatSyncTarget(target) {
+    return typeof target === 'number' ? target.toFixed(2) + '%' : '-';
+}
+
+function formatSyncFixed(isFixed) {
+    return isFixed ? 'Yes' : 'No';
+}
+
     // ============================================
     // Browser-Only Code (Skip in Node.js/Testing Environment)
     // ============================================
@@ -5182,7 +5236,7 @@ function createConflictDialogHTML(conflict) {
     const remoteTargets = Object.keys(conflict.remote.goalTargets || {}).length;
     const localFixed = Object.keys(conflict.local.goalFixed || {}).length;
     const remoteFixed = Object.keys(conflict.remote.goalFixed || {}).length;
-    const diffItems = buildConflictDiffItems(conflict);
+    const diffItems = _buildConflictDiffItems(conflict);
     const diffRows = diffItems.map(item => `
         <tr>
             <td class="gpv-conflict-goal-name">${escapeHtml(item.goalName)}</td>
@@ -5273,58 +5327,6 @@ function createConflictDialogHTML(conflict) {
     `;
 }
 
-function buildConflictDiffItems(conflict) {
-    if (!conflict || !conflict.local || !conflict.remote) {
-        return [];
-    }
-    const localTargets = conflict.local.goalTargets || {};
-    const remoteTargets = conflict.remote.goalTargets || {};
-    const localFixed = conflict.local.goalFixed || {};
-    const remoteFixed = conflict.remote.goalFixed || {};
-    const goalIds = new Set([
-        ...Object.keys(localTargets),
-        ...Object.keys(remoteTargets),
-        ...Object.keys(localFixed),
-        ...Object.keys(remoteFixed)
-    ]);
-    if (goalIds.size === 0) {
-        return [];
-    }
-
-    const nameMap = buildGoalNameMap();
-    return Array.from(goalIds)
-        .map(goalId => {
-            const localTarget = localTargets[goalId];
-            const remoteTarget = remoteTargets[goalId];
-            const localFixedValue = localFixed[goalId] === true;
-            const remoteFixedValue = remoteFixed[goalId] === true;
-            const targetChanged = localTarget !== remoteTarget;
-            const fixedChanged = localFixedValue !== remoteFixedValue;
-            if (!targetChanged && !fixedChanged) {
-                return null;
-            }
-            const goalName = nameMap[goalId] || `Goal ${goalId.slice(0, 8)}...`;
-            return {
-                goalId,
-                goalName,
-                localTargetDisplay: formatSyncTarget(localTarget),
-                remoteTargetDisplay: formatSyncTarget(remoteTarget),
-                localFixedDisplay: formatSyncFixed(localFixedValue),
-                remoteFixedDisplay: formatSyncFixed(remoteFixedValue)
-            };
-        })
-        .filter(Boolean)
-        .sort((left, right) => left.goalName.localeCompare(right.goalName));
-}
-
-function formatSyncTarget(target) {
-    return typeof target === 'number' ? target.toFixed(2) + '%' : '-';
-}
-
-function formatSyncFixed(isFixed) {
-    return isFixed ? 'Yes' : 'No';
-}
-
 function buildGoalNameMap() {
     const cached = Storage.readJson(STORAGE_KEYS.summary, null);
     const goalMap = Array.isArray(cached)
@@ -5339,35 +5341,37 @@ function buildGoalNameMap() {
             return acc;
         }, {})
         : {};
-    if (typeof window !== 'undefined' && window.document && state?.apiData) {
-        const merged = buildMergedInvestmentData(
-            state.apiData.performance,
-            state.apiData.investible,
-            state.apiData.summary
-        );
-        if (merged) {
-            Object.keys(merged).forEach(bucket => {
-                const bucketObj = merged[bucket];
-                if (!bucketObj || typeof bucketObj !== 'object') {
+    const merged = buildMergedInvestmentData(
+        state.apiData.performance,
+        state.apiData.investible,
+        state.apiData.summary
+    );
+    if (merged) {
+        Object.keys(merged).forEach(bucket => {
+            const bucketObj = merged[bucket];
+            if (!bucketObj || typeof bucketObj !== 'object') {
+                return;
+            }
+            Object.keys(bucketObj).forEach(goalType => {
+                if (goalType === '_meta') {
                     return;
                 }
-                Object.keys(bucketObj).forEach(goalType => {
-                    if (goalType === '_meta') {
-                        return;
+                const goals = Array.isArray(bucketObj[goalType]?.goals)
+                    ? bucketObj[goalType].goals
+                    : [];
+                goals.forEach(goal => {
+                    if (goal?.goalId && goal?.goalName) {
+                        nameMap[goal.goalId] = goal.goalName;
                     }
-                    const goals = Array.isArray(bucketObj[goalType]?.goals)
-                        ? bucketObj[goalType].goals
-                        : [];
-                    goals.forEach(goal => {
-                        if (goal?.goalId && goal?.goalName) {
-                            nameMap[goal.goalId] = goal.goalName;
-                        }
-                    });
                 });
             });
-        }
+        });
     }
     return nameMap;
+}
+
+function _buildConflictDiffItems(conflict) {
+    return buildConflictDiffItemsForMap(conflict, buildGoalNameMap());
 }
 
 /**
@@ -7321,7 +7325,7 @@ updateSyncUI = function updateSyncUI() {
     // The userscript remains standalone in the browser (no imports/exports).
     // In Node.js (test/CI), these functions are programmatically accessible.
     // Pattern: Keep all logic in ONE place (this file), test the real implementation.
-    if (typeof module !== 'undefined' && module.exports) {
+        if (typeof module !== 'undefined' && module.exports) {
         const chartHelpers = typeof globalThis !== 'undefined' ? globalThis.__gpvChartHelpers : null;
         const baseExports = {
             normalizeString,
@@ -7379,7 +7383,10 @@ updateSyncUI = function updateSyncUI() {
             buildPerformanceMetricsRows,
             derivePerformanceWindows,
             createSequentialRequestQueue,
-            SyncEncryption
+            SyncEncryption,
+            buildConflictDiffItems: buildConflictDiffItemsForMap,
+            formatSyncTarget,
+            formatSyncFixed
         };
 
         if (chartHelpers && chartHelpers.buildPerformanceWindowGrid) {

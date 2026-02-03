@@ -33,19 +33,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
-          cache: 'npm'
-
-      - name: Install workers dependencies
-        working-directory: workers
-        run: npm install
-
-      - name: Install latest Wrangler
-        working-directory: workers
-        run: npm install --no-save wrangler@4
+      - name: Setup workers tooling
+        uses: ./.github/actions/setup-workers
 
       - name: Resolve preview alias
         id: preview

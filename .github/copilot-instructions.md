@@ -73,7 +73,7 @@ Use this compact workflow for all changes. Keep detailed role guidance in `.gith
 - **Release/Docs** → Staff Engineer + Code Reviewer
 
 ### Skill Alignment (Required)
-When a workflow phase starts, align on the relevant skills and record them in the PR template:
+When a workflow phase starts, align on the relevant skills and record them in your working notes (see `.codex/skills/*`):
 
 | Phase | Primary Skills |
 | --- | --- |
@@ -89,7 +89,7 @@ When a workflow phase starts, align on the relevant skills and record them in th
 
 **Exception**: If no matching skill exists, proceed with the agent phase and note the gap in the `Skills used:` line.
 
-**Checklist**: Add a `Skills used:` line under each phase gate in the PR template (e.g., `Skills used: qa-testing, documentation`).
+**Checklist**: Add a `Skills used:` line under each phase gate in your working notes or PR description (e.g., `Skills used: qa-testing, documentation`).
 
 ### Agent Interaction Model (Required)
 1. **Product**: Frame the problem, user impact, and acceptance criteria.
@@ -106,10 +106,7 @@ Only move to the next stage when all required agents are aligned.
 - **Iteration rule**: When any agent surfaces a blocking issue, re-enter the prior stage and iterate within the same agent group until the blocking issue is resolved and re-validated.
 
 ### Workflow Templates
-Use the repository PR template to capture the required artifacts and gate alignment bullets in one place.
-**Template hygiene**
-- Do not commit per-change copies of the PR template or filled templates into the repo.
-- Keep the template file unchanged and provide filled content only in the PR description.
+Capture the required artifacts and gate alignment bullets in your working notes or PR description as needed.
 
 #### Stage Gates
 1. **Product Gate**: Product owns scope; Staff Engineer and QA confirm acceptance criteria are testable.

@@ -1,0 +1,17 @@
+name: Setup Workers
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+    - name: Install workers dependencies
+      shell: bash
+      working-directory: workers
+      run: npm ci
+    - name: Install latest Wrangler
+      shell: bash
+      working-directory: workers
+      run: npm install --no-save wrangler@4

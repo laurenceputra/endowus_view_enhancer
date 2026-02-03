@@ -3,6 +3,7 @@
  */
 
 import { getFromKV, putToKV, deleteFromKV } from './storage';
+import { applyCorsHeaders } from './cors';
 
 /**
  * Handle POST /sync - Upload encrypted config
@@ -11,11 +12,11 @@ export async function handleSync(body, env) {
 	// Validate request body
 	const validation = validateSyncRequest(body);
 	if (!validation.valid) {
-	return jsonResponse(env, {
-		success: false,
-		error: 'BAD_REQUEST',
-		message: validation.error
-	}, 400);
+		return jsonResponse({
+			success: false,
+			error: 'BAD_REQUEST',
+			message: validation.error
+		}, 400, {}, env);
 	}
 
 	const { userId, deviceId, encryptedData, timestamp, version } = body;
@@ -26,12 +27,12 @@ export async function handleSync(body, env) {
 		// Check if server has newer data
 		if (existing.timestamp > timestamp) {
 			// Server data is newer - conflict!
-			return jsonResponse(env, {
+			return jsonResponse({
 				success: false,
 				error: 'CONFLICT',
 				message: 'Server has newer data',
 				serverData: existing
-			}, 409);
+			}, 409, {}, env);
 		}
 	}
 
@@ -45,10 +46,10 @@ export async function handleSync(body, env) {
 
 	await putToKV(env, userId, data);
 
-	return jsonResponse(env, {
+	return jsonResponse({
 		success: true,
 		timestamp: timestamp
-	});
+	}, 200, {}, env);
 }
 
 /**
@@ -58,17 +59,17 @@ export async function handleGetSync(userId, env) {
 	const data = await getFromKV(env, userId);
 
 	if (!data) {
-		return jsonResponse(env, {
+		return jsonResponse({
 			success: false,
 			error: 'NOT_FOUND',
 			message: 'No config found for user'
-		}, 404);
+		}, 404, {}, env);
 	}
 
-	return jsonResponse(env, {
+	return jsonResponse({
 		success: true,
 		data: data
-	});
+	}, 200, {}, env);
 }
 
 /**
@@ -77,10 +78,10 @@ export async function handleGetSync(userId, env) {
 export async function handleDeleteSync(userId, env) {
 	await deleteFromKV(env, userId);
 
-	return jsonResponse(env, {
+	return jsonResponse({
 		success: true,
 		message: 'Config deleted'
-	});
+	}, 200, {}, env);
 }
 
 /**
@@ -124,15 +125,12 @@ function validateSyncRequest(body) {
 /**
  * Helper to create JSON responses with CORS headers
  */
-function jsonResponse(env, data, status = 200) {
-	const origin = env?.CORS_ORIGINS || 'https://app.sg.endowus.com';
+function jsonResponse(data, status = 200, additionalHeaders = {}, env = {}) {
 	return new Response(JSON.stringify(data), {
 		status,
-		headers: {
+		headers: applyCorsHeaders(env, {
 			'Content-Type': 'application/json',
-			'Access-Control-Allow-Origin': origin,
-			'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-			'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Password-Hash, X-User-Id'
-		}
+			...additionalHeaders
+		})
 	});
 }

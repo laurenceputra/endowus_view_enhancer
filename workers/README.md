@@ -161,6 +161,8 @@ Required secrets:
 - `SYNC_KV_PREVIEW_ID` (preview namespace ID; defaults to `SYNC_KV_ID` if omitted)
 - `CLOUDFLARE_WORKERS_SUBDOMAIN` (used to build the preview URL in PR comments)
 
+Previews use a shared KV namespace via `SYNC_KV_ID` to avoid per-PR KV creation.
+
 JWT secrets are managed via Wrangler (not GitHub Actions). Run:
 `npx wrangler secret put JWT_SECRET --env production` or set per preview worker name as needed.
 
