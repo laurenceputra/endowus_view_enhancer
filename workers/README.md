@@ -98,6 +98,41 @@ npm run deploy:staging
 
 Your API will be available at: `https://goal-portfolio-sync.YOUR_SUBDOMAIN.workers.dev`
 
+### 6b. Test Builds on Cloudflare (Staging/Preview)
+
+Use a separate environment for test builds so you can validate changes without touching production.
+
+1. **Create a staging KV namespace** (if you don’t already have one):
+
+```bash
+npx wrangler kv:namespace create "SYNC_KV" --env staging
+```
+
+2. **Add a staging environment** in `wrangler.toml` (unique name + KV binding + CORS):
+
+```toml
+[env.staging]
+name = "goal-portfolio-sync-staging"
+vars = { ENVIRONMENT = "staging", CORS_ORIGINS = "https://app.sg.endowus.com", SYNC_KV_BINDING = "SYNC_KV_STAGING" }
+kv_namespaces = [{ binding = "SYNC_KV_STAGING", id = "staging-kv-id", preview_id = "staging-preview-id" }]
+```
+
+3. **Set a staging JWT secret**:
+
+```bash
+npx wrangler secret put JWT_SECRET --env staging
+```
+
+4. **Deploy the test build**:
+
+```bash
+npm run deploy:staging
+# or: npx wrangler deploy --env staging
+```
+
+Your test build will be available at:
+`https://goal-portfolio-sync-staging.YOUR_SUBDOMAIN.workers.dev`
+
 ### 7. Test Deployment
 
 ```bash
