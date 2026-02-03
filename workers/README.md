@@ -133,6 +133,51 @@ npm run deploy:staging
 Your test build will be available at:
 `https://goal-portfolio-sync-staging.YOUR_SUBDOMAIN.workers.dev`
 
+### 6c. Branch Previews (GitHub Actions)
+
+For per-branch previews without committing account-specific IDs, use the template-based CI workflow:
+
+1. **Ensure these GitHub Secrets exist**:
+   - `CLOUDFLARE_API_TOKEN` (API token with Workers + KV permissions)
+   - `CLOUDFLARE_ACCOUNT_ID` (Cloudflare account ID)
+   - `JWT_SECRET` (token signing secret for preview workers)
+
+2. **Template file** (already in repo):
+   - `workers/wrangler.preview.toml.template` (placeholders are filled in CI)
+
+3. **Workflow**:
+   - `.github/workflows/preview-deploy.yml` deploys a worker named:
+     `goal-portfolio-sync-<branch>`
+   - It creates/reuses a KV namespace named:
+     `SYNC_KV_<branch>`
+   - It renders a temporary `wrangler.preview.toml` in CI and deploys with:
+     `CORS_ORIGINS = https://app.sg.endowus.com`
+
+After a PR is opened or updated, the workflow posts the preview URL in the PR comments.
+
+### 6c.1 CI Secrets Setup (GitHub Actions)
+
+Add the required repository secrets in:
+**GitHub → Settings → Secrets and variables → Actions → New repository secret**.
+
+Required secrets:
+- `CLOUDFLARE_API_TOKEN` (Workers Scripts: Edit, KV Storage: Edit, Account Settings: Read)
+- `CLOUDFLARE_ACCOUNT_ID`
+- `JWT_SECRET` (or `JWT_SECRET_PREVIEW` if you choose a separate preview secret)
+
+### 6d. Production Deploy on Main
+
+Main-branch merges can deploy automatically via GitHub Actions:
+
+1. **Workflow**: `.github/workflows/deploy-production.yml`
+2. **Trigger**: Push to `main` that touches `workers/**`
+3. **Secrets required**:
+   - `CLOUDFLARE_API_TOKEN`
+   - `CLOUDFLARE_ACCOUNT_ID`
+   - `JWT_SECRET`
+
+This deploys using your `wrangler.toml` production config (`--env production`).
+
 ### 7. Test Deployment
 
 ```bash
