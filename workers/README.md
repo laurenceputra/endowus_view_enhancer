@@ -163,10 +163,12 @@ Add the required repository secrets in:
 Required secrets:
 - `CLOUDFLARE_API_TOKEN` (Workers Scripts: Edit, KV Storage: Edit, Account Settings: Read)
 - `CLOUDFLARE_ACCOUNT_ID`
-- `JWT_SECRET` (or `JWT_SECRET_PREVIEW` if you choose a separate preview secret)
 Optional overrides:
 - `SYNC_KV_ID` (reuse a single KV namespace instead of per-branch creation)
 - `SYNC_KV_PREVIEW_ID` (preview namespace ID; defaults to `SYNC_KV_ID` if omitted)
+
+JWT secrets are managed via Wrangler (not GitHub Actions). Run:
+`npx wrangler secret put JWT_SECRET --env production` or set per preview worker name as needed.
 
 ### 6d. Production Deploy on Main
 
