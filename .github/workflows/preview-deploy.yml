@@ -40,6 +40,10 @@ jobs:
         working-directory: workers
         run: npm install
 
+      - name: Install latest Wrangler
+        working-directory: workers
+        run: npm install --no-save wrangler@4
+
       - name: Resolve preview config
         id: preview
         shell: bash
@@ -67,18 +71,18 @@ jobs:
           set -euo pipefail
 
           KV_NAME="${{ steps.preview.outputs.kv_name }}"
-          if [ -n "${SYNC_KV_ID}" ]; then
+          if [ -n "${SYNC_KV_ID:-}" ]; then
             KV_ID="${SYNC_KV_ID}"
           else
-            KV_ID=$(npx wrangler kv:namespace list --json | jq -r --arg name "$KV_NAME" '.[] | select(.title==$name) | .id' | head -n1)
+          KV_ID=$(npx wrangler@4 kv:namespace list --json | jq -r --arg name "$KV_NAME" '.[] | select(.title==$name) | .id' | head -n1)
           fi
 
           if [ -z "$KV_ID" ]; then
-            KV_ID=$(npx wrangler kv:namespace create "$KV_NAME" --json | jq -r '.id')
+            KV_ID=$(npx wrangler@4 kv:namespace create "$KV_NAME" --json | jq -r '.id')
           fi
 
           echo "kv_id=$KV_ID" >> "$GITHUB_OUTPUT"
-          if [ -n "${SYNC_KV_PREVIEW_ID}" ]; then
+          if [ -n "${SYNC_KV_PREVIEW_ID:-}" ]; then
             echo "kv_preview_id=${SYNC_KV_PREVIEW_ID}" >> "$GITHUB_OUTPUT"
           else
             echo "kv_preview_id=$KV_ID" >> "$GITHUB_OUTPUT"
@@ -109,7 +113,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx wrangler deploy --config "${{ steps.config.outputs.config_path }}"
+          npx wrangler@4 deploy --config "${{ steps.config.outputs.config_path }}"
 
       - name: Post preview URL
         if: github.event_name == 'pull_request'
