@@ -50,7 +50,11 @@ jobs:
           set -euo pipefail
 
           BRANCH_REF="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-          BRANCH_SLUG=$(echo "$BRANCH_REF" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g' | sed -E 's/^-+|-+$//g')
+          BRANCH_SLUG=$(echo "$BRANCH_REF" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g' | sed -E 's/^-+|-+$//g' | sed -E 's/-+/-/g')
+          if [ -z "$BRANCH_SLUG" ]; then
+            BRANCH_SLUG="preview"
+          fi
+          BRANCH_SLUG=$(echo "$BRANCH_SLUG" | cut -c1-40)
           WORKER_NAME="goal-portfolio-sync-${BRANCH_SLUG}"
           KV_NAME="SYNC_KV_${BRANCH_SLUG}"
 
