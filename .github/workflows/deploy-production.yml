@@ -1,4 +1,4 @@
-name: Deploy Workers (Production)
+name: Deploy Production (Workers)
 
 on:
   push:

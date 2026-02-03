@@ -1,4 +1,4 @@
-name: Preview Deploy (Workers)
+name: Deploy Preview (Workers)
 
 on:
   pull_request:
@@ -15,10 +15,8 @@ jobs:
     name: Deploy preview worker
     runs-on: ubuntu-latest
     if: >-
-      ${
-        github.event_name != 'pull_request' ||
-        github.event.pull_request.head.repo.full_name == github.repository
-      }
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     concurrency:
       group: preview-${{ github.event.pull_request.head.ref || github.ref_name }}
       cancel-in-progress: true
