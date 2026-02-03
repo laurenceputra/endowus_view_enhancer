@@ -344,7 +344,7 @@ Update `src/index.js`:
 
 ```javascript
 const CORS_HEADERS = {
-    'Access-Control-Allow-Origin': '*',  // ← Change to specific domain in production
+    'Access-Control-Allow-Origin': 'https://app.sg.endowus.com',
     'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Password-Hash, X-User-Id'
 };

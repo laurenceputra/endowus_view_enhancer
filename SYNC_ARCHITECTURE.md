@@ -702,7 +702,8 @@ States:
 │  │ [Keep This]     │  │ [Use Server]    │        │
 │  └────────────────┘  └────────────────┘        │
 │                                                  │
-│              [⚖️ Merge Both]                     │
+│  Changed goals preview (local vs remote)         │
+│                [Cancel]                          │
 │                                                  │
 └─────────────────────────────────────────────────┘
 ```

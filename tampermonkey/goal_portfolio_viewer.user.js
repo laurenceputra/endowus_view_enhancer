@@ -5182,6 +5182,44 @@ function createConflictDialogHTML(conflict) {
     const remoteTargets = Object.keys(conflict.remote.goalTargets || {}).length;
     const localFixed = Object.keys(conflict.local.goalFixed || {}).length;
     const remoteFixed = Object.keys(conflict.remote.goalFixed || {}).length;
+    const diffItems = buildConflictDiffItems(conflict);
+    const diffRows = diffItems.map(item => `
+        <tr>
+            <td class="gpv-conflict-goal-name">${escapeHtml(item.goalName)}</td>
+            <td>
+                <div><strong>Target:</strong> ${item.localTargetDisplay}</div>
+                <div><strong>Fixed:</strong> ${item.localFixedDisplay}</div>
+            </td>
+            <td>
+                <div><strong>Target:</strong> ${item.remoteTargetDisplay}</div>
+                <div><strong>Fixed:</strong> ${item.remoteFixedDisplay}</div>
+            </td>
+        </tr>
+    `).join('');
+    const diffSection = diffItems.length > 0
+        ? `
+            <div class="gpv-conflict-diff">
+                <h4>Changed Goals</h4>
+                <table class="gpv-conflict-diff-table">
+                    <thead>
+                        <tr>
+                            <th>Goal</th>
+                            <th>Local</th>
+                            <th>Remote</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${diffRows}
+                    </tbody>
+                </table>
+            </div>
+        `
+        : `
+            <div class="gpv-conflict-diff">
+                <h4>Changed Goals</h4>
+                <div class="gpv-conflict-diff-empty">No goal-level differences detected.</div>
+            </div>
+        `;
 
     return `
         <div class="gpv-conflict-dialog">
@@ -5220,6 +5258,8 @@ function createConflictDialogHTML(conflict) {
                 </div>
             </div>
 
+            ${diffSection}
+
             <div class="gpv-conflict-warning">
                 <p><strong>⚠️ Warning:</strong> Choosing one option will overwrite the other. Make sure to choose carefully.</p>
             </div>
@@ -5231,6 +5271,103 @@ function createConflictDialogHTML(conflict) {
             </div>
         </div>
     `;
+}
+
+function buildConflictDiffItems(conflict) {
+    if (!conflict || !conflict.local || !conflict.remote) {
+        return [];
+    }
+    const localTargets = conflict.local.goalTargets || {};
+    const remoteTargets = conflict.remote.goalTargets || {};
+    const localFixed = conflict.local.goalFixed || {};
+    const remoteFixed = conflict.remote.goalFixed || {};
+    const goalIds = new Set([
+        ...Object.keys(localTargets),
+        ...Object.keys(remoteTargets),
+        ...Object.keys(localFixed),
+        ...Object.keys(remoteFixed)
+    ]);
+    if (goalIds.size === 0) {
+        return [];
+    }
+
+    const nameMap = buildGoalNameMap();
+    return Array.from(goalIds)
+        .map(goalId => {
+            const localTarget = localTargets[goalId];
+            const remoteTarget = remoteTargets[goalId];
+            const localFixedValue = localFixed[goalId] === true;
+            const remoteFixedValue = remoteFixed[goalId] === true;
+            const targetChanged = localTarget !== remoteTarget;
+            const fixedChanged = localFixedValue !== remoteFixedValue;
+            if (!targetChanged && !fixedChanged) {
+                return null;
+            }
+            const goalName = nameMap[goalId] || `Goal ${goalId.slice(0, 8)}...`;
+            return {
+                goalId,
+                goalName,
+                localTargetDisplay: formatSyncTarget(localTarget),
+                remoteTargetDisplay: formatSyncTarget(remoteTarget),
+                localFixedDisplay: formatSyncFixed(localFixedValue),
+                remoteFixedDisplay: formatSyncFixed(remoteFixedValue)
+            };
+        })
+        .filter(Boolean)
+        .sort((left, right) => left.goalName.localeCompare(right.goalName));
+}
+
+function formatSyncTarget(target) {
+    return typeof target === 'number' ? target.toFixed(2) + '%' : '-';
+}
+
+function formatSyncFixed(isFixed) {
+    return isFixed ? 'Yes' : 'No';
+}
+
+function buildGoalNameMap() {
+    const cached = Storage.readJson(STORAGE_KEYS.summary, null);
+    const goalMap = Array.isArray(cached)
+        ? indexBy(cached, item => item?.goalId)
+        : null;
+    const nameMap = goalMap
+        ? Object.entries(goalMap).reduce((acc, [goalId, goal]) => {
+            const name = normalizeString(goal?.goalName || '', '');
+            if (name) {
+                acc[goalId] = name;
+            }
+            return acc;
+        }, {})
+        : {};
+    if (typeof window !== 'undefined' && window.document && state?.apiData) {
+        const merged = buildMergedInvestmentData(
+            state.apiData.performance,
+            state.apiData.investible,
+            state.apiData.summary
+        );
+        if (merged) {
+            Object.keys(merged).forEach(bucket => {
+                const bucketObj = merged[bucket];
+                if (!bucketObj || typeof bucketObj !== 'object') {
+                    return;
+                }
+                Object.keys(bucketObj).forEach(goalType => {
+                    if (goalType === '_meta') {
+                        return;
+                    }
+                    const goals = Array.isArray(bucketObj[goalType]?.goals)
+                        ? bucketObj[goalType].goals
+                        : [];
+                    goals.forEach(goal => {
+                        if (goal?.goalId && goal?.goalName) {
+                            nameMap[goal.goalId] = goal.goalName;
+                        }
+                    });
+                });
+            });
+        }
+    }
+    return nameMap;
 }
 
 /**
@@ -6637,6 +6774,49 @@ updateSyncUI = function updateSyncUI() {
                 .gpv-conflict-actions {
                     display: flex;
                     justify-content: center;
+                }
+
+                .gpv-conflict-diff {
+                    margin-bottom: 15px;
+                    padding: 16px;
+                    background: #f8fafc;
+                    border-radius: 8px;
+                    border: 1px solid #e5e7eb;
+                }
+
+                .gpv-conflict-diff h4 {
+                    margin: 0 0 12px 0;
+                    font-size: 14px;
+                    color: #111827;
+                }
+
+                .gpv-conflict-diff-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 12px;
+                }
+
+                .gpv-conflict-diff-table th,
+                .gpv-conflict-diff-table td {
+                    text-align: left;
+                    padding: 8px 6px;
+                    border-bottom: 1px solid #e5e7eb;
+                    vertical-align: top;
+                }
+
+                .gpv-conflict-diff-table th {
+                    color: #6b7280;
+                    font-weight: 600;
+                }
+
+                .gpv-conflict-goal-name {
+                    font-weight: 600;
+                    color: #111827;
+                }
+
+                .gpv-conflict-diff-empty {
+                    font-size: 12px;
+                    color: #6b7280;
                 }
 
                 /* Sync Indicator */

@@ -454,14 +454,14 @@ Set in `wrangler.toml`:
 [env.production]
 vars = { 
   ENVIRONMENT = "production",
-  CORS_ORIGINS = "https://app.yourdomain.com",
+  CORS_ORIGINS = "https://app.sg.endowus.com",
   SYNC_KV_BINDING = "SYNC_KV_PROD"
 }
 
 [env.staging]
 vars = { 
   ENVIRONMENT = "staging",
-  CORS_ORIGINS = "https://staging.yourdomain.com",
+  CORS_ORIGINS = "https://app.sg.endowus.com",
   SYNC_KV_BINDING = "SYNC_KV_STAGING"
 }
 ```

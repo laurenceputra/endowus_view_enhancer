@@ -11,11 +11,11 @@ export async function handleSync(body, env) {
 	// Validate request body
 	const validation = validateSyncRequest(body);
 	if (!validation.valid) {
-		return jsonResponse({
-			success: false,
-			error: 'BAD_REQUEST',
-			message: validation.error
-		}, 400);
+	return jsonResponse(env, {
+		success: false,
+		error: 'BAD_REQUEST',
+		message: validation.error
+	}, 400);
 	}
 
 	const { userId, deviceId, encryptedData, timestamp, version } = body;
@@ -26,7 +26,7 @@ export async function handleSync(body, env) {
 		// Check if server has newer data
 		if (existing.timestamp > timestamp) {
 			// Server data is newer - conflict!
-			return jsonResponse({
+			return jsonResponse(env, {
 				success: false,
 				error: 'CONFLICT',
 				message: 'Server has newer data',
@@ -45,7 +45,7 @@ export async function handleSync(body, env) {
 
 	await putToKV(env, userId, data);
 
-	return jsonResponse({
+	return jsonResponse(env, {
 		success: true,
 		timestamp: timestamp
 	});
@@ -58,14 +58,14 @@ export async function handleGetSync(userId, env) {
 	const data = await getFromKV(env, userId);
 
 	if (!data) {
-		return jsonResponse({
+		return jsonResponse(env, {
 			success: false,
 			error: 'NOT_FOUND',
 			message: 'No config found for user'
 		}, 404);
 	}
 
-	return jsonResponse({
+	return jsonResponse(env, {
 		success: true,
 		data: data
 	});
@@ -77,7 +77,7 @@ export async function handleGetSync(userId, env) {
 export async function handleDeleteSync(userId, env) {
 	await deleteFromKV(env, userId);
 
-	return jsonResponse({
+	return jsonResponse(env, {
 		success: true,
 		message: 'Config deleted'
 	});
@@ -124,12 +124,13 @@ function validateSyncRequest(body) {
 /**
  * Helper to create JSON responses with CORS headers
  */
-function jsonResponse(data, status = 200) {
+function jsonResponse(env, data, status = 200) {
+	const origin = env?.CORS_ORIGINS || 'https://app.sg.endowus.com';
 	return new Response(JSON.stringify(data), {
 		status,
 		headers: {
 			'Content-Type': 'application/json',
-			'Access-Control-Allow-Origin': '*',
+			'Access-Control-Allow-Origin': origin,
 			'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
 			'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Password-Hash, X-User-Id'
 		}

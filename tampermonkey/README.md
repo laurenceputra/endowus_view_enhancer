@@ -152,6 +152,7 @@ If you want to sync your goal configurations across devices:
 - The sync server never sees your unencrypted data
 - Only encrypted goal targets + fixed flags are synced; holdings, balances, and transactions never leave your browser
 - Auto-sync is disabled by default; enable it in Sync Settings to use the configured interval
+- Conflict dialogs include a goal-level diff preview to help choose Local vs Remote
 
 For detailed sync setup instructions, see `QUICK_START.md`.
 

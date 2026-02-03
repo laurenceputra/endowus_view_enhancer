@@ -17,22 +17,27 @@
 ## Stage Gate Alignment
 **Product**
 - Status: ☐ Approved / ☐ Blocked
+- Skills used:
 - 
 
 **Staff Engineer**
 - Status: ☐ Approved / ☐ Blocked
+- Skills used:
 - 
 
 **Devil's Advocate**
 - Status: ☐ Approved / ☐ Blocked
+- Skills used:
 - 
 
 **QA**
 - Status: ☐ Approved / ☐ Blocked
+- Skills used:
 - 
 
 **Code Review**
 - Status: ☐ Approved / ☐ Blocked
+- Skills used:
 - 
 
 ## Risks & Tradeoffs

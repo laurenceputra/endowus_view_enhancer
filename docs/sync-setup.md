@@ -102,7 +102,7 @@ Conflicts occur when settings differ between devices. This happens when:
 - You change settings offline on multiple devices
 - Sync fails temporarily and changes diverge
 
-**When a conflict is detected**, you'll see a dialog with 3 options:
+**When a conflict is detected**, you'll see a dialog with 2 options and a goal-level diff preview:
 
 ### 1. Keep This Device
 - Uses settings from your current device
@@ -113,11 +113,6 @@ Conflicts occur when settings differ between devices. This happens when:
 - Downloads settings from server
 - Overwrites local settings
 - **Use when**: Server has the most recent changes
-
-### 3. Merge Both
-- Combines settings from both sources
-- Per-goal last-write-wins strategy
-- **Use when**: Both devices have different goal changes
 
 **Tip**: The dialog shows timestamps and device names to help you decide.
 
