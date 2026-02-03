@@ -135,23 +135,17 @@ Your test build will be available at:
 
 ### 6c. Branch Previews (GitHub Actions)
 
-For per-branch previews without committing account-specific IDs, use the template-based CI workflow:
+For per‑PR preview URLs that follow Cloudflare’s preview alias pattern:
+`<alias>-goal-portfolio-sync.<your-subdomain>.workers.dev`, use the preview workflow.
 
-1. **Ensure these GitHub Secrets exist**:
-   - `CLOUDFLARE_API_TOKEN` (API token with Workers + KV permissions)
-   - `CLOUDFLARE_ACCOUNT_ID` (Cloudflare account ID)
-   - `JWT_SECRET` (token signing secret for preview workers)
-
-2. **Template file** (already in repo):
+1. **Template file** (already in repo):
    - `workers/wrangler.preview.toml.template` (placeholders are filled in CI)
 
-3. **Workflow**:
-   - `.github/workflows/preview-deploy.yml` deploys a worker named:
-     `goal-portfolio-sync-<branch>`
-   - It creates/reuses a KV namespace named:
-     `SYNC_KV_<branch>`
-   - It renders a temporary `wrangler.preview.toml` in CI and deploys with:
-     `CORS_ORIGINS = https://app.sg.endowus.com`
+2. **Workflow**:
+   - `.github/workflows/preview-deploy.yml` uploads a **preview version** using
+     `wrangler versions upload --preview-alias <alias>`.
+   - The alias is derived from the PR number or branch name and is length‑safe.
+   - The preview URL is posted to the PR.
 
 After a PR is opened or updated, the workflow posts the preview URL in the PR comments.
 
@@ -163,9 +157,9 @@ Add the required repository secrets in:
 Required secrets:
 - `CLOUDFLARE_API_TOKEN` (Workers Scripts: Edit, KV Storage: Edit, Account Settings: Read)
 - `CLOUDFLARE_ACCOUNT_ID`
-Optional overrides:
-- `SYNC_KV_ID` (reuse a single KV namespace instead of per-branch creation)
+- `SYNC_KV_ID` (required KV namespace ID for previews)
 - `SYNC_KV_PREVIEW_ID` (preview namespace ID; defaults to `SYNC_KV_ID` if omitted)
+- `CLOUDFLARE_WORKERS_SUBDOMAIN` (used to build the preview URL in PR comments)
 
 JWT secrets are managed via Wrangler (not GitHub Actions). Run:
 `npx wrangler secret put JWT_SECRET --env production` or set per preview worker name as needed.
@@ -179,9 +173,11 @@ Main-branch merges can deploy automatically via GitHub Actions:
 3. **Secrets required**:
    - `CLOUDFLARE_API_TOKEN`
    - `CLOUDFLARE_ACCOUNT_ID`
-   - `JWT_SECRET`
 
 This deploys using your `wrangler.toml` production config (`--env production`).
+
+JWT secrets are managed via Wrangler (not GitHub Actions). Run:
+`npx wrangler secret put JWT_SECRET --env production` as part of initial setup.
 
 ### 7. Test Deployment
 
