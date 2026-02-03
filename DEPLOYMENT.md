@@ -160,6 +160,7 @@ npx wrangler secret put JWT_SECRET --env production
   `<alias>-goal-portfolio-sync.<your-subdomain>.workers.dev`
 - Previews use a shared KV namespace via `SYNC_KV_ID` (no per-PR KV creation).
 - Set `CLOUDFLARE_WORKERS_SUBDOMAIN` to include the subdomain in PR comments.
+- Preview versions are managed by Cloudflare and clean up automatically, so no additional cleanup jobs are required.
 
 ### Manual Testing
 
