@@ -38,7 +38,7 @@ jobs:
 
       - name: Install workers dependencies
         working-directory: workers
-        run: npm ci
+        run: npm install
 
       - name: Resolve preview config
         id: preview

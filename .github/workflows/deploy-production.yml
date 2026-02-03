@@ -32,7 +32,7 @@ jobs:
 
       - name: Install workers dependencies
         working-directory: workers
-        run: npm ci
+        run: npm install
 
       - name: Deploy production
         working-directory: workers
