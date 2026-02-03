@@ -87,6 +87,8 @@ When a workflow phase starts, align on the relevant skills and record them in th
 
 **Precedence**: Workflow gates override skill guidance if they conflict.
 
+**Exception**: If no matching skill exists, proceed with the agent phase and note the gap in the `Skills used:` line.
+
 **Checklist**: Add a `Skills used:` line under each phase gate in the PR template (e.g., `Skills used: qa-testing, documentation`).
 
 ### Agent Interaction Model (Required)

@@ -27,6 +27,12 @@ vars = { ENVIRONMENT = "production", SYNC_KV_BINDING = "SYNC_KV", CORS_ORIGINS =
 name = "goal-portfolio-sync-staging"
 vars = { ENVIRONMENT = "staging", SYNC_KV_BINDING = "SYNC_KV", CORS_ORIGINS = "https://staging.yourdomain.com" }
 
+# Example secondary instance (optional)
+# [env.secondary]
+# name = "goal-portfolio-sync-secondary"
+# vars = { ENVIRONMENT = "production", SYNC_KV_BINDING = "SYNC_KV_SECONDARY", CORS_ORIGINS = "https://secondary.yourdomain.com" }
+# kv_namespaces = [{ binding = "SYNC_KV_SECONDARY", id = "SECONDARY_KV_ID", preview_id = "SECONDARY_PREVIEW_KV_ID" }]
+
 # Custom domain routing (optional)
 # Uncomment and configure if you want a custom domain
 # routes = [

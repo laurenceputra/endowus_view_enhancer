@@ -24,6 +24,8 @@ Keep your Goal Portfolio Viewer settings synchronized across all your devices wi
 
 ### Option A: Use Official Sync Server (Easiest)
 
+Default server URL: `https://goal-portfolio-sync.laurenceputra.workers.dev`
+
 1. **Open Settings**
    - Click the ⚙️ icon in Goal Portfolio Viewer
    - Navigate to the "Sync" tab
