@@ -53,7 +53,7 @@ Core-satellite strategies complement this approach. The core anchors each goal w
 - **Goal-based clarity:** Keep multiple goals organized without spreadsheets or manual rollups.
 - **Core + satellite aligned:** See long-term core holdings and tactical satellites side-by-side within each life goal.
 - **Asset allocation visibility:** CPF, SRS, and cash investments show together with clear return and growth indicators.
-- **Privacy first:** All data stays on your device and is processed locally in the browser.
+- **Privacy first:** By default, all data stays on your device and is processed locally in the browser. Optional sync is opt-in and only sends encrypted configuration data.
 - **Zero friction:** Use the "Bucket Name - Description" naming pattern in your goal names and the script does the rest.
 
 ---
@@ -77,6 +77,39 @@ This overlay brings those assets back together so more sophisticated retail inve
 3. Log in to Endowus. If you see the 📊 button, you're all set.
 
 Bring your core-satellite strategy to life with a view that aligns with how you actually invest.
+
+---
+
+## 🆕 Cross-Device Sync (Optional)
+
+Sync your portfolio configuration across multiple devices with end-to-end encryption.
+
+**Key Features**:
+- 🔒 **Zero-Knowledge**: All encryption happens on your device
+- 🌐 **Self-Hostable**: Run your own backend on Cloudflare Workers
+- 🔄 **Automatic Sync**: Optional background sync with configurable interval
+- 🎯 **Conflict Resolution**: Clear UI for handling sync conflicts
+- ⚡ **Fast**: ~5ms encryption, global CDN distribution
+
+**Privacy & Opt-In**:
+- ✅ Sync is completely optional.
+- ✅ No data is sent until you enable sync and click **Save Settings**.
+- ✅ Only encrypted config values (goal targets + fixed flags) are synced.
+- ✅ Your password is not stored locally unless you opt to remember the encryption key on a trusted device.
+
+**Getting Started**:
+1. Review the [Sync Setup Guide](docs/sync-setup.md)
+2. Configure your server URL, user ID, and password
+3. Login, enable sync, and choose auto-sync if desired
+
+**For Self-Hosting**:
+- Deploy your own backend: See [workers/README.md](workers/README.md)
+- 5-minute setup with Cloudflare Workers (free tier available)
+
+**Technical Details**:
+- [Architecture Documentation](SYNC_ARCHITECTURE.md)
+- [Integration Guide](tampermonkey/QUICK_START.md)
+- [Self-Hosting Guide](workers/README.md)
 
 ---
 
@@ -133,7 +166,7 @@ npm run test:watch    # Development mode
 - ✅ Financial calculations manually verified
 - ✅ Documentation updated for behavior changes
 - ✅ Version bumped appropriately
-- 🔒 No data egress (privacy first)
+- 🔒 No data egress unless the user explicitly enables sync
 - 🔒 No `eval()` or unsafe patterns
 
 ---

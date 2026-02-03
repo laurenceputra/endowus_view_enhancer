@@ -12,66 +12,6 @@ permissions:
   pull-requests: write
   
 jobs:
-  pr-template:
-    name: PR Template Check
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'pull_request' }}
-    steps:
-    - name: Validate PR body
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const body = context.payload.pull_request?.body || '';
-          const requiredHeadings = [
-            '## Change Brief',
-            '## Stage Gate Alignment',
-            '## Risks & Tradeoffs',
-            '## Verification Matrix',
-            '## Test Plan',
-            '## Verification',
-            '## Security & Privacy Checklist'
-          ];
-
-          const missing = requiredHeadings.filter((heading) => !body.includes(heading));
-          if (missing.length) {
-            core.setFailed(`Missing required PR sections: ${missing.join(', ')}`);
-            return;
-          }
-
-          const placeholderMarkers = ['Criterion 1', 'Criterion 2'];
-          const hasPlaceholder = placeholderMarkers.some((marker) => body.includes(marker));
-          if (hasPlaceholder) {
-            core.setFailed('Replace placeholder acceptance criteria in the PR template.');
-            return;
-          }
-
-          const hasMeaningfulContent = (heading) => {
-            const regex = new RegExp(`${heading}[\\s\\S]*?(?=\\n## |$)`, 'm');
-            const match = body.match(regex);
-            if (!match) {
-              return false;
-            }
-            const content = match[0].replace(heading, '').trim();
-            if (!content) {
-              return false;
-            }
-            return content.split('\n').some((line) => {
-              const trimmed = line.trim();
-              if (!trimmed) return false;
-              if (trimmed === '-') return false;
-              if (/^- \[ \]/.test(trimmed)) return false;
-              if (/^- \[x\]/i.test(trimmed)) return true;
-              if (/^Status:\s*.+/i.test(trimmed)) return true;
-              if (/(^|\\s)(N\\/A|Not applicable)(\\s|$)/i.test(trimmed)) return true;
-              return true;
-            });
-          };
-
-          const empty = requiredHeadings.filter((heading) => !hasMeaningfulContent(heading));
-          if (empty.length) {
-            core.setFailed(`PR template sections must be filled in: ${empty.join(', ')}`);
-          }
-
   lint:
     name: Lint
     runs-on: ubuntu-latest

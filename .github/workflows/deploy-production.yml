@@ -1,0 +1,32 @@
+name: Deploy Production (Workers)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'workers/**'
+      - '.github/workflows/deploy-production.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-production:
+    name: Deploy production worker
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup workers tooling
+        uses: ./.github/actions/setup-workers
+
+      - name: Deploy production
+        working-directory: workers
+        run: npx wrangler@4 deploy --env production
