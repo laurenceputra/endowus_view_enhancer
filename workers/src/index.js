@@ -72,8 +72,7 @@ export default {
 					error: 'RATE_LIMIT_EXCEEDED',
 					retryAfter: rateLimitResult.retryAfter
 				}, 429, {
-					'Retry-After': String(rateLimitResult.retryAfter),
-					'Access-Control-Allow-Origin': null
+					'Retry-After': String(rateLimitResult.retryAfter)
 				}, resolvedEnv);
 			}
 
@@ -100,8 +99,7 @@ export default {
 					error: 'RATE_LIMIT_EXCEEDED',
 					retryAfter: rateLimitResult.retryAfter
 				}, 429, {
-					'Retry-After': String(rateLimitResult.retryAfter),
-					'Access-Control-Allow-Origin': null
+					'Retry-After': String(rateLimitResult.retryAfter)
 				}, resolvedEnv);
 			}
 
@@ -145,8 +143,7 @@ export default {
 					error: 'RATE_LIMIT_EXCEEDED',
 					retryAfter: rateLimitResult.retryAfter
 				}, 429, {
-					'Retry-After': String(rateLimitResult.retryAfter),
-					'Access-Control-Allow-Origin': null
+					'Retry-After': String(rateLimitResult.retryAfter)
 				}, resolvedEnv);
 			}
 
@@ -225,8 +222,7 @@ export default {
 				error: 'RATE_LIMIT_EXCEEDED',
 				retryAfter: rateLimitResult.retryAfter
 			}, 429, {
-				'Retry-After': String(rateLimitResult.retryAfter),
-				'Access-Control-Allow-Origin': null
+				'Retry-After': String(rateLimitResult.retryAfter)
 			}, resolvedEnv);
 		}
 
