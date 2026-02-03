@@ -55,8 +55,18 @@ jobs:
           if [ -z "$BRANCH_SLUG" ]; then
             BRANCH_SLUG="preview"
           fi
-          BRANCH_SLUG=$(echo "$BRANCH_SLUG" | cut -c1-40)
-          WORKER_NAME="goal-portfolio-sync-${BRANCH_SLUG}"
+          PREFIX="goal-portfolio-sync-"
+          MAX_NAME_LEN=54
+          MAX_SLUG_LEN=$((MAX_NAME_LEN - ${#PREFIX}))
+          if [ "${#BRANCH_SLUG}" -gt "$MAX_SLUG_LEN" ]; then
+            HASH=$(printf "%s" "$BRANCH_REF" | sha1sum | cut -c1-6)
+            BASE_LEN=$((MAX_SLUG_LEN - 7))
+            if [ "$BASE_LEN" -lt 1 ]; then
+              BASE_LEN=1
+            fi
+            BRANCH_SLUG="$(printf "%s" "$BRANCH_SLUG" | cut -c1-$BASE_LEN)-$HASH"
+          fi
+          WORKER_NAME="${PREFIX}${BRANCH_SLUG}"
           KV_NAME="SYNC_KV_${BRANCH_SLUG}"
 
           echo "branch_slug=$BRANCH_SLUG" >> "$GITHUB_OUTPUT"
