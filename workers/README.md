@@ -147,6 +147,8 @@ For per‑PR preview URLs that follow Cloudflare’s preview alias pattern:
    - The alias is derived from the PR number or branch name and is length‑safe.
    - The preview URL is posted to the PR.
 
+**Note:** Preview versions require the base worker to exist. Run one normal deploy (e.g., `npm run deploy`) before the first preview if the script has never been created in your account.
+
 After a PR is opened or updated, the workflow posts the preview URL in the PR comments.
 
 ### 6c.1 CI Secrets Setup (GitHub Actions)
