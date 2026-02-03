@@ -94,21 +94,22 @@ jobs:
           WORKER_NAME="${{ steps.preview.outputs.worker_name }}"
           KV_ID="${{ steps.kv.outputs.kv_id }}"
           KV_PREVIEW_ID="${{ steps.kv.outputs.kv_preview_id }}"
+          CONFIG_PATH="${PWD}/wrangler.preview.toml"
 
           sed -e "s|__WORKER_NAME__|$WORKER_NAME|g" \
               -e "s|__KV_ID__|$KV_ID|g" \
               -e "s|__KV_PREVIEW_ID__|$KV_PREVIEW_ID|g" \
               -e "s|__CORS_ORIGINS__|${CORS_ORIGINS}|g" \
-              wrangler.preview.toml.template > /tmp/wrangler.preview.toml
+              wrangler.preview.toml.template > "$CONFIG_PATH"
 
-          echo "config_path=/tmp/wrangler.preview.toml" >> "$GITHUB_OUTPUT"
+          echo "config_path=$CONFIG_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Deploy preview worker
         working-directory: workers
         shell: bash
         run: |
           set -euo pipefail
-          npx wrangler deploy --config /tmp/wrangler.preview.toml
+          npx wrangler deploy --config "${{ steps.config.outputs.config_path }}"
 
       - name: Post preview URL
         if: github.event_name == 'pull_request'
