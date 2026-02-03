@@ -26,6 +26,8 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      SYNC_KV_ID: ${{ secrets.SYNC_KV_ID }}
+      SYNC_KV_PREVIEW_ID: ${{ secrets.SYNC_KV_PREVIEW_ID }}
       CORS_ORIGINS: https://app.sg.endowus.com
     steps:
       - name: Checkout
@@ -65,13 +67,22 @@ jobs:
           set -euo pipefail
 
           KV_NAME="${{ steps.preview.outputs.kv_name }}"
-          KV_ID=$(npx wrangler kv:namespace list --json | jq -r --arg name "$KV_NAME" '.[] | select(.title==$name) | .id' | head -n1)
+          if [ -n "${SYNC_KV_ID}" ]; then
+            KV_ID="${SYNC_KV_ID}"
+          else
+            KV_ID=$(npx wrangler kv:namespace list --json | jq -r --arg name "$KV_NAME" '.[] | select(.title==$name) | .id' | head -n1)
+          fi
 
           if [ -z "$KV_ID" ]; then
             KV_ID=$(npx wrangler kv:namespace create "$KV_NAME" --json | jq -r '.id')
           fi
 
           echo "kv_id=$KV_ID" >> "$GITHUB_OUTPUT"
+          if [ -n "${SYNC_KV_PREVIEW_ID}" ]; then
+            echo "kv_preview_id=${SYNC_KV_PREVIEW_ID}" >> "$GITHUB_OUTPUT"
+          else
+            echo "kv_preview_id=$KV_ID" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Render preview wrangler config
         id: config
@@ -82,10 +93,11 @@ jobs:
 
           WORKER_NAME="${{ steps.preview.outputs.worker_name }}"
           KV_ID="${{ steps.kv.outputs.kv_id }}"
+          KV_PREVIEW_ID="${{ steps.kv.outputs.kv_preview_id }}"
 
           sed -e "s|__WORKER_NAME__|$WORKER_NAME|g" \
               -e "s|__KV_ID__|$KV_ID|g" \
-              -e "s|__KV_PREVIEW_ID__|$KV_ID|g" \
+              -e "s|__KV_PREVIEW_ID__|$KV_PREVIEW_ID|g" \
               -e "s|__CORS_ORIGINS__|${CORS_ORIGINS}|g" \
               wrangler.preview.toml.template > /tmp/wrangler.preview.toml
 
