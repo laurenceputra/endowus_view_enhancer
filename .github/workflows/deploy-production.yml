@@ -29,7 +29,6 @@ jobs:
         with:
           node-version: 20.x
           cache: 'npm'
-          cache-dependency-path: workers/package-lock.json
 
       - name: Install workers dependencies
         working-directory: workers
