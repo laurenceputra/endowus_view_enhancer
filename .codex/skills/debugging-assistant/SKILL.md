@@ -87,6 +87,8 @@ When helping with debugging, you should:
 - Check async/timing issues
 - Review recent changes
 - Test in isolation
+- Ensure initial render state matches dynamic update logic
+- Avoid event handlers referencing function expressions defined later in the same scope
 
 ## Output Format
 

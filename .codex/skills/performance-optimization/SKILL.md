@@ -75,6 +75,7 @@ When analyzing and optimizing performance, you should:
 - Cache expensive computations
 - Minimize I/O operations
 - Use asynchronous operations
+- Avoid recursive rescheduling inside callbacks; prefer explicit retry delays or state machines
 
 ### Database
 - Add proper indexes
