@@ -131,4 +131,20 @@ describe('SyncManager', () => {
 
         expect(global.setTimeout).toHaveBeenCalled();
     });
+
+    test('GoalTargetStore methods call scheduleSyncOnChange when available', () => {
+        seedRememberedKey();
+        const { SyncManager, GoalTargetStore } = loadModule();
+        const scheduleSpy = jest.spyOn(SyncManager, 'scheduleSyncOnChange').mockImplementation(() => {});
+
+        GoalTargetStore.setTarget('goal-1', 25);
+        GoalTargetStore.clearTarget('goal-1');
+        GoalTargetStore.setFixed('goal-1', true);
+        GoalTargetStore.clearFixed('goal-1');
+
+        expect(scheduleSpy).toHaveBeenCalledWith('target-update');
+        expect(scheduleSpy).toHaveBeenCalledWith('target-clear');
+        expect(scheduleSpy).toHaveBeenCalledWith('fixed-update');
+        expect(scheduleSpy).toHaveBeenCalledWith('fixed-clear');
+    });
 });

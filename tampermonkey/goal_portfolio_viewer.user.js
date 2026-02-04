@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.9.1
+// @version      2.9.0
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore). Now with optional cross-device sync!
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -2738,6 +2738,8 @@ function formatSyncFixed(isFixed) {
     return isFixed ? 'Yes' : 'No';
 }
 
+let GoalTargetStore;
+
     // ============================================
     // Browser-Only Code (Skip in Node.js/Testing Environment)
     // ============================================
@@ -2900,7 +2902,7 @@ function formatSyncFixed(isFixed) {
 
     logDebug('[Goal Portfolio Viewer] API interception initialized');
 
-    const GoalTargetStore = {
+    GoalTargetStore = {
         getTarget(goalId) {
             const key = getGoalTargetKey(goalId);
             const value = Storage.get(key, null, 'Error loading goal target percentage');
@@ -4640,6 +4642,10 @@ function createSyncSettingsHTML() {
     const password = '';
     const autoSync = Storage.get(SYNC_STORAGE_KEYS.autoSync, SYNC_DEFAULTS.autoSync);
     const syncInterval = Storage.get(SYNC_STORAGE_KEYS.syncInterval, SYNC_DEFAULTS.syncInterval);
+    const isValidPassword = Boolean(password && password.length >= 8);
+    const shouldShowRememberKey = isEnabled
+        && cryptoSupported
+        && (hasSessionKey || isValidPassword || rememberKey);
     
     const lastSyncTimestamp = syncStatus.lastSync;
     const lastSyncText = lastSyncTimestamp 
@@ -4754,11 +4760,11 @@ function createSyncSettingsHTML() {
                     </p>
                 </div>
 
-                <div class="gpv-sync-form-group" id="gpv-sync-remember-hint" style="display: ${rememberKey || hasSessionKey ? 'none' : 'block'};">
+                <div class="gpv-sync-form-group" id="gpv-sync-remember-hint" style="display: ${shouldShowRememberKey || !isEnabled || !cryptoSupported ? 'none' : 'block'};">
                     <p class="gpv-sync-help">Enter a valid password to enable device key storage.</p>
                 </div>
 
-                <div class="gpv-sync-form-group" id="gpv-sync-remember-wrapper" style="display: ${rememberKey || hasSessionKey ? 'block' : 'none'};">
+                <div class="gpv-sync-form-group" id="gpv-sync-remember-wrapper" style="display: ${shouldShowRememberKey ? 'block' : 'none'};">
                     <label class="gpv-sync-toggle">
                         <input 
                             type="checkbox" 
@@ -4879,6 +4885,22 @@ function setupSyncSettingsListeners() {
     const passwordInput = document.getElementById('gpv-sync-password');
     const rememberKeyWrapper = document.getElementById('gpv-sync-remember-wrapper');
     const rememberKeyHint = document.getElementById('gpv-sync-remember-hint');
+    const enabledCheckbox = document.getElementById('gpv-sync-enabled');
+
+    function updateRememberKeyVisibility() {
+        const status = SyncManager.getStatus();
+        const isEnabled = enabledCheckbox ? enabledCheckbox.checked : status.isEnabled;
+        const isValidPassword = Boolean(passwordInput?.value && passwordInput.value.length >= 8);
+        const rememberKeyCheckbox = document.getElementById('gpv-sync-remember-key');
+        const shouldShow = isEnabled && status.cryptoSupported && (status.hasSessionKey || isValidPassword || rememberKeyCheckbox?.checked);
+
+        if (rememberKeyWrapper) {
+            rememberKeyWrapper.style.display = shouldShow ? 'block' : 'none';
+        }
+        if (rememberKeyHint) {
+            rememberKeyHint.style.display = shouldShow || !isEnabled || !status.cryptoSupported ? 'none' : 'block';
+        }
+    }
 
     const rememberKeyCheckbox = document.getElementById('gpv-sync-remember-key');
     if (rememberKeyCheckbox) {
@@ -4891,20 +4913,6 @@ function setupSyncSettingsListeners() {
     }
 
     // Enable/disable sync
-    const enabledCheckbox = document.getElementById('gpv-sync-enabled');
-    const updateRememberKeyVisibility = () => {
-        const status = SyncManager.getStatus();
-        const isEnabled = enabledCheckbox ? enabledCheckbox.checked : status.isEnabled;
-        const isValidPassword = Boolean(passwordInput?.value && passwordInput.value.length >= 8);
-        const shouldShow = isEnabled && status.cryptoSupported && (status.hasSessionKey || isValidPassword || rememberKeyCheckbox?.checked);
-
-        if (rememberKeyWrapper) {
-            rememberKeyWrapper.style.display = shouldShow ? 'block' : 'none';
-        }
-        if (rememberKeyHint) {
-            rememberKeyHint.style.display = shouldShow || !isEnabled || !status.cryptoSupported ? 'none' : 'block';
-        }
-    };
     if (enabledCheckbox) {
         enabledCheckbox.addEventListener('change', (e) => {
             const inputs = document.querySelectorAll('.gpv-sync-input, #gpv-sync-auto, #gpv-sync-interval');
@@ -7489,6 +7497,7 @@ updateSyncUI = function updateSyncUI() {
             createSequentialRequestQueue,
             SyncEncryption,
             SyncManager,
+            GoalTargetStore,
             createSyncSettingsHTML: syncUi?.createSyncSettingsHTML,
             setupSyncSettingsListeners: syncUi?.setupSyncSettingsListeners,
             buildConflictDiffItems: buildConflictDiffItemsForMap,
