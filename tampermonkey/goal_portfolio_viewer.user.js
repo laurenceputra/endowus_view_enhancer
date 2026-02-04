@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.9.0
+// @version      2.9.1
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore). Now with optional cross-device sync!
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -2410,10 +2410,11 @@
             clearTimeout(syncOnChangeTimer);
         }
 
-        syncOnChangeTimer = setTimeout(async () => {
+        const retryDelayMs = 3000;
+        const attemptSync = async () => {
             syncOnChangeTimer = null;
             if (syncStatus === SYNC_STATUS.syncing) {
-                scheduleSyncOnChange(reason);
+                syncOnChangeTimer = setTimeout(attemptSync, retryDelayMs);
                 return;
             }
 
@@ -2422,7 +2423,9 @@
             } catch (error) {
                 console.error('[Goal Portfolio Viewer] Sync-on-change failed:', error);
             }
-        }, SYNC_ON_CHANGE_BUFFER_MS);
+        };
+
+        syncOnChangeTimer = setTimeout(attemptSync, SYNC_ON_CHANGE_BUFFER_MS);
 
         logDebug(`[Goal Portfolio Viewer] Scheduled sync (${reason}) in ${Math.round(SYNC_ON_CHANGE_BUFFER_MS / 1000)}s`);
     }

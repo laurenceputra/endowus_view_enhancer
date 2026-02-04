@@ -87,7 +87,7 @@ Sync your portfolio configuration across multiple devices with end-to-end encryp
 **Key Features**:
 - 🔒 **Zero-Knowledge**: All encryption happens on your device
 - 🌐 **Self-Hostable**: Run your own backend on Cloudflare Workers
-- 🔄 **Automatic Sync**: Enabled by default after activation with configurable interval and change-based batching
+- 🔄 **Automatic Sync**: Enabled by default after activation with configurable interval, change-based batching, and retry while a sync is in progress
 - 🎯 **Conflict Resolution**: Clear UI for handling sync conflicts
 - ⚡ **Fast**: ~5ms encryption, global CDN distribution
 

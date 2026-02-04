@@ -34,7 +34,7 @@ tampermonkey/
 
 ### Optional Sync (Cross-Device)
 
-The sync feature is opt-in and encrypts configuration data client-side before upload. Users may optionally remember a **derived encryption key** on trusted devices to keep sync unlocked across browser sessions. After activation, auto-sync runs by default with a configurable interval and buffered sync-on-change to avoid excessive requests.
+The sync feature is opt-in and encrypts configuration data client-side before upload. Users may optionally remember a **derived encryption key** on trusted devices to keep sync unlocked across browser sessions. After activation, auto-sync runs by default with a configurable interval and buffered sync-on-change to avoid excessive requests; if a sync is already running, change-triggered sync retries after a short delay.
 
 ---
 
