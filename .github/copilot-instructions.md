@@ -89,6 +89,8 @@ When a workflow phase starts, align on the relevant skills and record them in yo
 
 **Exception**: If no matching skill exists, proceed with the agent phase and note the gap in your working notes or PR description.
 
+**Using skills outside the workflow**: You may invoke any relevant skill even when you are not actively progressing through workflow phases (for example, ad-hoc analysis, documentation updates, or pre-work discovery). When you do, note the skill usage and rationale in your working notes or PR description.
+
 ### Agent Interaction Model (Required)
 1. **Product**: Frame the problem, user impact, and acceptance criteria.
 2. **Staff Engineer**: Confirm architecture fit, call out risks/tradeoffs, and own implementation.
