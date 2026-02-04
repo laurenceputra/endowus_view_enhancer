@@ -1795,6 +1795,7 @@
     const SYNC_ON_CHANGE_BUFFER_MS = 15000;
     let autoSyncTimer = null;
     let syncOnChangeTimer = null;
+    let syncOnChangeRetryTimer = null;
     let sessionMasterKey = getRememberedMasterKey();
     let legacyMigrationPromise = null;
 
@@ -2406,6 +2407,11 @@
             return;
         }
 
+        if (syncOnChangeRetryTimer) {
+            clearTimeout(syncOnChangeRetryTimer);
+            syncOnChangeRetryTimer = null;
+        }
+
         if (syncOnChangeTimer) {
             clearTimeout(syncOnChangeTimer);
         }
@@ -2414,7 +2420,12 @@
         const attemptSync = async () => {
             syncOnChangeTimer = null;
             if (syncStatus === SYNC_STATUS.syncing) {
-                syncOnChangeTimer = setTimeout(attemptSync, retryDelayMs);
+                if (!syncOnChangeRetryTimer) {
+                    syncOnChangeRetryTimer = setTimeout(async () => {
+                        syncOnChangeRetryTimer = null;
+                        await attemptSync();
+                    }, retryDelayMs);
+                }
                 return;
             }
 
@@ -2470,6 +2481,10 @@
         if (syncOnChangeTimer) {
             clearTimeout(syncOnChangeTimer);
             syncOnChangeTimer = null;
+        }
+        if (syncOnChangeRetryTimer) {
+            clearTimeout(syncOnChangeRetryTimer);
+            syncOnChangeRetryTimer = null;
         }
     }
 
@@ -5097,7 +5112,7 @@ function setupSyncSettingsListeners() {
                 const serverUrl = normalizeServerUrl(getSyncServerUrlFromInput());
                 const userId = document.getElementById('gpv-sync-user-id').value.trim();
                 const password = document.getElementById('gpv-sync-password').value;
-                const rememberKey = true;
+                const rememberKey = document.getElementById('gpv-sync-remember-key')?.checked !== false;
                 const autoSync = document.getElementById('gpv-sync-auto').checked;
                 const syncInterval = parseInt(document.getElementById('gpv-sync-interval').value) || SYNC_DEFAULTS.syncInterval;
 

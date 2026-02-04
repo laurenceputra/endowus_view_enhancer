@@ -97,6 +97,7 @@ describe('sync settings UI', () => {
         document.getElementById('gpv-sync-server-url').value = 'https://sync.example.com';
         document.getElementById('gpv-sync-user-id').value = 'user@example.com';
         document.getElementById('gpv-sync-password').value = 'supersecure';
+        document.getElementById('gpv-sync-remember-key').checked = true;
 
         document.getElementById('gpv-sync-login-btn').click();
         await Promise.resolve();
@@ -108,6 +109,36 @@ describe('sync settings UI', () => {
             expect.objectContaining({
                 password: 'supersecure',
                 rememberKey: true
+            })
+        );
+    });
+
+    test('login respects remember-key checkbox', async () => {
+        jest.useFakeTimers();
+        const { createSyncSettingsHTML, setupSyncSettingsListeners, SyncManager } = exportsModule;
+
+        document.body.innerHTML = createSyncSettingsHTML();
+        setupSyncSettingsListeners();
+
+        const loginSpy = jest.spyOn(SyncManager, 'login').mockResolvedValue({});
+        const enableSpy = jest.spyOn(SyncManager, 'enable').mockResolvedValue();
+
+        document.getElementById('gpv-sync-server-url').value = 'https://sync.example.com';
+        document.getElementById('gpv-sync-user-id').value = 'user@example.com';
+        document.getElementById('gpv-sync-password').value = 'supersecure';
+
+        const rememberCheckbox = document.getElementById('gpv-sync-remember-key');
+        rememberCheckbox.checked = false;
+
+        document.getElementById('gpv-sync-login-btn').click();
+        await Promise.resolve();
+        jest.runOnlyPendingTimers();
+        await Promise.resolve();
+
+        expect(loginSpy).toHaveBeenCalledWith('https://sync.example.com', 'user@example.com', 'supersecure');
+        expect(enableSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                rememberKey: false
             })
         );
     });
