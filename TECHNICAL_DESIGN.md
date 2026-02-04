@@ -396,7 +396,7 @@ plain view-model objects and passes them into the renderer functions.
 #### Summary View Rendering
 
 ```javascript
-const summaryViewModel = buildSummaryViewModel(bucketMap);
+const summaryViewModel = buildSummaryViewModel(bucketMap, projectedInvestments, goalTargetById, goalFixedById);
 renderSummaryView(contentDiv, summaryViewModel, onBucketSelect);
 ```
 
@@ -405,7 +405,7 @@ The `summaryViewModel` contains:
 - totals/returns/growth display strings
 - per-goal-type rows with display names
 
-Summary cards display the three headline stats: Balance, Return, and Growth.
+Summary cards display the three headline stats: Balance, Return, and Growth. Goal type rows now include Allocation Drift (sum of absolute goal-level drift ratios) when target allocations are configured.
 
 Growth percentages are calculated as `cumulativeReturn / (endingBalance - cumulativeReturn) * 100`, because ending balance is derived from performance totals (including pending processing amounts when available) or the investible API’s `totalInvestmentAmount`, which is misnamed and actually represents ending balance.
 

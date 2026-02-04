@@ -120,14 +120,19 @@ describe('resolveGoalTypeActionTarget', () => {
 describe('view model builders', () => {
     test('should build summary view model', () => {
         const bucketMap = createBucketMapFixture();
-        const viewModel = buildSummaryViewModel(bucketMap);
+        const projected = createProjectedInvestmentFixture();
+        const targets = createGoalTargetFixture();
+        const fixed = createGoalFixedFixture();
+        const viewModel = buildSummaryViewModel(bucketMap, projected, targets, fixed);
         expect(viewModel.buckets).toHaveLength(2);
         expect(viewModel.buckets[0].bucketName).toBe('Education');
         expect(viewModel.buckets[1].bucketName).toBe('Retirement');
+        expect(viewModel.showAllocationDriftHint).toBe(true);
         const retirement = viewModel.buckets[1];
         expect(retirement.returnClass).toBe('positive');
         expect(retirement.goalTypes[0].goalType).toBe('GENERAL_WEALTH_ACCUMULATION');
         expect(retirement.goalTypes[1].returnClass).toBe('negative');
+        expect(retirement.goalTypes[0].allocationDriftDisplay).toBe('25.00%');
     });
 
     test('should build bucket detail view model with projections', () => {
@@ -152,6 +157,7 @@ describe('view model builders', () => {
         expect(goalTypeModel.adjustedTotal).toBe(2500);
         expect(goalTypeModel.remainingTargetDisplay).toBe('12.00%');
         expect(goalTypeModel.remainingTargetIsHigh).toBe(true);
+        expect(goalTypeModel.allocationDriftDisplay).toBe('25.00%');
         const firstGoal = goalTypeModel.goals[0];
         expect(firstGoal.percentOfType).toBe(60);
         expect(firstGoal.diffDisplay).toMatch(/0\.00/);
@@ -160,8 +166,8 @@ describe('view model builders', () => {
     });
 
     test('should return empty buckets for invalid summary input', () => {
-        expect(buildSummaryViewModel(null)).toEqual({ buckets: [] });
-        expect(buildSummaryViewModel('invalid')).toEqual({ buckets: [] });
+        expect(buildSummaryViewModel(null)).toEqual({ buckets: [], showAllocationDriftHint: false });
+        expect(buildSummaryViewModel('invalid')).toEqual({ buckets: [], showAllocationDriftHint: false });
     });
 
     test('should handle summary buckets without meta or goal types', () => {
@@ -172,6 +178,7 @@ describe('view model builders', () => {
         expect(viewModel.buckets).toHaveLength(1);
         expect(viewModel.buckets[0].endingBalanceAmount).toBe(0);
         expect(viewModel.buckets[0].goalTypes).toEqual([]);
+        expect(viewModel.showAllocationDriftHint).toBe(false);
     });
 
     test('should build bucket detail without projected investments or targets', () => {
@@ -189,6 +196,87 @@ describe('view model builders', () => {
         expect(goalTypeModel.remainingTargetIsHigh).toBe(true);
         expect(goalTypeModel.goals[0].targetDisplay).toBe('');
         expect(goalTypeModel.goals[0].returnPercentDisplay).toBe('10.00%');
+    });
+
+    test('should apply remaining target to diff when single target is missing', () => {
+        const bucketMap = {
+            Solo: {
+                _meta: { endingBalanceTotal: 1000 },
+                GENERAL_WEALTH_ACCUMULATION: {
+                    endingBalanceAmount: 1000,
+                    totalCumulativeReturn: 0,
+                    goals: [
+                        {
+                            goalId: 'g1',
+                            goalName: 'Solo - Fixed',
+                            endingBalanceAmount: 600,
+                            totalCumulativeReturn: 0
+                        },
+                        {
+                            goalId: 'g2',
+                            goalName: 'Solo - Missing',
+                            endingBalanceAmount: 400,
+                            totalCumulativeReturn: 0
+                        }
+                    ]
+                }
+            }
+        };
+        const viewModel = buildBucketDetailViewModel({
+            bucketName: 'Solo',
+            bucketMap,
+            projectedInvestmentsState: null,
+            goalTargetById: {},
+            goalFixedById: { g1: true }
+        });
+        const goalTypeModel = viewModel.goalTypes[0];
+        expect(goalTypeModel.remainingTargetDisplay).toBe('0.00%');
+        const missingGoal = goalTypeModel.goals.find(goal => goal.goalId === 'g2');
+        expect(missingGoal.targetDisplay).toBe('');
+        expect(missingGoal.diffDisplay).toMatch(/0\.00/);
+    });
+
+    test('should keep diff empty when remaining target is negative', () => {
+        const bucketMap = {
+            Stretch: {
+                _meta: { endingBalanceTotal: 1000 },
+                GENERAL_WEALTH_ACCUMULATION: {
+                    endingBalanceAmount: 1000,
+                    totalCumulativeReturn: 0,
+                    goals: [
+                        {
+                            goalId: 'g1',
+                            goalName: 'Stretch - One',
+                            endingBalanceAmount: 300,
+                            totalCumulativeReturn: 0
+                        },
+                        {
+                            goalId: 'g2',
+                            goalName: 'Stretch - Two',
+                            endingBalanceAmount: 300,
+                            totalCumulativeReturn: 0
+                        },
+                        {
+                            goalId: 'g3',
+                            goalName: 'Stretch - Missing',
+                            endingBalanceAmount: 400,
+                            totalCumulativeReturn: 0
+                        }
+                    ]
+                }
+            }
+        };
+        const viewModel = buildBucketDetailViewModel({
+            bucketName: 'Stretch',
+            bucketMap,
+            projectedInvestmentsState: null,
+            goalTargetById: { g1: 80, g2: 30 },
+            goalFixedById: {}
+        });
+        const goalTypeModel = viewModel.goalTypes[0];
+        const missingGoal = goalTypeModel.goals.find(goal => goal.goalId === 'g3');
+        expect(missingGoal.targetDisplay).toBe('');
+        expect(missingGoal.diffDisplay).toBe('-');
     });
 
     test('should return null for missing bucket', () => {
