@@ -415,7 +415,7 @@ A: Use Cloudflare dashboard → Workers & Pages → Delete.
 After deployment:
 1. Test with UserScript (see TESTING.md)
 2. Configure user settings
-3. Enable auto-sync
+3. Confirm auto-sync settings (enabled by default)
 4. Monitor for 24 hours
 5. Share with other devices
 

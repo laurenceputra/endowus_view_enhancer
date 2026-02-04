@@ -87,20 +87,20 @@ Sync your portfolio configuration across multiple devices with end-to-end encryp
 **Key Features**:
 - 🔒 **Zero-Knowledge**: All encryption happens on your device
 - 🌐 **Self-Hostable**: Run your own backend on Cloudflare Workers
-- 🔄 **Automatic Sync**: Optional background sync with configurable interval
+- 🔄 **Automatic Sync**: Enabled by default after activation with configurable interval, change-based batching, and retry while a sync is in progress
 - 🎯 **Conflict Resolution**: Clear UI for handling sync conflicts
 - ⚡ **Fast**: ~5ms encryption, global CDN distribution
 
 **Privacy & Opt-In**:
 - ✅ Sync is completely optional.
-- ✅ No data is sent until you enable sync and click **Save Settings**.
+- ✅ No data is sent until you click **Save Settings**.
 - ✅ Only encrypted config values (goal targets + fixed flags) are synced.
-- ✅ Your password is not stored locally unless you opt to remember the encryption key on a trusted device.
+- ✅ By default, a derived encryption key is stored locally after login or sign up to keep sync unlocked on this device (you can disable remember key or log out to clear it).
 
 **Getting Started**:
 1. Review the [Sync Setup Guide](docs/sync-setup.md)
 2. Configure your server URL, user ID, and password
-3. Login, enable sync, and choose auto-sync if desired
+3. Login or sign up to enable sync with encryption enabled by default (auto-sync is enabled by default; adjust interval if desired)
 
 **For Self-Hosting**:
 - Deploy your own backend: See [workers/README.md](workers/README.md)

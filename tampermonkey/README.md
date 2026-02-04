@@ -44,7 +44,7 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 - **Privacy-First**: Server never sees your plaintext data
 - **Self-Hostable**: Run your own sync server using Cloudflare Workers
 - **Conflict Resolution**: Visual interface for resolving sync conflicts
-- **Auto-sync**: Configurable automatic background synchronization
+- **Auto-sync**: Automatic background synchronization (enabled by default after activation) with configurable interval
 - **Zero-Knowledge**: You control all encryption keys
 
 ## Installation
@@ -151,7 +151,7 @@ If you want to sync your goal configurations across devices:
 - You can optionally remember the encryption key on trusted devices to keep sync unlocked across sessions
 - The sync server never sees your unencrypted data
 - Only encrypted goal targets + fixed flags are synced; holdings, balances, and transactions never leave your browser
-- Auto-sync is disabled by default; enable it in Sync Settings to use the configured interval
+- Auto-sync is enabled by default after activation; you can disable it or tune the interval in Sync Settings
 - Conflict dialogs include a goal-level diff preview to help choose Local vs Remote
 
 For detailed sync setup instructions, see `QUICK_START.md`.

@@ -32,6 +32,7 @@ When refactoring code, you should:
    - Feature envy
    - Data clumps
    - Primitive obsession
+   - UI state mismatches between initial render and dynamic updates
 
 2. **Refactoring Techniques**:
    - Extract method/function
@@ -42,6 +43,7 @@ When refactoring code, you should:
    - Replace conditional with polymorphism
    - Introduce parameter object
    - Replace magic numbers with constants
+   - Reorder helpers so event handlers reference defined functions
 
 3. **Design Patterns**:
    - Apply appropriate design patterns

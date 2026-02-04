@@ -37,6 +37,7 @@ When performing QA activities, you should:
    - Negative test cases
    - Performance scenarios
    - Security test cases
+   - Initial UI state vs. post-interaction state transitions
 
 3. **Test Implementation**: Write or review:
    - Unit tests
