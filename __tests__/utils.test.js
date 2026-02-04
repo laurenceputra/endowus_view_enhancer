@@ -333,6 +333,27 @@ describe('sortGoalsByName', () => {
         const sorted3 = sortGoalsByName(input);
         expect(sorted3).toBe(sorted1);
     });
+
+    test('should evict cached results after expiry', () => {
+        const input = [
+            { goalId: 'z', goalName: 'Zulu' },
+            { goalId: 'a', goalName: 'Alpha' }
+        ];
+        const weekMs = 7 * 24 * 60 * 60 * 1000;
+        const nowRef = { value: 0 };
+        const dateNowSpy = jest.spyOn(Date, 'now').mockImplementation(() => nowRef.value);
+
+        const sorted1 = sortGoalsByName(input);
+        const sorted2 = sortGoalsByName(input);
+        expect(sorted2).toBe(sorted1);
+
+        nowRef.value = weekMs + 1;
+        const sorted3 = sortGoalsByName(input);
+        expect(sorted3).not.toBe(sorted1);
+        expect(sorted3.map(goal => goal.goalName)).toEqual(['Alpha', 'Zulu']);
+
+        dateNowSpy.mockRestore();
+    });
 });
 
 describe('formatMoney', () => {

@@ -5816,7 +5816,11 @@ updateSyncUI = function updateSyncUI() {
     // ============================================
     
     function injectStyles() {
+        if (document.getElementById('gpv-styles')) {
+            return;
+        }
         const style = createElement('style');
+        style.id = 'gpv-styles';
         style.textContent = `
             /* Modern Portfolio Viewer Styles */
             
@@ -7628,6 +7632,15 @@ updateSyncUI = function updateSyncUI() {
         }
     }
 
+    if (typeof module !== 'undefined' && module.exports) {
+        window.__gpvTestingHooks = {
+            injectStyles,
+            showOverlay,
+            startUrlMonitoring,
+            init
+        };
+    }
+
     } // End of browser-only code
 
     // ============================================
@@ -7642,6 +7655,7 @@ updateSyncUI = function updateSyncUI() {
         const syncUi = typeof window !== 'undefined'
             ? window.__gpvSyncUi
             : (typeof globalThis !== 'undefined' ? globalThis.__gpvSyncUi : null);
+        const testingHooks = typeof window !== 'undefined' ? window.__gpvTestingHooks : null;
         const baseExports = {
             normalizeString,
             indexBy,
@@ -7707,7 +7721,12 @@ updateSyncUI = function updateSyncUI() {
             setupSyncSettingsListeners: syncUi?.setupSyncSettingsListeners,
             buildConflictDiffItems: buildConflictDiffItemsForMap,
             formatSyncTarget,
-            formatSyncFixed
+            formatSyncFixed,
+            clearSortCacheIfExpired,
+            injectStyles: testingHooks?.injectStyles,
+            showOverlay: testingHooks?.showOverlay,
+            startUrlMonitoring: testingHooks?.startUrlMonitoring,
+            init: testingHooks?.init
         };
 
         if (chartHelpers && chartHelpers.buildPerformanceWindowGrid) {
