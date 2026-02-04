@@ -1,23 +1,21 @@
 ---
 name: network-resilience
-description: "Guidance for robust network behavior: timeouts, retries, offline handling, and user feedback."
+description: "Improve reliability for network calls, sync, or remote endpoints with timeouts, retries, offline handling, and user feedback."
 ---
 
 # Network Resilience
-
-Use this skill when changes involve network calls, sync, or remote endpoints.
 
 ## Checklist
 1. **Timeouts**
    - Use AbortController or equivalent timeouts for fetch calls.
 
-2. **Retries & Backoff**
+2. **Retries & backoff**
    - Retry transient failures with exponential backoff and limits.
 
-3. **Offline Handling**
+3. **Offline handling**
    - Detect offline states and fail gracefully.
 
-4. **User Feedback**
+4. **User feedback**
    - Provide clear error messages for network failures.
 
 5. **Idempotency**

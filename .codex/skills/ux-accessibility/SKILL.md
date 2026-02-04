@@ -1,32 +1,30 @@
 ---
 name: ux-accessibility
-description: "Ensure UI and UX changes meet accessibility expectations (keyboard, focus, contrast, ARIA, motion)."
+description: "Review or implement UI/visual changes with accessibility checks (keyboard, focus, contrast, ARIA, motion). Use for any new UI elements or visual updates."
 ---
 
 # UX Accessibility
 
-Use this skill when reviewing or implementing UI/visual changes.
-
 ## Checklist
-1. **Keyboard Navigation**
-   - All interactive elements are reachable and usable via keyboard.
-   - Focus order is logical and visible.
+1. **Keyboard navigation**
+   - Ensure all interactive elements are reachable and operable via keyboard.
+   - Ensure focus order is logical and visible.
 
-2. **Focus States**
-   - Focus outlines are visible and not removed without replacement.
-   - Modal/dialog focus is trapped appropriately (if applicable).
+2. **Focus states**
+   - Provide visible focus styles; do not remove them without replacement.
+   - Trap focus in modals/dialogs when applicable.
 
-3. **Contrast & Readability**
-   - Text and controls have sufficient contrast against backgrounds.
-   - Color is not the only indicator of state (use text or icons too).
+3. **Contrast & readability**
+   - Verify sufficient contrast for text and controls.
+   - Avoid using color as the sole indicator of state.
 
-4. **ARIA & Semantics**
-   - Use semantic elements where possible (buttons, labels, headings).
-   - Provide ARIA labels for icon-only controls.
+4. **ARIA & semantics**
+   - Prefer semantic elements (button, label, heading).
+   - Add ARIA labels for icon-only controls.
 
-5. **Motion & Animations**
-   - Avoid excessive motion; consider reduced-motion preferences.
+5. **Motion & animation**
+   - Keep animations subtle and support reduced-motion preferences.
 
 ## Output Format
-- Findings (if any)
+- Findings
 - Recommendations
