@@ -383,6 +383,13 @@
         const remainingTargetPercent = missingGoals.length === 1
             ? calculateRemainingTargetPercent(goalModels.map(goal => goal.targetPercent))
             : null;
+        if (missingGoals.length === 1 && typeof remainingTargetPercent === 'number' && remainingTargetPercent < 0) {
+            return {
+                allocationDriftPercent: null,
+                allocationDriftDisplay: '-',
+                allocationDriftAvailable: false
+            };
+        }
         let driftSum = 0;
         nonFixedGoals.forEach(goal => {
             const currentAmount = goal.endingBalanceAmount || 0;
