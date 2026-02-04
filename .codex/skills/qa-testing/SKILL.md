@@ -67,6 +67,7 @@ When performing QA activities, you should:
 - Follow AAA pattern (Arrange, Act, Assert)
 - Keep tests independent and isolated
 - Mock external dependencies
+- For financial ratios/percentages, explicitly test denominator choices, zero/negative balances, and symmetric vs. asymmetric metrics.
 
 ### Integration Tests
 - Test component interactions

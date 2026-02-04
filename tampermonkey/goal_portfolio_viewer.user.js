@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.9.1
+// @version      2.9.2
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore). Now with optional cross-device sync!
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -393,9 +393,6 @@
         let driftSum = 0;
         nonFixedGoals.forEach(goal => {
             const currentAmount = goal.endingBalanceAmount || 0;
-            if (currentAmount <= 0) {
-                return;
-            }
             let targetPercent = goal.targetPercent;
             if ((targetPercent === null || targetPercent === undefined) && missingGoals.length === 1) {
                 targetPercent = remainingTargetPercent;
@@ -404,7 +401,10 @@
                 return;
             }
             const targetAmount = (targetPercent / 100) * numericAdjustedTotal;
-            const driftRatio = Math.abs(targetAmount - currentAmount) / currentAmount;
+            if (targetAmount <= 0) {
+                return;
+            }
+            const driftRatio = Math.abs(targetAmount - currentAmount) / targetAmount;
             if (Number.isFinite(driftRatio)) {
                 driftSum += driftRatio;
             }
