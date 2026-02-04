@@ -30,8 +30,8 @@ Default server URL: `https://goal-portfolio-sync.laurenceputra.workers.dev`
    - Click the ⚙️ icon in Goal Portfolio Viewer
    - Navigate to the "Sync" tab
 
-2. **Enable Sync**
-   - Click "Enable Sync"
+2. **Activate Sync**
+   - Click "Activate Sync"
    - The setup wizard will guide you
 
 3. **Create Password**
@@ -47,7 +47,7 @@ Default server URL: `https://goal-portfolio-sync.laurenceputra.workers.dev`
 
 5. **Complete Setup**
    - Click "Save Settings"
-   - Click "Sync Now"
+   - Auto-sync runs in the background (default); use "Sync Now" for an immediate sync
    - Status indicator will show ✅ when synced
 
 6. **Setup Other Devices**
@@ -297,7 +297,7 @@ Goal names, amounts, and settings are never visible to the server.
 
 **A**: 
 - Automatically every 5 minutes (configurable)
-- Immediately when you change settings (debounced 2 seconds)
+- Automatically after you change settings (batched within ~15 seconds)
 - On-demand via "Sync Now" button
 
 ### Q: What happens if two devices change settings at the same time?
@@ -306,7 +306,7 @@ Goal names, amounts, and settings are never visible to the server.
 
 ### Q: Can I disable sync temporarily?
 
-**A**: Yes. Toggle "Enable Sync" off in settings. Re-enable anytime to resume syncing.
+**A**: Yes. Toggle "Activate Sync" off in settings. Re-enable anytime to resume syncing.
 
 ### Q: Can I delete my synced data?
 

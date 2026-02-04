@@ -1086,12 +1086,12 @@ const SyncManager = (() => {
 1. Install UserScript
 2. Open settings modal
 3. Navigate to "Sync" tab
-4. See promotional message: "Enable sync to access your settings on all devices"
-5. Click "Enable Sync"
+4. See promotional message: "Activate sync to access your settings on all devices"
+5. Click "Activate Sync"
 6. Enter passphrase (with strength meter)
 7. Optionally enter custom server URL
 8. Register/login to obtain access token
-9. Sync automatically starts (if enabled)
+9. Auto-sync starts by default after activation
 
 **Required**:
 - Sync setup wizard

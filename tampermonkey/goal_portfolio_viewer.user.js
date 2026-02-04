@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.8.0
+// @version      2.9.0
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore). Now with optional cross-device sync!
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -85,7 +85,7 @@
 
     const SYNC_DEFAULTS = {
         serverUrl: 'https://goal-portfolio-sync.laurenceputra.workers.dev',
-        autoSync: false,
+        autoSync: true,
         syncInterval: 30 // minutes
     };
 
@@ -1792,7 +1792,9 @@
     const TOKEN_EXPIRY_SKEW_MS = 60 * 1000;
     let syncStatus = SYNC_STATUS.idle;
     let lastError = null;
+    const SYNC_ON_CHANGE_BUFFER_MS = 15000;
     let autoSyncTimer = null;
+    let syncOnChangeTimer = null;
     let sessionMasterKey = getRememberedMasterKey();
     let legacyMigrationPromise = null;
 
@@ -2388,6 +2390,44 @@
     }
 
     /**
+     * Schedule a buffered sync when local config changes
+     */
+    function scheduleSyncOnChange(reason = 'change') {
+        if (!isEnabled() || !isConfigured()) {
+            return;
+        }
+
+        const autoSync = Storage.get(SYNC_STORAGE_KEYS.autoSync, SYNC_DEFAULTS.autoSync);
+        if (!autoSync) {
+            return;
+        }
+
+        if (!sessionMasterKey) {
+            return;
+        }
+
+        if (syncOnChangeTimer) {
+            clearTimeout(syncOnChangeTimer);
+        }
+
+        syncOnChangeTimer = setTimeout(async () => {
+            syncOnChangeTimer = null;
+            if (syncStatus === SYNC_STATUS.syncing) {
+                scheduleSyncOnChange(reason);
+                return;
+            }
+
+            try {
+                await performSync({ direction: 'both' });
+            } catch (error) {
+                console.error('[Goal Portfolio Viewer] Sync-on-change failed:', error);
+            }
+        }, SYNC_ON_CHANGE_BUFFER_MS);
+
+        logDebug(`[Goal Portfolio Viewer] Scheduled sync (${reason}) in ${Math.round(SYNC_ON_CHANGE_BUFFER_MS / 1000)}s`);
+    }
+
+    /**
      * Start automatic sync
      */
     function startAutoSync() {
@@ -2423,6 +2463,10 @@
             clearInterval(autoSyncTimer);
             autoSyncTimer = null;
             logDebug('[Goal Portfolio Viewer] Auto-sync stopped');
+        }
+        if (syncOnChangeTimer) {
+            clearTimeout(syncOnChangeTimer);
+            syncOnChangeTimer = null;
         }
     }
 
@@ -2480,6 +2524,8 @@
         
         if (config.autoSync !== undefined) {
             Storage.set(SYNC_STORAGE_KEYS.autoSync, config.autoSync);
+        } else {
+            Storage.set(SYNC_STORAGE_KEYS.autoSync, SYNC_DEFAULTS.autoSync);
         }
         if (config.syncInterval !== undefined) {
             Storage.set(SYNC_STORAGE_KEYS.syncInterval, config.syncInterval);
@@ -2625,6 +2671,7 @@
         enable,
         disable,
         clearConfig,
+        scheduleSyncOnChange,
         startAutoSync,
         stopAutoSync,
         collectConfigData,
@@ -2872,12 +2919,18 @@ function formatSyncFixed(isFixed) {
                 return null;
             }
             logDebug(`[Goal Portfolio Viewer] Saved goal target percentage for ${goalId}: ${validPercentage}%`);
+            if (typeof SyncManager?.scheduleSyncOnChange === 'function') {
+                SyncManager.scheduleSyncOnChange('target-update');
+            }
             return validPercentage;
         },
         clearTarget(goalId) {
             const key = getGoalTargetKey(goalId);
             Storage.remove(key, 'Error deleting goal target percentage');
             logDebug(`[Goal Portfolio Viewer] Deleted goal target percentage for ${goalId}`);
+            if (typeof SyncManager?.scheduleSyncOnChange === 'function') {
+                SyncManager.scheduleSyncOnChange('target-clear');
+            }
         },
         getFixed(goalId) {
             const key = getGoalFixedKey(goalId);
@@ -2887,11 +2940,17 @@ function formatSyncFixed(isFixed) {
             const key = getGoalFixedKey(goalId);
             Storage.set(key, isFixed === true, 'Error saving goal fixed state');
             logDebug(`[Goal Portfolio Viewer] Saved goal fixed state for ${goalId}: ${isFixed === true}`);
+            if (typeof SyncManager?.scheduleSyncOnChange === 'function') {
+                SyncManager.scheduleSyncOnChange('fixed-update');
+            }
         },
         clearFixed(goalId) {
             const key = getGoalFixedKey(goalId);
             Storage.remove(key, 'Error deleting goal fixed state');
             logDebug(`[Goal Portfolio Viewer] Deleted goal fixed state for ${goalId}`);
+            if (typeof SyncManager?.scheduleSyncOnChange === 'function') {
+                SyncManager.scheduleSyncOnChange('fixed-clear');
+            }
         }
     };
     
@@ -4604,11 +4663,11 @@ function createSyncSettingsHTML() {
                 </div>
                 <div class="gpv-sync-status-item">
                     <span class="gpv-sync-label">Auth:</span>
-                    <span class="gpv-sync-value">${hasValidRefreshToken ? 'Connected' : 'Login required'}</span>
+                    <span class="gpv-sync-value">${hasValidRefreshToken ? 'Connected (refresh active)' : 'Login required (enter password and click Login)'}</span>
                 </div>
                 <div class="gpv-sync-status-item">
                     <span class="gpv-sync-label">Session:</span>
-                    <span class="gpv-sync-value">${hasSessionKey ? 'Unlocked' : 'Locked'}</span>
+                    <span class="gpv-sync-value">${hasSessionKey ? 'Unlocked (stays active while refresh token is valid)' : 'Locked (enter password to unlock this device)'}</span>
                 </div>
                 <div class="gpv-sync-status-item">
                     <span class="gpv-sync-label">Last Sync:</span>
@@ -4631,7 +4690,7 @@ function createSyncSettingsHTML() {
                             ${isEnabled ? 'checked' : ''}
                             ${!cryptoSupported ? 'disabled' : ''}
                         />
-                        <span>Enable Sync</span>
+                        <span>Activate Sync</span>
                     </label>
                     <p class="gpv-sync-help">
                         Sync your goal configurations across devices using encrypted cloud storage.
@@ -4640,7 +4699,7 @@ function createSyncSettingsHTML() {
                            rel="noopener noreferrer">Learn more</a>
                     </p>
                     <p class="gpv-sync-help">
-                        🔒 <strong>No data is sent</strong> until you enable sync and click <strong>Save Settings</strong>.
+                        🔒 <strong>No data is sent</strong> until you click <strong>Save Settings</strong>.
                     </p>
                 </div>
 
@@ -4692,7 +4751,11 @@ function createSyncSettingsHTML() {
                     </p>
                 </div>
 
-                <div class="gpv-sync-form-group">
+                <div class="gpv-sync-form-group" id="gpv-sync-remember-hint" style="display: ${rememberKey || hasSessionKey ? 'none' : 'block'};">
+                    <p class="gpv-sync-help">Enter a valid password to enable device key storage.</p>
+                </div>
+
+                <div class="gpv-sync-form-group" id="gpv-sync-remember-wrapper" style="display: ${rememberKey || hasSessionKey ? 'block' : 'none'};">
                     <label class="gpv-sync-toggle">
                         <input 
                             type="checkbox" 
@@ -4703,7 +4766,7 @@ function createSyncSettingsHTML() {
                         <span>Remember encryption key on this device</span>
                     </label>
                     <p class="gpv-sync-help">
-                        Stores a derived encryption key locally in Tampermonkey storage to keep sync running across browser sessions. Only enable on a trusted device.
+                        Stores an encryption key on this device after activation. Only enable on a trusted device.
                         This key encrypts only your goal targets and fixed flags; portfolio balances, holdings, transactions, and personal data never leave your browser.
                     </p>
                 </div>
@@ -4731,8 +4794,11 @@ function createSyncSettingsHTML() {
                             ${autoSync ? 'checked' : ''}
                             ${!isEnabled || !cryptoSupported ? 'disabled' : ''}
                         />
-                        <span>Automatic Sync</span>
+                        <span>Automatic Sync (recommended)</span>
                     </label>
+                    <p class="gpv-sync-help">
+                        Syncs in the background and after changes (batched within a short buffer).
+                    </p>
                 </div>
 
                 <div class="gpv-sync-form-group">
@@ -4747,7 +4813,7 @@ function createSyncSettingsHTML() {
                         ${!isEnabled || !autoSync || !cryptoSupported ? 'disabled' : ''}
                     />
                     <p class="gpv-sync-help">
-                        How often to automatically sync (5-1440 minutes)
+                        Background sync interval (5-1440 minutes). Changes are also batched and synced automatically.
                     </p>
                 </div>
 
@@ -4777,7 +4843,7 @@ function createSyncSettingsHTML() {
                         class="gpv-sync-btn gpv-sync-btn-danger"
                         id="gpv-sync-clear-btn"
                     >
-                        Clear Configuration
+                        Logout
                     </button>
                 </div>
             </div>
@@ -4807,17 +4873,35 @@ function setupSyncSettingsListeners() {
         });
     }
 
+    const passwordInput = document.getElementById('gpv-sync-password');
+    const rememberKeyWrapper = document.getElementById('gpv-sync-remember-wrapper');
+    const rememberKeyHint = document.getElementById('gpv-sync-remember-hint');
+
     const rememberKeyCheckbox = document.getElementById('gpv-sync-remember-key');
     if (rememberKeyCheckbox) {
         rememberKeyCheckbox.addEventListener('change', (e) => {
             if (!e.target.checked) {
                 clearRememberedMasterKey();
             }
+            updateRememberKeyVisibility();
         });
     }
 
     // Enable/disable sync
     const enabledCheckbox = document.getElementById('gpv-sync-enabled');
+    const updateRememberKeyVisibility = () => {
+        const status = SyncManager.getStatus();
+        const isEnabled = enabledCheckbox ? enabledCheckbox.checked : status.isEnabled;
+        const isValidPassword = Boolean(passwordInput?.value && passwordInput.value.length >= 8);
+        const shouldShow = isEnabled && status.cryptoSupported && (status.hasSessionKey || isValidPassword || rememberKeyCheckbox?.checked);
+
+        if (rememberKeyWrapper) {
+            rememberKeyWrapper.style.display = shouldShow ? 'block' : 'none';
+        }
+        if (rememberKeyHint) {
+            rememberKeyHint.style.display = shouldShow || !isEnabled || !status.cryptoSupported ? 'none' : 'block';
+        }
+    };
     if (enabledCheckbox) {
         enabledCheckbox.addEventListener('change', (e) => {
             const inputs = document.querySelectorAll('.gpv-sync-input, #gpv-sync-auto, #gpv-sync-interval');
@@ -4834,7 +4918,12 @@ function setupSyncSettingsListeners() {
                     btn.disabled = !e.target.checked || !status.isConfigured;
                 }
             });
+            updateRememberKeyVisibility();
         });
+    }
+
+    if (passwordInput) {
+        passwordInput.addEventListener('input', updateRememberKeyVisibility);
     }
 
     // Auto-sync toggle
@@ -4847,6 +4936,8 @@ function setupSyncSettingsListeners() {
             }
         });
     }
+
+    updateRememberKeyVisibility();
 
     // Save settings
     const saveBtn = document.getElementById('gpv-sync-save-btn');
@@ -4870,7 +4961,7 @@ function setupSyncSettingsListeners() {
                 // Validation
                 if (enabled) {
                     if (!serverUrl || !userId) {
-                        throw new Error('Server URL and User ID are required when sync is enabled');
+                        throw new Error('Server URL and User ID are required when sync is activated');
                     }
                     if (!password && !hasSessionKey) {
                         throw new Error('Password is required to unlock sync for this session (or enable remember key)');
@@ -4906,7 +4997,7 @@ function setupSyncSettingsListeners() {
                     }, 300);
                 } else {
                     SyncManager.disable();
-                    const disabledMessage = 'Sync disabled';
+                    const disabledMessage = 'Sync deactivated';
                     showSuccessMessage(disabledMessage);
 
                     setTimeout(() => {
@@ -4999,7 +5090,7 @@ function setupSyncSettingsListeners() {
                     syncInterval,
                     rememberKey
                 });
-                showSuccessMessage('✅ Login successful! Sync enabled. Click Sync Now to start.');
+                showSuccessMessage('✅ Login successful! Sync enabled and running in the background.');
 
                 if (typeof updateSyncUI === 'function') {
                     updateSyncUI();
@@ -5107,9 +5198,9 @@ function setupSyncSettingsListeners() {
     if (clearBtn) {
         clearBtn.addEventListener('click', () => {
             clearSyncMessage();
-            if (confirm('Are you sure you want to clear sync configuration? This will not delete data from the server.')) {
+            if (confirm('Log out of sync on this device? Your encrypted data remains on the server.')) {
                 SyncManager.clearConfig();
-                showInfoMessage('Sync configuration cleared');
+                showInfoMessage('Logged out. You can log in again to resume sync.');
                 
                 // Refresh the settings panel
                 const settingsPanel = document.querySelector('.gpv-sync-settings');
