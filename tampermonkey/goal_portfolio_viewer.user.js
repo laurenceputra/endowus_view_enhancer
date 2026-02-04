@@ -4918,8 +4918,10 @@ function setupSyncSettingsListeners() {
     }
 
     const rememberKeyCheckbox = document.getElementById('gpv-sync-remember-key');
+    let rememberKeyTouched = false;
     if (rememberKeyCheckbox) {
         rememberKeyCheckbox.addEventListener('change', (e) => {
+            rememberKeyTouched = true;
             if (!e.target.checked) {
                 clearRememberedMasterKey();
             }
@@ -5112,7 +5114,10 @@ function setupSyncSettingsListeners() {
                 const serverUrl = normalizeServerUrl(getSyncServerUrlFromInput());
                 const userId = document.getElementById('gpv-sync-user-id').value.trim();
                 const password = document.getElementById('gpv-sync-password').value;
-                const rememberKey = document.getElementById('gpv-sync-remember-key')?.checked !== false;
+                const rememberKeyCheckbox = document.getElementById('gpv-sync-remember-key');
+                const rememberKey = rememberKeyTouched
+                    ? rememberKeyCheckbox?.checked === true
+                    : true;
                 const autoSync = document.getElementById('gpv-sync-auto').checked;
                 const syncInterval = parseInt(document.getElementById('gpv-sync-interval').value) || SYNC_DEFAULTS.syncInterval;
 

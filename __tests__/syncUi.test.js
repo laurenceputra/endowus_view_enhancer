@@ -97,7 +97,6 @@ describe('sync settings UI', () => {
         document.getElementById('gpv-sync-server-url').value = 'https://sync.example.com';
         document.getElementById('gpv-sync-user-id').value = 'user@example.com';
         document.getElementById('gpv-sync-password').value = 'supersecure';
-        document.getElementById('gpv-sync-remember-key').checked = true;
 
         document.getElementById('gpv-sync-login-btn').click();
         await Promise.resolve();
@@ -129,6 +128,7 @@ describe('sync settings UI', () => {
 
         const rememberCheckbox = document.getElementById('gpv-sync-remember-key');
         rememberCheckbox.checked = false;
+        rememberCheckbox.dispatchEvent(new window.Event('change'));
 
         document.getElementById('gpv-sync-login-btn').click();
         await Promise.resolve();
