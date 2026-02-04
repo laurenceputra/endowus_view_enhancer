@@ -5213,6 +5213,13 @@ function setupSyncSettingsListeners() {
     }
 }
 
+    if (typeof window !== 'undefined') {
+        window.__gpvSyncUi = {
+            createSyncSettingsHTML,
+            setupSyncSettingsListeners
+        };
+    }
+
 /**
  * Show sync settings modal
  */
@@ -7418,6 +7425,9 @@ updateSyncUI = function updateSyncUI() {
     // Pattern: Keep all logic in ONE place (this file), test the real implementation.
         if (typeof module !== 'undefined' && module.exports) {
         const chartHelpers = typeof globalThis !== 'undefined' ? globalThis.__gpvChartHelpers : null;
+        const syncUi = typeof window !== 'undefined'
+            ? window.__gpvSyncUi
+            : (typeof globalThis !== 'undefined' ? globalThis.__gpvSyncUi : null);
         const baseExports = {
             normalizeString,
             indexBy,
@@ -7475,6 +7485,9 @@ updateSyncUI = function updateSyncUI() {
             derivePerformanceWindows,
             createSequentialRequestQueue,
             SyncEncryption,
+            SyncManager,
+            createSyncSettingsHTML: syncUi?.createSyncSettingsHTML,
+            setupSyncSettingsListeners: syncUi?.setupSyncSettingsListeners,
             buildConflictDiffItems: buildConflictDiffItemsForMap,
             formatSyncTarget,
             formatSyncFixed
