@@ -45,6 +45,7 @@ When conducting code reviews, you should:
    - Adequate test coverage for new code
    - Edge cases are tested
    - Tests are meaningful and maintainable
+   - Ratio/percentage calculations validate denominator choices and zero/negative balance handling
 
 5. **Documentation**: Check that:
    - Public APIs are documented

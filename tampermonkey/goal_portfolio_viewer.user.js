@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.9.0
+// @version      2.9.2
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore). Now with optional cross-device sync!
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -353,6 +353,69 @@
         };
     }
 
+    function buildAllocationDriftModel(goalModels, adjustedTotal) {
+        if (!Array.isArray(goalModels) || goalModels.length === 0) {
+            return {
+                allocationDriftPercent: null,
+                allocationDriftDisplay: '-',
+                allocationDriftAvailable: false
+            };
+        }
+        const numericAdjustedTotal = toFiniteNumber(adjustedTotal, null);
+        if (numericAdjustedTotal === null || numericAdjustedTotal <= 0) {
+            return {
+                allocationDriftPercent: null,
+                allocationDriftDisplay: '-',
+                allocationDriftAvailable: false
+            };
+        }
+        const nonFixedGoals = goalModels.filter(goal => goal.isFixed !== true);
+        const targetGoals = nonFixedGoals.filter(goal => typeof goal.targetPercent === 'number'
+            && Number.isFinite(goal.targetPercent));
+        const missingGoals = nonFixedGoals.filter(goal => goal.targetPercent === null || goal.targetPercent === undefined);
+        if (targetGoals.length < 1 || missingGoals.length > 1) {
+            return {
+                allocationDriftPercent: null,
+                allocationDriftDisplay: '-',
+                allocationDriftAvailable: false
+            };
+        }
+        const remainingTargetPercent = missingGoals.length === 1
+            ? calculateRemainingTargetPercent(goalModels.map(goal => goal.targetPercent))
+            : null;
+        if (missingGoals.length === 1 && typeof remainingTargetPercent === 'number' && remainingTargetPercent < 0) {
+            return {
+                allocationDriftPercent: null,
+                allocationDriftDisplay: '-',
+                allocationDriftAvailable: false
+            };
+        }
+        let driftSum = 0;
+        nonFixedGoals.forEach(goal => {
+            const currentAmount = goal.endingBalanceAmount || 0;
+            let targetPercent = goal.targetPercent;
+            if ((targetPercent === null || targetPercent === undefined) && missingGoals.length === 1) {
+                targetPercent = remainingTargetPercent;
+            }
+            if (typeof targetPercent !== 'number' || !Number.isFinite(targetPercent)) {
+                return;
+            }
+            const targetAmount = (targetPercent / 100) * numericAdjustedTotal;
+            if (targetAmount <= 0) {
+                return;
+            }
+            const driftRatio = Math.abs(targetAmount - currentAmount) / targetAmount;
+            if (Number.isFinite(driftRatio)) {
+                driftSum += driftRatio;
+            }
+        });
+        return {
+            allocationDriftPercent: driftSum,
+            allocationDriftDisplay: formatPercent(driftSum, { multiplier: 100, showSign: false }),
+            allocationDriftAvailable: true
+        };
+    }
+
     function isDashboardRoute(url, originFallback = 'https://app.sg.endowus.com') {
         if (typeof url !== 'string' || !url) {
             return false;
@@ -495,7 +558,7 @@
         const safeGoals = sortGoalsByName(goals);
         const safeTargets = goalTargets || {};
         const safeFixed = goalFixed || {};
-        const goalModels = safeGoals.map(goal => buildGoalModel(
+        let goalModels = safeGoals.map(goal => buildGoalModel(
             goal,
             totalTypeAmount,
             adjustedTotal,
@@ -505,9 +568,40 @@
         const remainingTargetPercent = calculateRemainingTargetPercent(
             goalModels.map(goal => goal.targetPercent)
         );
+        const nonFixedGoals = goalModels.filter(goal => goal.isFixed !== true);
+        const missingTargetGoals = nonFixedGoals.filter(goal => goal.targetPercent === null || goal.targetPercent === undefined);
+        const missingGoalId = missingTargetGoals.length === 1 ? missingTargetGoals[0]?.goalId : null;
+        const hasOtherTarget = goalModels.some(goal => goal?.goalId !== missingGoalId
+            && typeof goal.targetPercent === 'number'
+            && Number.isFinite(goal.targetPercent));
+        const shouldAssignRemainingTarget = missingTargetGoals.length === 1
+            && hasOtherTarget
+            && remainingTargetPercent >= 0;
+        const adjustedRemainingTargetPercent = shouldAssignRemainingTarget ? 0 : remainingTargetPercent;
+        if (shouldAssignRemainingTarget) {
+            goalModels = goalModels.map(goal => {
+                if (!goal?.goalId || goal.goalId !== missingGoalId) {
+                    return goal;
+                }
+                const diffInfo = calculateGoalDiff(
+                    goal.endingBalanceAmount || 0,
+                    remainingTargetPercent,
+                    adjustedTotal
+                );
+                return {
+                    ...goal,
+                    diffAmount: diffInfo.diffAmount,
+                    diffClass: diffInfo.diffClass
+                };
+            });
+        }
+        const allocationDriftModel = buildAllocationDriftModel(goalModels, adjustedTotal);
         return {
             goalModels,
-            remainingTargetPercent
+            remainingTargetPercent: adjustedRemainingTargetPercent,
+            allocationDriftPercent: allocationDriftModel.allocationDriftPercent,
+            allocationDriftDisplay: allocationDriftModel.allocationDriftDisplay,
+            allocationDriftAvailable: allocationDriftModel.allocationDriftAvailable
         };
     }
 
@@ -594,10 +688,14 @@
         };
     }
 
-    function buildSummaryViewModel(bucketMap) {
+    function buildSummaryViewModel(bucketMap, projectedInvestmentsState, goalTargetById, goalFixedById) {
         if (!bucketMap || typeof bucketMap !== 'object') {
-            return { buckets: [] };
+            return { buckets: [], showAllocationDriftHint: false };
         }
+        const projectedInvestments = projectedInvestmentsState || {};
+        const goalTargets = goalTargetById || {};
+        const goalFixed = goalFixedById || {};
+        let showAllocationDriftHint = false;
         const buckets = Object.keys(bucketMap)
             .sort()
             .map(bucketName => {
@@ -625,6 +723,23 @@
                                 return null;
                             }
                             const typeReturn = group.totalCumulativeReturn || 0;
+                            const projectedAmount = getProjectedInvestmentValue(
+                                projectedInvestments,
+                                bucketName,
+                                goalType
+                            );
+                            const adjustedTotal = (group.endingBalanceAmount || 0) + projectedAmount;
+                            const goals = Array.isArray(group.goals) ? group.goals : [];
+                            const allocationModel = computeGoalTypeViewState(
+                                goals,
+                                group.endingBalanceAmount || 0,
+                                adjustedTotal,
+                                goalTargets,
+                                goalFixed
+                            );
+                            if (allocationModel.allocationDriftAvailable === false) {
+                                showAllocationDriftHint = true;
+                            }
                             return {
                                 goalType,
                                 displayName: getDisplayGoalType(goalType),
@@ -636,14 +751,16 @@
                                     typeReturn,
                                     group.endingBalanceAmount
                                 ),
-                                returnClass: getReturnClass(typeReturn)
+                                returnClass: getReturnClass(typeReturn),
+                                allocationDriftDisplay: allocationModel.allocationDriftDisplay,
+                                allocationDriftAvailable: allocationModel.allocationDriftAvailable
                             };
                         })
                         .filter(Boolean)
                 };
             })
             .filter(Boolean);
-        return { buckets };
+        return { buckets, showAllocationDriftHint };
     }
 
     function buildBucketDetailViewModel({
@@ -665,6 +782,7 @@
         const goalTargets = goalTargetById || {};
         const goalFixed = goalFixedById || {};
         const { orderedTypes, bucketTotalReturn, endingBalanceTotal } = base;
+        let showAllocationDriftHint = false;
 
         return {
             bucketName,
@@ -694,6 +812,9 @@
                         goalTargets,
                         goalFixed
                     );
+                    if (allocationModel.allocationDriftAvailable === false) {
+                        showAllocationDriftHint = true;
+                    }
                     return {
                         goalType,
                         displayName: getDisplayGoalType(goalType),
@@ -711,6 +832,8 @@
                         remainingTargetPercent: allocationModel.remainingTargetPercent,
                         remainingTargetDisplay: formatPercent(allocationModel.remainingTargetPercent),
                         remainingTargetIsHigh: isRemainingTargetAboveThreshold(allocationModel.remainingTargetPercent),
+                        allocationDriftDisplay: allocationModel.allocationDriftDisplay,
+                        allocationDriftAvailable: allocationModel.allocationDriftAvailable,
                         goalModelsById: allocationModel.goalModelsById,
                         goals: allocationModel.goalModels.map(goal => ({
                             ...goal,
@@ -724,7 +847,8 @@
                         }))
                     };
                 })
-                .filter(Boolean)
+                .filter(Boolean),
+            showAllocationDriftHint
         };
     }
 
@@ -741,6 +865,16 @@
                 }
             });
             return goalIds;
+        }, []);
+    }
+
+    function collectAllGoalIds(bucketMap) {
+        if (!bucketMap || typeof bucketMap !== 'object') {
+            return [];
+        }
+        return Object.keys(bucketMap).reduce((goalIds, bucketName) => {
+            const bucketObj = bucketMap[bucketName];
+            return goalIds.concat(collectGoalIds(bucketObj));
         }, []);
     }
 
@@ -3970,6 +4104,11 @@ let GoalTargetStore;
     function renderSummaryView(contentDiv, summaryViewModel, onBucketSelect) {
         contentDiv.innerHTML = '';
 
+        if (summaryViewModel.showAllocationDriftHint) {
+            const hint = createElement('div', 'gpv-allocation-drift-hint', 'Set goal targets to see drift.');
+            contentDiv.appendChild(hint);
+        }
+
         const summaryContainer = createElement('div', 'gpv-summary-container');
 
         summaryViewModel.buckets.forEach(bucketModel => {
@@ -4023,6 +4162,12 @@ let GoalTargetStore;
                     'Growth:',
                     goalTypeModel.growthDisplay
                 );
+                appendLabeledValue(
+                    typeRow,
+                    'gpv-goal-type-stat',
+                    'Allocation Drift:',
+                    goalTypeModel.allocationDriftDisplay
+                );
                 bucketCard.appendChild(typeRow);
             });
 
@@ -4059,6 +4204,11 @@ let GoalTargetStore;
         bucketHeader.appendChild(bucketStats);
         contentDiv.appendChild(bucketHeader);
 
+        if (bucketViewModel.showAllocationDriftHint) {
+            const hint = createElement('div', 'gpv-allocation-drift-hint', 'Set goal targets to see drift.');
+            contentDiv.appendChild(hint);
+        }
+
         bucketViewModel.goalTypes.forEach(goalTypeModel => {
             const typeGrowth = goalTypeModel.growthDisplay;
             
@@ -4076,6 +4226,7 @@ let GoalTargetStore;
             appendLabeledValue(typeSummary, null, 'Balance:', goalTypeModel.endingBalanceDisplay);
             appendLabeledValue(typeSummary, null, 'Return:', goalTypeModel.returnDisplay);
             appendLabeledValue(typeSummary, null, 'Growth:', typeGrowth);
+            appendLabeledValue(typeSummary, null, 'Allocation Drift:', goalTypeModel.allocationDriftDisplay);
             typeHeader.appendChild(typeTitle);
             typeHeader.appendChild(typeSummary);
             
@@ -5897,6 +6048,17 @@ updateSyncUI = function updateSyncUI() {
                 flex-direction: column;
                 gap: 14px;
             }
+
+            .gpv-allocation-drift-hint {
+                background: #fef3c7;
+                border: 1px solid #f59e0b;
+                border-radius: 10px;
+                color: #92400e;
+                font-size: 13px;
+                font-weight: 600;
+                margin-bottom: 12px;
+                padding: 10px 12px;
+            }
             
             .gpv-bucket-card {
                 background: #ffffff;
@@ -7079,9 +7241,17 @@ updateSyncUI = function updateSyncUI() {
             return null;
         }
         if (selection === 'SUMMARY') {
+            const goalIds = collectAllGoalIds(mergedInvestmentDataState);
+            const goalTargetById = buildGoalTargetById(goalIds, GoalTargetStore.getTarget);
+            const goalFixedById = buildGoalFixedById(goalIds, GoalTargetStore.getFixed);
             return {
                 kind: 'SUMMARY',
-                viewModel: ViewModels.buildSummaryViewModel(mergedInvestmentDataState)
+                viewModel: ViewModels.buildSummaryViewModel(
+                    mergedInvestmentDataState,
+                    projectedInvestmentsState,
+                    goalTargetById,
+                    goalFixedById
+                )
             };
         }
         const bucketObj = mergedInvestmentDataState[selection];
@@ -7491,6 +7661,7 @@ updateSyncUI = function updateSyncUI() {
             calculateFixedTargetPercent,
             calculateRemainingTargetPercent,
             isRemainingTargetAboveThreshold,
+            buildAllocationDriftModel,
             buildGoalTypeAllocationModel,
             getProjectedInvestmentValue,
             buildDiffCellData,
@@ -7499,6 +7670,7 @@ updateSyncUI = function updateSyncUI() {
             buildSummaryViewModel,
             buildBucketDetailViewModel,
             collectGoalIds,
+            collectAllGoalIds,
             buildGoalTargetById,
             buildGoalFixedById,
             getChartHeightForWidth: chartHelpers?.getChartHeightForWidth,

@@ -556,7 +556,7 @@ describe('buildGoalTypeAllocationModel', () => {
         const model = buildGoalTypeAllocationModel(goals, 400, 400, goalTargets, goalFixed);
         const goalOne = model.goalModels.find(goal => goal.goalId === 'g1');
         expect(goalOne.targetPercent).toBe(25);
-        expect(model.remainingTargetPercent).toBe(75);
+        expect(model.remainingTargetPercent).toBe(0);
     });
 
     test('should keep explicit targets when not fixed', () => {
