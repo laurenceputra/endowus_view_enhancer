@@ -277,6 +277,8 @@ describe('view model builders', () => {
         const missingGoal = goalTypeModel.goals.find(goal => goal.goalId === 'g3');
         expect(missingGoal.targetDisplay).toBe('');
         expect(missingGoal.diffDisplay).toBe('-');
+        expect(goalTypeModel.allocationDriftDisplay).toBe('-');
+        expect(goalTypeModel.allocationDriftAvailable).toBe(false);
     });
 
     test('should return null for missing bucket', () => {

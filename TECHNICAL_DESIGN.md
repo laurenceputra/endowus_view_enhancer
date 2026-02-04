@@ -405,7 +405,7 @@ The `summaryViewModel` contains:
 - totals/returns/growth display strings
 - per-goal-type rows with display names
 
-Summary cards display the three headline stats: Balance, Return, and Growth. Goal type rows now include Allocation Drift (sum of absolute goal-level drift ratios) when target allocations are configured.
+Summary cards display the three headline stats: Balance, Return, and Growth. Goal type rows include Allocation Drift (sum of absolute goal-level drift ratios) when target allocations are configured and any remaining target percentage is non-negative.
 
 Growth percentages are calculated as `cumulativeReturn / (endingBalance - cumulativeReturn) * 100`, because ending balance is derived from performance totals (including pending processing amounts when available) or the investible API’s `totalInvestmentAmount`, which is misnamed and actually represents ending balance.
 

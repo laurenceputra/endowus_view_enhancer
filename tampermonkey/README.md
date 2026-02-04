@@ -294,8 +294,6 @@ Contributions are welcome! To contribute:
 
 ### Version 2.9.1
 - Applied remaining target percentage to missing-target goal diffs without auto-filling targets
-
-### Version 2.9.0
 - Added Allocation Drift per goal type in summary and detail views with a target-allocation hint
 
 ### Version 2.6.7
