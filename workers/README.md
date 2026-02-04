@@ -178,8 +178,13 @@ Main-branch merges can deploy automatically via GitHub Actions:
 3. **Secrets required**:
    - `CLOUDFLARE_API_TOKEN`
    - `CLOUDFLARE_ACCOUNT_ID`
+   - `SYNC_KV_ID`
+   - `SYNC_KV_PREVIEW_ID` (optional; defaults to `SYNC_KV_ID`)
 
-This deploys using your `wrangler.toml` production config (`--env production`).
+CI renders `workers/wrangler.production.toml.template` with secrets and deploys
+using the rendered config.
+
+Local deploys still use `workers/wrangler.toml` and `--env production`.
 
 JWT secrets are managed via Wrangler (not GitHub Actions). Run:
 `npx wrangler secret put JWT_SECRET --env production` as part of initial setup.
@@ -194,8 +199,7 @@ curl https://goal-portfolio-sync.YOUR_SUBDOMAIN.workers.dev/health
 # {"status":"ok","version":"1.0.0","timestamp":1234567890}
 
 # Test auth + token flow (using test script)
-cd workers
-node test-password-auth.js
+# See DEPLOYMENT.md for curl-based auth/sync examples.
 ```
 
 ### 8. Configure UserScript

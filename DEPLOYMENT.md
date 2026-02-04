@@ -162,6 +162,14 @@ npx wrangler secret put JWT_SECRET --env production
 - Set `CLOUDFLARE_WORKERS_SUBDOMAIN` to include the subdomain in PR comments.
 - Preview versions are managed by Cloudflare and clean up automatically, so no additional cleanup jobs are required.
 
+### Production Deploy via GitHub Actions
+- CI renders `workers/wrangler.production.toml.template` with secrets and deploys with `--config`.
+- Required secrets:
+  - `CLOUDFLARE_API_TOKEN`
+  - `CLOUDFLARE_ACCOUNT_ID`
+  - `SYNC_KV_ID`
+  - `SYNC_KV_PREVIEW_ID` (optional; defaults to `SYNC_KV_ID`)
+
 ### Manual Testing
 
 ```bash

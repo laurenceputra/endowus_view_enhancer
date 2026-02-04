@@ -20,6 +20,10 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SYNC_KV_ID: ${{ secrets.SYNC_KV_ID }}
+      SYNC_KV_PREVIEW_ID: ${{ secrets.SYNC_KV_PREVIEW_ID }}
+      CORS_ORIGINS: https://app.sg.endowus.com
+      WORKER_NAME: goal-portfolio-sync
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,6 +31,30 @@ jobs:
       - name: Setup workers tooling
         uses: ./.github/actions/setup-workers
 
+      - name: Render production wrangler config
+        id: config
+        working-directory: workers
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SYNC_KV_ID:-}" ]; then
+            echo "SYNC_KV_ID secret is required for production deploys" >&2
+            exit 1
+          fi
+
+          KV_ID="${SYNC_KV_ID}"
+          KV_PREVIEW_ID="${SYNC_KV_PREVIEW_ID:-${SYNC_KV_ID}}"
+          CONFIG_PATH="${PWD}/wrangler.production.toml"
+
+          sed -e "s|__WORKER_NAME__|${WORKER_NAME}|g" \
+              -e "s|__KV_ID__|$KV_ID|g" \
+              -e "s|__KV_PREVIEW_ID__|$KV_PREVIEW_ID|g" \
+              -e "s|__CORS_ORIGINS__|${CORS_ORIGINS}|g" \
+              wrangler.production.toml.template > "$CONFIG_PATH"
+
+          echo "config_path=$CONFIG_PATH" >> "$GITHUB_OUTPUT"
+
       - name: Deploy production
         working-directory: workers
-        run: npx wrangler@4 deploy --env production
+        run: npx wrangler@4 deploy --config "${{ steps.config.outputs.config_path }}"
