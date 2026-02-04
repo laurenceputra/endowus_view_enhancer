@@ -77,12 +77,12 @@ When a workflow phase starts, align on the relevant skills and record them in yo
 
 | Phase | Primary Skills |
 | --- | --- |
-| Planning (PM) | `documentation`, `security-scanner` |
+| Planning (PM) | `documentation`, `security-risk` |
 | Design (SE) | `refactoring-expert`, `performance-optimization` |
-| Risk (DA) | `security-scanner` |
+| Risk (DA) | `security-risk` |
 | Implementation (SE) | `debugging-assistant`, `refactoring-expert` |
-| QA | `qa-testing` |
-| Review | `code-review`, `security-scanner` |
+| QA | `qa-testing`, `ux-accessibility`, `network-resilience` |
+| Review | `code-review`, `security-risk` |
 | Release/Docs | `release-management`, `documentation` |
 
 **Precedence**: Workflow gates override skill guidance if they conflict.
