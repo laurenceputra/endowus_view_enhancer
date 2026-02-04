@@ -2,6 +2,7 @@ external_data/
 
 # PR details (local tooling artifacts)
 .pr_details/
+.specifications/
 
 # Demo files (keep demo/ directory structure but ignore specific files)
 demo/goal_portfolio_viewer.user.js

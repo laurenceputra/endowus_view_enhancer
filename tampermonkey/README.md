@@ -292,6 +292,10 @@ Contributions are welcome! To contribute:
 
 ## Changelog
 
+### Version 2.9.2
+- Updated allocation drift calculations to use target amounts as the denominator
+- Included zero-balance goals with positive targets in allocation drift reporting
+
 ### Version 2.9.1
 - Applied remaining target percentage to missing-target goal diffs without auto-filling targets
 - Added Allocation Drift per goal type in summary and detail views with a target-allocation hint

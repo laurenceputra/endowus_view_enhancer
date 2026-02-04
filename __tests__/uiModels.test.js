@@ -10,11 +10,13 @@ const {
     calculateRemainingTargetPercent,
     isRemainingTargetAboveThreshold,
     getProjectedInvestmentValue,
+    buildAllocationDriftModel,
     buildDiffCellData,
     resolveGoalTypeActionTarget,
     buildSummaryViewModel,
     buildBucketDetailViewModel,
     collectGoalIds,
+    collectAllGoalIds,
     buildGoalTargetById,
     buildGoalFixedById
 } = require('../tampermonkey/goal_portfolio_viewer.user.js');
@@ -132,7 +134,7 @@ describe('view model builders', () => {
         expect(retirement.returnClass).toBe('positive');
         expect(retirement.goalTypes[0].goalType).toBe('GENERAL_WEALTH_ACCUMULATION');
         expect(retirement.goalTypes[1].returnClass).toBe('negative');
-        expect(retirement.goalTypes[0].allocationDriftDisplay).toBe('25.00%');
+        expect(retirement.goalTypes[0].allocationDriftDisplay).toBe('20.00%');
     });
 
     test('should build bucket detail view model with projections', () => {
@@ -157,7 +159,7 @@ describe('view model builders', () => {
         expect(goalTypeModel.adjustedTotal).toBe(2500);
         expect(goalTypeModel.remainingTargetDisplay).toBe('12.00%');
         expect(goalTypeModel.remainingTargetIsHigh).toBe(true);
-        expect(goalTypeModel.allocationDriftDisplay).toBe('25.00%');
+        expect(goalTypeModel.allocationDriftDisplay).toBe('20.00%');
         const firstGoal = goalTypeModel.goals[0];
         expect(firstGoal.percentOfType).toBe(60);
         expect(firstGoal.diffDisplay).toMatch(/0\.00/);
@@ -300,6 +302,12 @@ describe('collectGoalIds and buildGoalTargetById', () => {
         expect(goalIds).toEqual(['g1', 'g2', 'g3']);
     });
 
+    test('should collect all goal ids across buckets', () => {
+        const bucketMap = createBucketMapFixture();
+        const goalIds = collectAllGoalIds(bucketMap).sort();
+        expect(goalIds).toEqual(['g1', 'g2', 'g3']);
+    });
+
     test('should build goal target map with getter', () => {
         const map = buildGoalTargetById(['a', 'b'], id => (id === 'a' ? 20 : null));
         expect(map).toEqual({ a: 20 });
@@ -308,5 +316,51 @@ describe('collectGoalIds and buildGoalTargetById', () => {
     test('should build goal fixed map with getter', () => {
         const map = buildGoalFixedById(['a', 'b'], id => id === 'b');
         expect(map).toEqual({ b: true });
+    });
+});
+
+describe('buildAllocationDriftModel', () => {
+    test('should use target amounts as denominator', () => {
+        const goalModels = [
+            { endingBalanceAmount: 800, targetPercent: 40, isFixed: false },
+            { endingBalanceAmount: 1200, targetPercent: 60, isFixed: false }
+        ];
+        const model = buildAllocationDriftModel(goalModels, 2500);
+        expect(model.allocationDriftPercent).toBeCloseTo(0.4, 5);
+        expect(model.allocationDriftDisplay).toBe('40.00%');
+        expect(model.allocationDriftAvailable).toBe(true);
+    });
+
+    test('should include zero-balance goals when targets are positive', () => {
+        const goalModels = [
+            { endingBalanceAmount: 0, targetPercent: 50, isFixed: false },
+            { endingBalanceAmount: 1000, targetPercent: 50, isFixed: false }
+        ];
+        const model = buildAllocationDriftModel(goalModels, 1000);
+        expect(model.allocationDriftPercent).toBeCloseTo(2, 5);
+        expect(model.allocationDriftDisplay).toBe('200.00%');
+    });
+
+    test('should skip non-positive target amounts', () => {
+        const goalModels = [
+            { endingBalanceAmount: 100, targetPercent: 0, isFixed: false }
+        ];
+        const model = buildAllocationDriftModel(goalModels, 1000);
+        expect(model.allocationDriftPercent).toBe(0);
+        expect(model.allocationDriftDisplay).toBe('0.00%');
+        expect(model.allocationDriftAvailable).toBe(true);
+    });
+
+    test('should return unavailable for invalid inputs', () => {
+        expect(buildAllocationDriftModel([], 1000)).toEqual({
+            allocationDriftPercent: null,
+            allocationDriftDisplay: '-',
+            allocationDriftAvailable: false
+        });
+        expect(buildAllocationDriftModel([{ endingBalanceAmount: 100, targetPercent: 50 }], 0)).toEqual({
+            allocationDriftPercent: null,
+            allocationDriftDisplay: '-',
+            allocationDriftAvailable: false
+        });
     });
 });

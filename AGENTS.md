@@ -32,3 +32,7 @@ For workflow phases, key principles, definition of done, and testing commands, s
 - [Comprehensive Development Guide](.github/copilot-instructions.md)
 - [Technical Design](TECHNICAL_DESIGN.md)
 - [Testing Guide](TESTING.md)
+
+## Repository Hygiene
+
+- The `.specifications/` directory is ignored via `.gitignore` and should not be committed.
