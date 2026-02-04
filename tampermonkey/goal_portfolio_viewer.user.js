@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.9.0
+// @version      2.9.1
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore). Now with optional cross-device sync!
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -5052,10 +5052,22 @@ function setupSyncSettingsListeners() {
                     throw new Error('Password must be at least 8 characters');
                 }
 
+                const autoSync = document.getElementById('gpv-sync-auto').checked;
+                const syncInterval = parseInt(document.getElementById('gpv-sync-interval').value) || SYNC_DEFAULTS.syncInterval;
+
                 await SyncManager.register(serverUrl, userId, password);
-                showSuccessMessage('✅ Account created successfully! Please login to start syncing.');
+                await SyncManager.login(serverUrl, userId, password);
+                await SyncManager.enable({
+                    serverUrl,
+                    userId,
+                    password,
+                    autoSync,
+                    syncInterval,
+                    rememberKey: true
+                });
+                showSuccessMessage('✅ Account created and sync enabled with encryption by default.');
                 
-                // Refresh UI to show that user is now registered
+                // Refresh UI to show that user is now registered and sync is enabled
                 setTimeout(() => {
                     const settingsPanel = document.querySelector('.gpv-sync-settings');
                     if (settingsPanel) {
@@ -5085,7 +5097,7 @@ function setupSyncSettingsListeners() {
                 const serverUrl = normalizeServerUrl(getSyncServerUrlFromInput());
                 const userId = document.getElementById('gpv-sync-user-id').value.trim();
                 const password = document.getElementById('gpv-sync-password').value;
-                const rememberKey = document.getElementById('gpv-sync-remember-key')?.checked === true;
+                const rememberKey = true;
                 const autoSync = document.getElementById('gpv-sync-auto').checked;
                 const syncInterval = parseInt(document.getElementById('gpv-sync-interval').value) || SYNC_DEFAULTS.syncInterval;
 
@@ -5097,11 +5109,12 @@ function setupSyncSettingsListeners() {
                 await SyncManager.enable({
                     serverUrl,
                     userId,
+                    password,
                     autoSync,
                     syncInterval,
                     rememberKey
                 });
-                showSuccessMessage('✅ Login successful! Sync enabled and running in the background.');
+                showSuccessMessage('✅ Login successful! Sync enabled with encryption by default.');
 
                 if (typeof updateSyncUI === 'function') {
                     updateSyncUI();

@@ -83,4 +83,62 @@ describe('sync settings UI', () => {
         expect(hint.style.display).toBe('none');
         expect(wrapper.style.display).toBe('block');
     });
+
+    test('login enables sync with encryption by default and saves settings', async () => {
+        jest.useFakeTimers();
+        const { createSyncSettingsHTML, setupSyncSettingsListeners, SyncManager } = exportsModule;
+
+        document.body.innerHTML = createSyncSettingsHTML();
+        setupSyncSettingsListeners();
+
+        const loginSpy = jest.spyOn(SyncManager, 'login').mockResolvedValue({});
+        const enableSpy = jest.spyOn(SyncManager, 'enable').mockResolvedValue();
+
+        document.getElementById('gpv-sync-server-url').value = 'https://sync.example.com';
+        document.getElementById('gpv-sync-user-id').value = 'user@example.com';
+        document.getElementById('gpv-sync-password').value = 'supersecure';
+
+        document.getElementById('gpv-sync-login-btn').click();
+        await Promise.resolve();
+        jest.runOnlyPendingTimers();
+        await Promise.resolve();
+
+        expect(loginSpy).toHaveBeenCalledWith('https://sync.example.com', 'user@example.com', 'supersecure');
+        expect(enableSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                password: 'supersecure',
+                rememberKey: true
+            })
+        );
+    });
+
+    test('sign up enables sync with encryption by default and saves settings', async () => {
+        jest.useFakeTimers();
+        const { createSyncSettingsHTML, setupSyncSettingsListeners, SyncManager } = exportsModule;
+
+        document.body.innerHTML = createSyncSettingsHTML();
+        setupSyncSettingsListeners();
+
+        const registerSpy = jest.spyOn(SyncManager, 'register').mockResolvedValue({});
+        const loginSpy = jest.spyOn(SyncManager, 'login').mockResolvedValue({});
+        const enableSpy = jest.spyOn(SyncManager, 'enable').mockResolvedValue();
+
+        document.getElementById('gpv-sync-server-url').value = 'https://sync.example.com';
+        document.getElementById('gpv-sync-user-id').value = 'new@example.com';
+        document.getElementById('gpv-sync-password').value = 'supersecure';
+
+        document.getElementById('gpv-sync-register-btn').click();
+        await Promise.resolve();
+        jest.runOnlyPendingTimers();
+        await Promise.resolve();
+
+        expect(registerSpy).toHaveBeenCalledWith('https://sync.example.com', 'new@example.com', 'supersecure');
+        expect(loginSpy).toHaveBeenCalledWith('https://sync.example.com', 'new@example.com', 'supersecure');
+        expect(enableSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                password: 'supersecure',
+                rememberKey: true
+            })
+        );
+    });
 });

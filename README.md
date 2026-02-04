@@ -95,12 +95,12 @@ Sync your portfolio configuration across multiple devices with end-to-end encryp
 - ✅ Sync is completely optional.
 - ✅ No data is sent until you click **Save Settings**.
 - ✅ Only encrypted config values (goal targets + fixed flags) are synced.
-- ✅ Your password is not stored locally unless you opt to remember the encryption key on a trusted device.
+- ✅ By default, a derived encryption key is stored locally after login or sign up to keep sync unlocked on this device (you can disable remember key or log out to clear it).
 
 **Getting Started**:
 1. Review the [Sync Setup Guide](docs/sync-setup.md)
 2. Configure your server URL, user ID, and password
-3. Login and activate sync (auto-sync is enabled by default; adjust interval if desired)
+3. Login or sign up to enable sync with encryption enabled by default (auto-sync is enabled by default; adjust interval if desired)
 
 **For Self-Hosting**:
 - Deploy your own backend: See [workers/README.md](workers/README.md)
