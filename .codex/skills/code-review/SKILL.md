@@ -47,7 +47,14 @@ When conducting code reviews, you should:
    - Tests are meaningful and maintainable
    - Ratio/percentage calculations validate denominator choices and zero/negative balance handling
 
-5. **Documentation**: Check that:
+5. **Repo Constraints**: Verify:
+   - No external API calls (client-side only).
+   - No localStorage usage (use GM_setValue/GM_getValue instead).
+   - No logging of sensitive financial data in production.
+   - No eval() or Function() constructor usage.
+   - Responses are cloned before reading (fetch interception).
+
+6. **Documentation**: Check that:
    - Public APIs are documented
    - Complex algorithms have explanations
    - README/documentation is updated if needed

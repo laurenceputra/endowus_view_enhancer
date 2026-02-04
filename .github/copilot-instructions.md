@@ -77,17 +77,19 @@ When a workflow phase starts, align on the relevant skills and record them in yo
 
 | Phase | Primary Skills |
 | --- | --- |
-| Planning (PM) | `documentation`, `security-scanner` |
+| Planning (PM) | `documentation`, `security-risk` |
 | Design (SE) | `refactoring-expert`, `performance-optimization` |
-| Risk (DA) | `security-scanner` |
+| Risk (DA) | `security-risk` |
 | Implementation (SE) | `debugging-assistant`, `refactoring-expert` |
-| QA | `qa-testing` |
-| Review | `code-review`, `security-scanner` |
+| QA | `qa-testing`, `ux-accessibility`, `network-resilience` |
+| Review | `code-review`, `security-risk` |
 | Release/Docs | `release-management`, `documentation` |
 
 **Precedence**: Workflow gates override skill guidance if they conflict.
 
 **Exception**: If no matching skill exists, proceed with the agent phase and note the gap in your working notes or PR description.
+
+**Using skills outside the workflow**: You may invoke any relevant skill even when you are not actively progressing through workflow phases (for example, ad-hoc analysis, documentation updates, or pre-work discovery). When you do, note the skill usage and rationale in your working notes or PR description.
 
 ### Agent Interaction Model (Required)
 1. **Product**: Frame the problem, user impact, and acceptance criteria.
