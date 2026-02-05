@@ -36,3 +36,19 @@ For workflow phases, key principles, definition of done, and testing commands, s
 ## Repository Hygiene
 
 - The `.specifications/` directory is ignored via `.gitignore` and should not be committed.
+
+## Skills
+A skill is a set of local instructions to follow that is stored in a `SKILL.md` file. Below is the list of skills that can be used. Each entry includes a name, description, and file path so you can open the source for full instructions when using a specific skill.
+### Available skills
+- code-review: Expert code reviewer with deep knowledge of software engineering best practices, design patterns, and code quality standards. Use this skill when reviewing code changes, pull requests, or conducting code quality assessments. (file: .agents/skills/code-review/SKILL.md)
+- debugging-assistant: Expert debugger with deep knowledge of debugging methodologies, tools, and problem-solving techniques. Use this skill when diagnosing issues, analyzing bugs, or conducting root cause analysis. (file: .agents/skills/debugging-assistant/SKILL.md)
+- documentation: Technical writer with expertise in creating clear, comprehensive, and user-friendly documentation. Use this skill when writing or reviewing documentation, creating README files, or documenting APIs and code. (file: .agents/skills/documentation/SKILL.md)
+- network-resilience: Improve reliability for network calls, sync, or remote endpoints with timeouts, retries, offline handling, and user feedback. (file: .agents/skills/network-resilience/SKILL.md)
+- performance-optimization: Performance engineering expert with deep knowledge of optimization techniques, profiling, and performance best practices. Use this skill when analyzing performance issues, optimizing code, or improving system efficiency. (file: .agents/skills/performance-optimization/SKILL.md)
+- qa-testing: QA engineer with expertise in software testing methodologies, test design, and quality assurance practices. Use this skill when planning tests, writing test cases, or improving test coverage and quality. (file: .agents/skills/qa-testing/SKILL.md)
+- refactoring-expert: Software refactoring expert with deep knowledge of code improvement techniques, design patterns, and clean code principles. Use this skill when improving code structure, eliminating code smells, or applying design patterns. (file: .agents/skills/refactoring-expert/SKILL.md)
+- release-management: Release engineer with expertise in software deployment, versioning, and release processes. Use this skill when planning releases, managing versions, creating changelogs, or coordinating deployments. (file: .agents/skills/release-management/SKILL.md)
+- requirements-researcher: Feasibility and requirements clarification for software/infra/product work; use when asked what is possible, to assess constraints/tradeoffs, or to clarify user flows and turn ambiguous requests into actionable questions before handing off to spec-writer. (file: .agents/skills/requirements-researcher/SKILL.md)
+- security-risk: Combine security scanning and threat modeling for changes involving data handling, API interception, sync, storage, authentication, or encryption. (file: .agents/skills/security-risk/SKILL.md)
+- spec-writer: Write or update specification/plan documents (e.g., .specifications/plan.md) with explicit tasks, file targets, acceptance criteria, verification, and commit steps; use when asked to write/update specs, plans, or requirements. (file: .agents/skills/spec-writer/SKILL.md)
+- ux-accessibility: Review or implement UI/visual changes with accessibility checks (keyboard, focus, contrast, ARIA, motion). Use for any new UI elements or visual updates. (file: .agents/skills/ux-accessibility/SKILL.md)

@@ -1,4 +1,5 @@
 external_data/
+.artifacts/
 
 # PR details (local tooling artifacts)
 .pr_details/
