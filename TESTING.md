@@ -269,3 +269,93 @@ Current coverage for tested functions: 100% statements, 94.73% branches, 100% fu
 - [Jest Matchers](https://jestjs.io/docs/expect)
 - [Testing Best Practices](https://github.com/goldbergyoni/javascript-testing-best-practices)
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
+
+## Worker Test Coverage Plan (Track A: Unit Tests Only)
+
+### Goal
+
+Create initial automated test coverage for the Cloudflare Worker backend using **unit tests only** for Track A. Integration tests are explicitly out of scope for this track.
+
+### Scope and Non-Goals
+
+- **In scope (Track A)**
+  - Unit tests for worker modules with mocked dependencies.
+  - CI gating so worker unit tests run only when corresponding worker files change.
+- **Out of scope (Track A)**
+  - Integration tests against a live Wrangler dev server or real KV.
+  - End-to-end auth/sync flow tests spanning multiple modules through deployed endpoints.
+
+### Work Items and Exact Changes
+
+1. **Add worker unit test harness and scripts**
+   - Files:
+     - `workers/package.json`
+     - `workers/src/**/*.js` (only if needed for test-friendly exports)
+     - `workers/__tests__/` (new unit test files)
+   - Changes:
+     - Add a dedicated `test:unit` script for workers.
+     - Add unit tests for pure/mostly-pure behavior with mocked `env`, `Request`, and KV methods.
+
+2. **Unit test coverage for high-risk worker modules**
+   - Files:
+     - `workers/src/cors.js`
+     - `workers/src/ratelimit.js`
+     - `workers/src/storage.js`
+     - `workers/src/auth.js`
+     - `workers/src/handlers.js`
+     - `workers/src/index.js` (route-level unit tests with mocked collaborators)
+   - Changes:
+     - Add test cases for success, validation failures, authorization failures, and boundary conditions.
+     - Keep test isolation by mocking cross-module calls where route logic is under test.
+
+3. **Run only corresponding tests when files change**
+   - Files:
+     - `.github/workflows/ci.yml`
+   - Changes:
+     - Add path filtering/conditional job execution so:
+       - Worker unit test job runs for changes under `workers/**` and related workflow/test config files.
+       - Existing userscript unit tests run for `tampermonkey/**`, `__tests__/**`, or root JS test config changes.
+     - Ensure skipped jobs do not block PRs.
+
+### Acceptance Criteria
+
+1. **Worker unit test foundation**
+   - A worker test command exists and runs locally from repository scripts.
+   - Worker unit tests do not require network or deployed infrastructure.
+
+2. **Coverage quality (Track A)**
+   - New unit tests cover key branches for auth validation, CORS header behavior, rate limit decision points, and request routing guards.
+   - At least one regression-style test per critical error path (e.g., bad JSON, unauthorized request, rate limited request).
+
+3. **Selective CI execution**
+   - Worker unit tests are skipped automatically when only non-worker files change.
+   - Userscript tests are skipped automatically when only worker files change.
+   - CI still executes all applicable jobs when shared configuration files change.
+
+4. **Scope control**
+   - No integration test harness is added in Track A.
+   - No requirement for Wrangler local server in CI for Track A.
+
+### Verification
+
+- Local verification commands (during implementation):
+  - `npm run test`
+  - `npm run test:coverage`
+  - `npm --prefix workers run test:unit` (once added)
+- CI verification:
+  - Open one PR that changes only `workers/src/**` and confirm only worker unit test path executes.
+  - Open one PR that changes only `tampermonkey/**` and confirm worker unit test path is skipped.
+
+### Commit
+
+Suggested commit message after implementing Track A:
+
+`test(workers): add unit test baseline and path-scoped CI execution`
+
+### Completion Checklist
+
+- [ ] Worker unit test command added and documented.
+- [ ] Unit tests added for worker core modules.
+- [ ] CI path filters/conditions implemented.
+- [ ] Selective execution behavior validated on PR.
+- [ ] Integration tests intentionally deferred to a future track.

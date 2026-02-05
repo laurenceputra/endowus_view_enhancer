@@ -5,10 +5,10 @@
  * Server never sees plaintext data - all encryption happens client-side
  */
 
-import { handleSync, handleGetSync, handleDeleteSync } from './handlers';
-import { validatePassword, registerUser, loginUser, issueTokens, verifyAccessToken, verifyRefreshToken } from './auth';
-import { rateLimit } from './ratelimit';
-import { applyCorsHeaders } from './cors';
+import { handleSync, handleGetSync, handleDeleteSync } from './handlers.js';
+import { validatePassword, registerUser, loginUser, issueTokens, verifyAccessToken, verifyRefreshToken } from './auth.js';
+import { rateLimit } from './ratelimit.js';
+import { applyCorsHeaders } from './cors.js';
 
 // Configuration
 const CONFIG = {

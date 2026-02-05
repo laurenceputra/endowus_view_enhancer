@@ -2,8 +2,8 @@
  * Request handlers for sync endpoints
  */
 
-import { getFromKV, putToKV, deleteFromKV } from './storage';
-import { applyCorsHeaders } from './cors';
+import { getFromKV, putToKV, deleteFromKV } from './storage.js';
+import { applyCorsHeaders } from './cors.js';
 
 /**
  * Handle POST /sync - Upload encrypted config

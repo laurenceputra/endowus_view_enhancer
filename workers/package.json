@@ -14,7 +14,8 @@
     "tail:production": "wrangler tail --env production",
     "kv:create": "wrangler kv:namespace create SYNC_KV",
     "kv:list": "wrangler kv:namespace list",
-    "test": "node test-password-auth.js"
+    "test": "node test-password-auth.js",
+    "test:unit": "node --experimental-specifier-resolution=node --test test/**/*.test.js"
   },
   "keywords": [
     "cloudflare",
