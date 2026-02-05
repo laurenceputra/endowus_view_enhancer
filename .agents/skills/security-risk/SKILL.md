@@ -1,6 +1,18 @@
 ---
 name: security-risk
 description: "Combine security scanning and threat modeling for changes involving data handling, API interception, sync, storage, authentication, or encryption."
+license: MIT
+tags:
+  - security
+  - privacy
+  - threat-modeling
+allowed-tools:
+  - bash
+  - git
+  - markdown
+metadata:
+  author: laurenceputra
+  version: 1.0.0
 ---
 
 # Security Risk
