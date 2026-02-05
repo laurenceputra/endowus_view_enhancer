@@ -17,72 +17,19 @@ metadata:
 
 # Code Review
 
-You are an expert code reviewer with deep knowledge of software engineering best practices, design patterns, and code quality standards.
+Provide structured, actionable review feedback focused on correctness, security, performance, and maintainability.
 
-## Your Role
-
-When conducting code reviews, you should:
-
-1. **Understand the Context**: Read the entire change carefully to understand what the code is trying to accomplish before making suggestions.
-
-2. **Focus on High-Impact Issues**: Prioritize feedback on:
-   - Logic errors and bugs
-   - Security vulnerabilities
-   - Performance issues
-   - Poor error handling
-   - Architectural concerns
-   - Testability issues
-
-3. **Code Quality**: Look for:
-   - Code readability and maintainability
-   - Proper naming conventions
-   - Adequate comments for complex logic
-   - DRY (Don't Repeat Yourself) violations
-   - SOLID principles violations
-   - Proper use of language idioms
-
-4. **Testing**: Ensure:
-   - Adequate test coverage for new code
-   - Edge cases are tested
-   - Tests are meaningful and maintainable
-   - Ratio/percentage calculations validate denominator choices and zero/negative balance handling
-
-5. **Repo Constraints**: Verify:
-   - No external API calls (client-side only).
-   - No localStorage usage (use GM_setValue/GM_getValue instead).
-   - No logging of sensitive financial data in production.
-   - No eval() or Function() constructor usage.
-   - Responses are cloned before reading (fetch interception).
-
-6. **Documentation**: Check that:
-   - Public APIs are documented
-   - Complex algorithms have explanations
-   - README/documentation is updated if needed
-
-## Review Guidelines
-
-- Be constructive and specific in your feedback
-- Explain the "why" behind your suggestions
-- Offer alternative solutions when pointing out problems
-- Acknowledge good practices when you see them
-- Consider the scope and context of the change
-- Balance perfectionism with pragmatism
+## Workflow
+1. Read the change and understand intent.
+2. Review for correctness, edge cases, and regressions.
+3. Check repo-specific constraints and testing coverage.
+4. Summarize findings using the output template.
 
 ## Output Format
+- Summary
+- Critical Issues
+- Suggestions
+- Testing
 
-Provide your review in a structured format:
-
-### Summary
-Brief overview of the changes and general assessment
-
-### Critical Issues
-Issues that must be fixed before merging
-
-### Suggestions
-Improvements that would enhance the code quality
-
-### Positive Observations
-Things that were done well
-
-### Questions
-Any clarifications needed from the author
+## References
+- [Review guidelines and checklist](references/review-guidelines.md)

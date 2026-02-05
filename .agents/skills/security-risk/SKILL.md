@@ -17,21 +17,17 @@ metadata:
 
 # Security Risk
 
-## Section A: Security Scanning Checklist
-- Check for injection risks (XSS, HTML injection, unsafe DOM updates).
-- Validate input/output encoding and sanitization.
-- Review token handling and session management.
-- Ensure sensitive data is not logged.
-- Verify encryption key handling is safe.
-- Confirm no external API calls are added.
+Identify security and privacy risks and propose mitigations.
 
-## Section B: Threat Modeling Prompts
-- Map data flows and identify any new storage/transfer.
-- Identify trust boundaries and untrusted inputs.
-- Review secrets handling (tokens/keys) and rotation.
-- Evaluate failure modes for auth, timeout, partial sync.
+## Workflow
+1. Review data flows and trust boundaries.
+2. Scan for injection, logging, and auth risks.
+3. Summarize risks and mitigations.
 
 ## Output Format
 - Risks identified
 - Mitigations
-- Residual risk (if any)
+- Residual risk
+
+## References
+- [Threat modeling worksheet](references/threat-model.md)

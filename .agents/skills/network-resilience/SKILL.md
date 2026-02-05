@@ -17,22 +17,16 @@ metadata:
 
 # Network Resilience
 
-## Checklist
-1. **Timeouts**
-   - Use AbortController or equivalent timeouts for fetch calls.
+Recommend improvements for timeout, retry, and offline behavior in networked code.
 
-2. **Retries & backoff**
-   - Retry transient failures with exponential backoff and limits.
-
-3. **Offline handling**
-   - Detect offline states and fail gracefully.
-
-4. **User feedback**
-   - Provide clear error messages for network failures.
-
-5. **Idempotency**
-   - Ensure retries do not duplicate side effects.
+## Workflow
+1. Identify network touchpoints.
+2. Evaluate timeout/retry/offline handling.
+3. Propose fixes and user messaging.
 
 ## Output Format
 - Resilience gaps
 - Recommended improvements
+
+## References
+- [Network resilience guides](references/network-guides.md)
