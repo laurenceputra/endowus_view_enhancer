@@ -6,155 +6,229 @@ on:
   pull_request:
     branches: [ main ]
     types: [opened, synchronize, reopened, ready_for_review]
-    
+
 permissions:
   contents: read
   pull-requests: write
-  
+
 jobs:
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      userscript: ${{ steps.filter.outputs.userscript }}
+      workers: ${{ steps.filter.outputs.workers }}
+      e2e: ${{ steps.filter.outputs.e2e }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            userscript:
+              - 'tampermonkey/**'
+              - '__tests__/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'eslint.config.mjs'
+            workers:
+              - 'workers/**'
+            e2e:
+              - 'demo/**'
+              - 'tampermonkey/**'
+              - 'package.json'
+              - 'package-lock.json'
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    needs: changes
+    if: ${{ (github.event_name != 'pull_request' || !github.event.pull_request.draft) && needs.changes.outputs.userscript == 'true' }}
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js 20.x
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20.x
-        cache: 'npm'
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Run ESLint
-      run: npm run lint
+      - name: Run ESLint
+        run: npm run lint
 
   test:
     name: Test on Node.js ${{ matrix.node-version }}
     runs-on: ubuntu-latest
-    needs: lint
-    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
-    
+    needs: [changes, lint]
+    if: ${{ (github.event_name != 'pull_request' || !github.event.pull_request.draft) && needs.changes.outputs.userscript == 'true' }}
+
     strategy:
       matrix:
         node-version: [20.x]
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Setup Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Run tests
-      run: npm run test:coverage
 
-    
-    - name: Post coverage comment
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const fs = require('fs');
-          const summary = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8')).total;
-          const body = [
-            '### 📊 Coverage Summary',
-            '',
-            `- Statements: **${summary.statements.pct}%**`,
-            `- Branches: **${summary.branches.pct}%**`,
-            `- Functions: **${summary.functions.pct}%**`,
-            `- Lines: **${summary.lines.pct}%**`,
-          ].join('\n');
-          await github.rest.issues.createComment({
-            ...context.repo,
-            issue_number: context.issue.number,
-            body
-          });
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test:coverage
+
+      - name: Post userscript coverage comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8')).total;
+            const body = [
+              '### 📊 Coverage Summary (Userscript)',
+              '',
+              `- Statements: **${summary.statements.pct}%**`,
+              `- Branches: **${summary.branches.pct}%**`,
+              `- Functions: **${summary.functions.pct}%**`,
+              `- Lines: **${summary.lines.pct}%**`,
+            ].join('\n');
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body
+            });
+
+  worker-unit:
+    name: Worker Unit Tests
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ (github.event_name != 'pull_request' || !github.event.pull_request.draft) && needs.changes.outputs.workers == 'true' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+          cache-dependency-path: workers/package-lock.json
+
+      - name: Install worker dependencies
+        run: npm ci --prefix workers
+
+      - name: Run worker unit tests with coverage
+        run: npm --prefix workers run test:unit:coverage
+
+      - name: Post worker coverage comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summaryPath = 'workers/coverage/coverage-summary.json';
+            const coverage = JSON.parse(fs.readFileSync(summaryPath, 'utf8')).total;
+            const body = [
+              '### 📊 Coverage Summary (Worker Unit Tests)',
+              '',
+              `- Statements: **${coverage.statements.pct}%**`,
+              `- Branches: **${coverage.branches.pct}%**`,
+              `- Functions: **${coverage.functions.pct}%**`,
+              `- Lines: **${coverage.lines.pct}%**`,
+            ].join('\n');
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body
+            });
 
   e2e:
     name: E2E Demo
     runs-on: ubuntu-latest
-    needs: lint
-    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    needs: changes
+    if: ${{ (github.event_name != 'pull_request' || !github.event.pull_request.draft) && needs.changes.outputs.e2e == 'true' }}
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js 20.x
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20.x
-        cache: 'npm'
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Install Playwright browsers
-      run: npx playwright install --with-deps
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
 
-    - name: Run E2E demo tests
-      id: e2e
-      env:
-        E2E_SCREENSHOT_DIR: demo/screenshots
-        E2E_SUMMARY_PATH: demo/screenshots/e2e-summary.json
-      run: npm run test:e2e
+      - name: Run E2E demo tests
+        id: e2e
+        env:
+          E2E_SCREENSHOT_DIR: demo/screenshots
+          E2E_SUMMARY_PATH: demo/screenshots/e2e-summary.json
+        run: npm run test:e2e
 
-    - name: Upload E2E screenshots
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: e2e-screenshots
-        path: demo/screenshots
-        if-no-files-found: warn
+      - name: Upload E2E screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: demo/screenshots
+          if-no-files-found: warn
 
-    - name: Post E2E summary comment
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      env:
-        E2E_OUTCOME: ${{ steps.e2e.outcome }}
-      with:
-        script: |
-          const fs = require('fs');
-          const path = 'demo/screenshots/e2e-summary.json';
-          let summary = null;
-          if (fs.existsSync(path)) {
-            summary = JSON.parse(fs.readFileSync(path, 'utf8'));
-          }
-          const flows = summary?.flowsTested ?? [];
-          const screenshots = summary?.screenshots ?? [];
-          const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
-            ...context.repo,
-            run_id: context.runId
-          });
-          const screenshotArtifact = artifacts.data.artifacts.find(artifact => artifact.name === 'e2e-screenshots');
-          const artifactId = screenshotArtifact?.id;
-          const artifactUrl = artifactId
-            ? `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}/artifacts/${artifactId}`
-            : null;
-          const status = process.env.E2E_OUTCOME || summary?.status || 'unknown';
-          const lines = [
-            '### 🧪 E2E Demo Result',
-            '',
-            `- Status: **${status}**`,
-            `- Flows tested: **${flows.length}**${flows.length ? ` (${flows.join(', ')})` : ''}`,
-            `- Screenshots: ${screenshots.length ? screenshots.map(name => `\`${name}\``).join(', ') : 'None'}`,
-            '',
-            artifactUrl
-              ? `- Screenshots artifact: ${artifactUrl}`
-              : '_Screenshots are attached as the **e2e-screenshots** artifact._',
-            `- Workflow run: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
-          ].filter(Boolean).join('\n');
-          await github.rest.issues.createComment({
-            ...context.repo,
-            issue_number: context.issue.number,
-            body: lines
-          });
+      - name: Post E2E summary comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          E2E_OUTCOME: ${{ steps.e2e.outcome }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'demo/screenshots/e2e-summary.json';
+            let summary = null;
+            if (fs.existsSync(path)) {
+              summary = JSON.parse(fs.readFileSync(path, 'utf8'));
+            }
+            const flows = summary?.flowsTested ?? [];
+            const screenshots = summary?.screenshots ?? [];
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              ...context.repo,
+              run_id: context.runId
+            });
+            const screenshotArtifact = artifacts.data.artifacts.find(artifact => artifact.name === 'e2e-screenshots');
+            const artifactId = screenshotArtifact?.id;
+            const artifactUrl = artifactId
+              ? `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}/artifacts/${artifactId}`
+              : null;
+            const status = process.env.E2E_OUTCOME || summary?.status || 'unknown';
+            const lines = [
+              '### 🧪 E2E Demo Result',
+              '',
+              `- Status: **${status}**`,
+              `- Flows tested: **${flows.length}**${flows.length ? ` (${flows.join(', ')})` : ''}`,
+              `- Screenshots: ${screenshots.length ? screenshots.map(name => `\`${name}\``).join(', ') : 'None'}`,
+              '',
+              artifactUrl
+                ? `- Screenshots artifact: ${artifactUrl}`
+                : '_Screenshots are attached as the **e2e-screenshots** artifact._',
+              `- Workflow run: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            ].filter(Boolean).join('\n');
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body: lines
+            });
