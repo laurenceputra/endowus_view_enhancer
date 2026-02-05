@@ -45,7 +45,8 @@
     const STORAGE_KEY_PREFIXES = {
         goalTarget: 'goal_target_pct_',
         goalFixed: 'goal_fixed_',
-        performanceCache: 'gpv_performance_'
+        performanceCache: 'gpv_performance_',
+        rebalancePlan: 'gpv_rebalance_plan_'
     };
 
     const CLASS_NAMES = {
@@ -57,6 +58,38 @@
         remainingAlert: 'gpv-remaining-alert',
         diffCell: 'gpv-diff-cell'
     };
+
+    const ACTION_LABELS = {
+        topUp: 'Top up',
+        trim: 'Trim',
+        monitor: 'Monitor',
+        needsTarget: 'Needs target setup',
+        fixed: 'No action (fixed)'
+    };
+
+    const ACTION_PRIORITIES = {
+        high: 'High',
+        medium: 'Medium',
+        low: 'Low'
+    };
+
+    const REBALANCE_ITEM_STATUSES = {
+        planned: 'Planned',
+        submitted: 'Submitted',
+        settling: 'Settling',
+        verified: 'Verified',
+        closed: 'Closed',
+        needsRecalc: 'Needs Recalc'
+    };
+
+    const REBALANCE_PLAN_STATUSES = {
+        draft: 'Draft',
+        active: 'Active',
+        completed: 'Completed',
+        archived: 'Archived'
+    };
+
+    const REBALANCE_PLAN_STORAGE_KEY = `${STORAGE_KEY_PREFIXES.rebalancePlan}state`;
 
     // ============================================
     // Sync Constants (Cross-Device Sync Feature)
@@ -353,6 +386,121 @@
         };
     }
 
+
+    function getActionPriorityFromDrift(driftRatio) {
+        if (typeof driftRatio !== 'number' || !Number.isFinite(driftRatio) || driftRatio <= 0) {
+            return ACTION_PRIORITIES.low;
+        }
+        if (driftRatio >= 0.2) {
+            return ACTION_PRIORITIES.high;
+        }
+        if (driftRatio >= 0.1) {
+            return ACTION_PRIORITIES.medium;
+        }
+        return ACTION_PRIORITIES.low;
+    }
+
+    function deriveGoalActionInstruction({
+        diffAmount,
+        targetPercent,
+        adjustedTotal,
+        isFixed
+    }) {
+        if (isFixed === true) {
+            return {
+                actionLabel: ACTION_LABELS.fixed,
+                actionAmount: 0,
+                actionPriority: ACTION_PRIORITIES.low,
+                actionReason: 'Goal is fixed and excluded from rebalance actions.',
+                actionGeneratedAt: Date.now(),
+                actionDriftRatio: null
+            };
+        }
+        if (targetPercent === null || targetPercent === undefined) {
+            return {
+                actionLabel: ACTION_LABELS.needsTarget,
+                actionAmount: 0,
+                actionPriority: ACTION_PRIORITIES.high,
+                actionReason: 'Set a target percentage before generating actions.',
+                actionGeneratedAt: Date.now(),
+                actionDriftRatio: null
+            };
+        }
+        const numericValues = getFiniteNumbers([targetPercent, adjustedTotal]);
+        if (!numericValues || diffAmount === null || diffAmount === undefined || !Number.isFinite(diffAmount)) {
+            return {
+                actionLabel: ACTION_LABELS.monitor,
+                actionAmount: 0,
+                actionPriority: ACTION_PRIORITIES.low,
+                actionReason: 'Insufficient valid data to derive action amount.',
+                actionGeneratedAt: Date.now(),
+                actionDriftRatio: null
+            };
+        }
+        const [numericTargetPercent, numericAdjustedTotal] = numericValues;
+        const targetAmount = (numericTargetPercent / 100) * numericAdjustedTotal;
+        if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
+            return {
+                actionLabel: ACTION_LABELS.monitor,
+                actionAmount: 0,
+                actionPriority: ACTION_PRIORITIES.low,
+                actionReason: 'Target amount is not actionable.',
+                actionGeneratedAt: Date.now(),
+                actionDriftRatio: null
+            };
+        }
+        const absDiff = Math.abs(diffAmount);
+        const threshold = Math.max(1, targetAmount * 0.05);
+        const driftRatio = absDiff / targetAmount;
+        const roundedAmount = Math.round(absDiff / 10) * 10;
+        if (absDiff <= threshold) {
+            return {
+                actionLabel: ACTION_LABELS.monitor,
+                actionAmount: roundedAmount,
+                actionPriority: ACTION_PRIORITIES.low,
+                actionReason: `Within threshold (${formatMoney(absDiff)} drift). Monitor only.`,
+                actionGeneratedAt: Date.now(),
+                actionDriftRatio: driftRatio
+            };
+        }
+        const isTrim = diffAmount > 0;
+        return {
+            actionLabel: isTrim ? ACTION_LABELS.trim : ACTION_LABELS.topUp,
+            actionAmount: roundedAmount,
+            actionPriority: getActionPriorityFromDrift(driftRatio),
+            actionReason: `${isTrim ? 'Over' : 'Under'} target by ${formatMoney(absDiff)} (${formatPercent(driftRatio, { multiplier: 100, showSign: false })}).`,
+            actionGeneratedAt: Date.now(),
+            actionDriftRatio: driftRatio
+        };
+    }
+
+    function buildActionQueue(goalModels) {
+        const safeGoals = Array.isArray(goalModels) ? goalModels : [];
+        const priorityRank = {
+            [ACTION_PRIORITIES.high]: 0,
+            [ACTION_PRIORITIES.medium]: 1,
+            [ACTION_PRIORITIES.low]: 2
+        };
+        return safeGoals
+            .filter(goal => goal && goal.actionLabel && goal.actionLabel !== ACTION_LABELS.fixed && goal.actionLabel !== ACTION_LABELS.needsTarget)
+            .map(goal => ({
+                goalId: goal.goalId,
+                goalName: goal.goalName,
+                actionLabel: goal.actionLabel,
+                actionAmount: goal.actionAmount,
+                actionPriority: goal.actionPriority,
+                actionReason: goal.actionReason,
+                actionDriftRatio: goal.actionDriftRatio
+            }))
+            .sort((left, right) => {
+                const priorityDelta = (priorityRank[left.actionPriority] ?? 99) - (priorityRank[right.actionPriority] ?? 99);
+                if (priorityDelta !== 0) {
+                    return priorityDelta;
+                }
+                return (right.actionAmount || 0) - (left.actionAmount || 0);
+            });
+    }
+
     function buildAllocationDriftModel(goalModels, adjustedTotal) {
         if (!Array.isArray(goalModels) || goalModels.length === 0) {
             return {
@@ -540,6 +688,12 @@
             ? goal.simpleRateOfReturnPercent
             : null;
         const returnValue = goal.totalCumulativeReturn || 0;
+        const actionInstruction = deriveGoalActionInstruction({
+            diffAmount: diffInfo.diffAmount,
+            targetPercent,
+            adjustedTotal,
+            isFixed
+        });
         return {
             goalId: goal.goalId,
             goalName: goal.goalName,
@@ -550,7 +704,8 @@
             diffAmount: diffInfo.diffAmount,
             diffClass: diffInfo.diffClass,
             returnValue,
-            returnPercent
+            returnPercent,
+            ...actionInstruction
         };
     }
 
@@ -591,13 +746,20 @@
                 return {
                     ...goal,
                     diffAmount: diffInfo.diffAmount,
-                    diffClass: diffInfo.diffClass
+                    diffClass: diffInfo.diffClass,
+                    ...deriveGoalActionInstruction({
+                        diffAmount: diffInfo.diffAmount,
+                        targetPercent: remainingTargetPercent,
+                        adjustedTotal,
+                        isFixed: goal.isFixed
+                    })
                 };
             });
         }
         const allocationDriftModel = buildAllocationDriftModel(goalModels, adjustedTotal);
         return {
             goalModels,
+            actionQueue: buildActionQueue(goalModels),
             remainingTargetPercent: adjustedRemainingTargetPercent,
             allocationDriftPercent: allocationDriftModel.allocationDriftPercent,
             allocationDriftDisplay: allocationDriftModel.allocationDriftDisplay,
@@ -835,12 +997,17 @@
                         allocationDriftDisplay: allocationModel.allocationDriftDisplay,
                         allocationDriftAvailable: allocationModel.allocationDriftAvailable,
                         goalModelsById: allocationModel.goalModelsById,
+                        actionQueue: allocationModel.actionQueue,
                         goals: allocationModel.goalModels.map(goal => ({
                             ...goal,
                             endingBalanceDisplay: formatMoney(goal.endingBalanceAmount),
                             percentOfTypeDisplay: formatPercent(goal.percentOfType),
                             targetDisplay: goal.targetPercent !== null ? goal.targetPercent.toFixed(2) : '',
                             diffDisplay: goal.diffAmount === null ? '-' : formatMoney(goal.diffAmount),
+                            actionAmountDisplay: formatMoney(goal.actionAmount || 0),
+                            actionDisplay: `${goal.actionLabel}${goal.actionAmount > 0 ? ` ${formatMoney(goal.actionAmount)}` : ''}`,
+                            actionReasonDisplay: goal.actionReason || '',
+                            actionPriorityDisplay: goal.actionPriority || ACTION_PRIORITIES.low,
                             returnDisplay: formatMoney(goal.returnValue),
                             returnPercentDisplay: formatPercent(goal.returnPercent, { multiplier: 100, showSign: false }),
                             returnClass: getReturnClass(goal.returnValue)
@@ -907,6 +1074,107 @@
             value => value === true
         );
     }
+
+
+    const RebalancePlanStore = (() => {
+        const ITEM_STATUS_ORDER = Object.values(REBALANCE_ITEM_STATUSES);
+
+        function getState() {
+            return Storage.get(REBALANCE_PLAN_STORAGE_KEY, null);
+        }
+
+        function setState(next, options = {}) {
+            Storage.set(REBALANCE_PLAN_STORAGE_KEY, next);
+            if (options.silent !== true && typeof SyncManager?.scheduleSyncOnChange === 'function') {
+                SyncManager.scheduleSyncOnChange('rebalance-plan');
+            }
+            return next;
+        }
+
+        function clearState(options = {}) {
+            Storage.remove(REBALANCE_PLAN_STORAGE_KEY);
+            if (options.silent !== true && typeof SyncManager?.scheduleSyncOnChange === 'function') {
+                SyncManager.scheduleSyncOnChange('rebalance-plan-clear');
+            }
+        }
+
+        function startPlan({ bucketName, goalType, actions }) {
+            const safeActions = Array.isArray(actions) ? actions : [];
+            const now = Date.now();
+            const previous = getState();
+            const revision = previous?.bucketName === bucketName && previous?.goalType === goalType
+                ? (Number(previous.revision) || 0) + 1
+                : 1;
+            const plan = {
+                version: 1,
+                planId: SyncEncryption.generateUUID(),
+                status: REBALANCE_PLAN_STATUSES.active,
+                bucketName,
+                goalType,
+                revision,
+                createdAt: now,
+                updatedAt: now,
+                actions: safeActions.map(action => ({
+                    ...action,
+                    itemId: SyncEncryption.generateUUID(),
+                    status: REBALANCE_ITEM_STATUSES.planned,
+                    statusUpdatedAt: now,
+                    notes: ''
+                }))
+            };
+            return setState(plan);
+        }
+
+        function updateItemStatus(itemId, status) {
+            const plan = getState();
+            if (!plan || !Array.isArray(plan.actions) || !ITEM_STATUS_ORDER.includes(status)) {
+                return null;
+            }
+            let touched = false;
+            const nextActions = plan.actions.map(item => {
+                if (item.itemId !== itemId) {
+                    return item;
+                }
+                touched = true;
+                return {
+                    ...item,
+                    status,
+                    statusUpdatedAt: Date.now()
+                };
+            });
+            if (!touched) {
+                return plan;
+            }
+            const next = {
+                ...plan,
+                updatedAt: Date.now(),
+                actions: nextActions
+            };
+            return setState(next);
+        }
+
+        function completePlan() {
+            const plan = getState();
+            if (!plan) {
+                return null;
+            }
+            const next = {
+                ...plan,
+                status: REBALANCE_PLAN_STATUSES.completed,
+                updatedAt: Date.now()
+            };
+            return setState(next);
+        }
+
+        return {
+            getState,
+            setState,
+            clearState,
+            startPlan,
+            updateItemStatus,
+            completePlan
+        };
+    })();
 
     /**
      * Merges data from all three API endpoints into a structured bucket map
@@ -1926,6 +2194,7 @@
     const TOKEN_EXPIRY_SKEW_MS = 60 * 1000;
     let syncStatus = SYNC_STATUS.idle;
     let lastError = null;
+    let lastErrorMeta = null;
     const SYNC_ON_CHANGE_BUFFER_MS = 15000;
     let autoSyncTimer = null;
     let syncOnChangeTimer = null;
@@ -2154,9 +2423,10 @@
      */
     function collectConfigData() {
         const config = {
-            version: 1,
+            version: 2,
             goalTargets: {},
             goalFixed: {},
+            rebalancePlan: RebalancePlanStore.getState(),
             timestamp: Date.now()
         };
 
@@ -2203,10 +2473,93 @@
             }
         }
 
+        if (config.rebalancePlan && typeof config.rebalancePlan === 'object') {
+            RebalancePlanStore.setState(config.rebalancePlan, { silent: true });
+        } else if (config.rebalancePlan === null) {
+            RebalancePlanStore.clearState({ silent: true });
+        }
+
         logDebug('[Goal Portfolio Viewer] Applied sync config data', {
             targets: Object.keys(config.goalTargets || {}).length,
-            fixed: Object.keys(config.goalFixed || {}).length
+            fixed: Object.keys(config.goalFixed || {}).length,
+            rebalancePlanActions: Array.isArray(config.rebalancePlan?.actions) ? config.rebalancePlan.actions.length : 0
         });
+    }
+
+
+    function categorizeSyncError(error) {
+        const message = String(error?.message || 'Unknown error');
+        const code = String(error?.code || '').toUpperCase();
+
+        if (code === 'RATE_LIMIT_EXCEEDED') {
+            return 'rate_limit';
+        }
+        if (code.includes('AUTH') || /unauthorized|forbidden|token|login/i.test(message)) {
+            return 'auth';
+        }
+        if (code.includes('TIMEOUT') || /timeout/i.test(message)) {
+            return 'timeout';
+        }
+        if (code.includes('CRYPTO') || /decrypt|encrypt|encryption key|password/i.test(message)) {
+            return 'crypto';
+        }
+        if (/network|failed to fetch|offline|cors/i.test(message)) {
+            return 'network';
+        }
+        if (code.includes('PARSE') || /json|parse|unexpected response/i.test(message)) {
+            return 'parse';
+        }
+        if (error && typeof error.status === 'number' && error.status >= 500) {
+            return 'server';
+        }
+        return 'server';
+    }
+
+    function getSyncErrorGuidance(error) {
+        const category = categorizeSyncError(error);
+        const retryAfter = Number(error?.retryAfterSeconds);
+        if (category === 'auth') {
+            return {
+                category,
+                userMessage: 'Authentication failed. Please log in again to refresh your session.',
+                primaryAction: 'Login again'
+            };
+        }
+        if (category === 'network') {
+            return {
+                category,
+                userMessage: 'Network issue detected. Check connection and retry sync.',
+                primaryAction: 'Retry sync'
+            };
+        }
+        if (category === 'rate_limit') {
+            return {
+                category,
+                userMessage: retryAfter > 0
+                    ? `Rate limit reached. Retry in about ${Math.ceil(retryAfter / 60)} minute(s).`
+                    : 'Rate limit reached. Please wait before syncing again.',
+                primaryAction: 'Retry later'
+            };
+        }
+        if (category === 'crypto') {
+            return {
+                category,
+                userMessage: 'Sync is locked. Enter your password and save settings to unlock encryption key.',
+                primaryAction: 'Unlock sync'
+            };
+        }
+        if (category === 'parse') {
+            return {
+                category,
+                userMessage: 'Unexpected server response. Retry and check sync server health if it persists.',
+                primaryAction: 'Retry sync'
+            };
+        }
+        return {
+            category,
+            userMessage: 'Sync server issue detected. Please retry in a moment.',
+            primaryAction: 'Retry sync'
+        };
     }
 
     function createApiError(response, errorData, fallbackMessage) {
@@ -2398,12 +2751,14 @@
 
                 syncStatus = SYNC_STATUS.success;
                 lastError = null;
+                lastErrorMeta = null;
                 logDebug('[Goal Portfolio Viewer] Sync upload successful');
             } else if (direction === 'download') {
                 const serverData = await downloadConfig();
                 if (!serverData) {
                     syncStatus = SYNC_STATUS.success;
                     lastError = null;
+                    lastErrorMeta = null;
                     logDebug('[Goal Portfolio Viewer] No server data to download');
                 } else {
                     applyConfigData(serverData.config);
@@ -2413,6 +2768,7 @@
 
                     syncStatus = SYNC_STATUS.success;
                     lastError = null;
+                    lastErrorMeta = null;
                     logDebug('[Goal Portfolio Viewer] Sync download successful');
                 }
             } else {
@@ -2425,6 +2781,7 @@
 
                     syncStatus = SYNC_STATUS.success;
                     lastError = null;
+                    lastErrorMeta = null;
                     logDebug('[Goal Portfolio Viewer] No server data, uploaded local config');
                 } else {
                     const conflict = await detectConflict(localConfig, serverData);
@@ -2444,6 +2801,7 @@
 
                         syncStatus = SYNC_STATUS.success;
                         lastError = null;
+                        lastErrorMeta = null;
                         logDebug('[Goal Portfolio Viewer] Local config newer, uploaded to server');
                     } else if (localConfig.timestamp < serverData.metadata.timestamp) {
                         applyConfigData(serverData.config);
@@ -2453,10 +2811,12 @@
 
                         syncStatus = SYNC_STATUS.success;
                         lastError = null;
+                        lastErrorMeta = null;
                         logDebug('[Goal Portfolio Viewer] Server config newer, applied locally');
                     } else {
                         syncStatus = SYNC_STATUS.success;
                         lastError = null;
+                        lastErrorMeta = null;
                         logDebug('[Goal Portfolio Viewer] Sync already up to date');
                     }
                 }
@@ -2470,6 +2830,14 @@
             console.error('[Goal Portfolio Viewer] Sync failed:', error);
             syncStatus = SYNC_STATUS.error;
             lastError = error.message;
+            const guidance = getSyncErrorGuidance(error);
+            lastErrorMeta = {
+                category: guidance.category,
+                userMessage: guidance.userMessage,
+                primaryAction: guidance.primaryAction,
+                retryAfterSeconds: Number(error?.retryAfterSeconds) || null,
+                lastAttemptAt: Date.now()
+            };
             if (typeof updateSyncUI === 'function') {
                 updateSyncUI();
             }
@@ -2505,6 +2873,7 @@
 
             syncStatus = SYNC_STATUS.success;
             lastError = null;
+            lastErrorMeta = null;
             if (typeof updateSyncUI === 'function') {
                 updateSyncUI();
             }
@@ -2517,6 +2886,14 @@
             console.error('[Goal Portfolio Viewer] Conflict resolution failed:', error);
             syncStatus = SYNC_STATUS.error;
             lastError = error.message;
+            const guidance = getSyncErrorGuidance(error);
+            lastErrorMeta = {
+                category: guidance.category,
+                userMessage: guidance.userMessage,
+                primaryAction: guidance.primaryAction,
+                retryAfterSeconds: Number(error?.retryAfterSeconds) || null,
+                lastAttemptAt: Date.now()
+            };
             if (typeof updateSyncUI === 'function') {
                 updateSyncUI();
             }
@@ -2629,6 +3006,7 @@
         return {
             status: syncStatus,
             lastError,
+            lastErrorMeta,
             lastSync: Storage.get(SYNC_STORAGE_KEYS.lastSync, null),
             isEnabled: isEnabled(),
             isConfigured: isConfigured(),
@@ -2810,6 +3188,7 @@
         
         syncStatus = SYNC_STATUS.idle;
         lastError = null;
+        lastErrorMeta = null;
         
         logDebug('[Goal Portfolio Viewer] Sync configuration cleared');
     }
@@ -2970,6 +3349,30 @@ let GoalTargetStore;
         return null;
     }
 
+
+    function validateEndpointPayload(endpointKey, data) {
+        if (!data || typeof data !== 'object') {
+            return { valid: false, reason: 'Expected object payload' };
+        }
+        if (!Array.isArray(data)) {
+            // Some tests/mocks use object payloads; accept and defer to endpoint handlers.
+            return { valid: true, reason: null };
+        }
+        if (endpointKey === 'performance') {
+            const isValid = data.every(item => item && typeof item === 'object' && item.goalId);
+            return { valid: isValid, reason: isValid ? null : 'Missing goalId in performance payload' };
+        }
+        if (endpointKey === 'investible') {
+            const isValid = data.every(item => item && typeof item === 'object' && item.goalId);
+            return { valid: isValid, reason: isValid ? null : 'Missing goalId in investible payload' };
+        }
+        if (endpointKey === 'summary') {
+            const isValid = data.every(item => item && typeof item === 'object' && item.goalId);
+            return { valid: isValid, reason: isValid ? null : 'Missing goalId in summary payload' };
+        }
+        return { valid: true, reason: null };
+    }
+
     async function handleInterceptedResponse(url, readData) {
         const endpointKey = detectEndpointKey(url);
         if (!endpointKey) {
@@ -2982,6 +3385,11 @@ let GoalTargetStore;
         try {
             const data = await readData();
             if (data === null || data === undefined) {
+                return;
+            }
+            const validation = validateEndpointPayload(endpointKey, data);
+            if (!validation.valid) {
+                console.warn(`[Goal Portfolio Viewer] Ignoring ${endpointKey} payload: ${validation.reason}`);
                 return;
             }
             handler(data);
@@ -4177,6 +4585,82 @@ let GoalTargetStore;
         contentDiv.appendChild(summaryContainer);
     }
 
+
+    function buildRebalancePlanHeader(planState, bucketName, goalType, actionQueueLength) {
+        const container = createElement('div', 'gpv-rebalance-plan-header');
+        const status = planState?.status || REBALANCE_PLAN_STATUSES.draft;
+        const summary = createElement(
+            'div',
+            'gpv-rebalance-plan-summary',
+            `Rebalance Plan: ${status}${planState?.updatedAt ? ` (updated ${formatTimestamp(planState.updatedAt)})` : ''}`
+        );
+        container.appendChild(summary);
+
+        const controls = createElement('div', 'gpv-rebalance-plan-controls');
+        const startBtn = createElement('button', 'gpv-sync-btn gpv-sync-btn-primary', planState?.status === REBALANCE_PLAN_STATUSES.active ? 'Recalculate Plan' : 'Start Rebalance Plan');
+        startBtn.type = 'button';
+        startBtn.dataset.action = 'start-plan';
+        startBtn.dataset.bucket = bucketName;
+        startBtn.dataset.goalType = goalType;
+        startBtn.dataset.count = String(actionQueueLength || 0);
+        controls.appendChild(startBtn);
+
+        if (planState?.status === REBALANCE_PLAN_STATUSES.active) {
+            const completeBtn = createElement('button', 'gpv-sync-btn gpv-sync-btn-secondary', 'Mark Plan Completed');
+            completeBtn.type = 'button';
+            completeBtn.dataset.action = 'complete-plan';
+            completeBtn.dataset.bucket = bucketName;
+            completeBtn.dataset.goalType = goalType;
+            controls.appendChild(completeBtn);
+        }
+
+        container.appendChild(controls);
+        return container;
+    }
+
+    function buildActionQueuePanel(goalTypeModel, planState) {
+        const panel = createElement('div', 'gpv-action-queue-panel');
+        const title = createElement('h4', 'gpv-action-queue-title', 'Recommended Actions');
+        panel.appendChild(title);
+        const queue = Array.isArray(goalTypeModel.actionQueue) ? goalTypeModel.actionQueue : [];
+        if (queue.length === 0) {
+            panel.appendChild(createElement('div', 'gpv-action-queue-empty', 'No actionable drift right now.'));
+            return panel;
+        }
+        const list = createElement('ol', 'gpv-action-queue-list');
+        queue.forEach(item => {
+            const li = createElement('li', 'gpv-action-queue-item');
+            const line = `${item.actionPriority} · ${item.actionLabel} ${formatMoney(item.actionAmount)} · ${item.goalName}`;
+            li.appendChild(createElement('div', 'gpv-action-queue-line', line));
+            if (item.actionReason) {
+                li.appendChild(createElement('div', 'gpv-action-queue-reason', item.actionReason));
+            }
+            const planAction = Array.isArray(planState?.actions)
+                ? planState.actions.find(action => action.goalId === item.goalId)
+                : null;
+            if (planAction) {
+                const statusWrap = createElement('div', 'gpv-action-queue-status');
+                const statusLabel = createElement('label', null, 'Status: ');
+                const statusSelect = createElement('select', 'gpv-plan-status-select');
+                statusSelect.dataset.action = 'plan-status';
+                statusSelect.dataset.itemId = planAction.itemId;
+                Object.values(REBALANCE_ITEM_STATUSES).forEach(status => {
+                    const option = document.createElement('option');
+                    option.value = status;
+                    option.textContent = status;
+                    option.selected = planAction.status === status;
+                    statusSelect.appendChild(option);
+                });
+                statusLabel.appendChild(statusSelect);
+                statusWrap.appendChild(statusLabel);
+                li.appendChild(statusWrap);
+            }
+            list.appendChild(li);
+        });
+        panel.appendChild(list);
+        return panel;
+    }
+
     function renderBucketView({
         contentDiv,
         bucketViewModel,
@@ -4256,6 +4740,18 @@ let GoalTargetStore;
             projectedInputContainer.appendChild(projectedInput);
             
             typeSection.appendChild(projectedInputContainer);
+
+            const rebalancePlanState = RebalancePlanStore.getState();
+            const isSamePlanScope = rebalancePlanState
+                && rebalancePlanState.bucketName === bucketViewModel.bucketName
+                && rebalancePlanState.goalType === goalTypeModel.goalType;
+            typeSection.appendChild(buildRebalancePlanHeader(
+                isSamePlanScope ? rebalancePlanState : null,
+                bucketViewModel.bucketName,
+                goalTypeModel.goalType,
+                goalTypeModel.actionQueue?.length || 0
+            ));
+            typeSection.appendChild(buildActionQueuePanel(goalTypeModel, isSamePlanScope ? rebalancePlanState : null));
             
             // Add event listener for projected investment input
             projectedInput.addEventListener('input', function() {
@@ -4291,6 +4787,8 @@ let GoalTargetStore;
             headerRow.appendChild(targetHeader);
 
             headerRow.appendChild(createElement('th', null, 'Diff'));
+            headerRow.appendChild(createElement('th', null, 'Action'));
+            headerRow.appendChild(createElement('th', null, 'Priority'));
             headerRow.appendChild(createElement('th', null, 'Cumulative Return'));
             headerRow.appendChild(createElement('th', null, 'Return %'));
 
@@ -4336,6 +4834,8 @@ let GoalTargetStore;
                     ? `${CLASS_NAMES.diffCell} ${goalModel.diffClass}`
                     : CLASS_NAMES.diffCell;
                 tr.appendChild(createElement('td', diffClassName, goalModel.diffDisplay));
+                tr.appendChild(createElement('td', 'gpv-action-cell', goalModel.actionDisplay));
+                tr.appendChild(createElement('td', 'gpv-action-priority-cell', goalModel.actionPriorityDisplay));
                 tr.appendChild(createElement('td', goalModel.returnClass || null, goalModel.returnDisplay));
                 tr.appendChild(createElement('td', goalModel.returnClass || null, goalModel.returnPercentDisplay));
 
@@ -4369,7 +4869,17 @@ let GoalTargetStore;
             });
 
             typeSection.addEventListener('change', event => {
-                const resolved = resolveGoalTypeActionTarget(event.target);
+                const changeTarget = event.target;
+                if (changeTarget instanceof HTMLElement && changeTarget.dataset.action === 'plan-status') {
+                    const itemId = changeTarget.dataset.itemId;
+                    const status = changeTarget.value;
+                    if (itemId && status) {
+                        RebalancePlanStore.updateItemStatus(itemId, status);
+                        showSuccessMessage('Plan item updated.');
+                    }
+                    return;
+                }
+                const resolved = resolveGoalTypeActionTarget(changeTarget);
                 if (!resolved || resolved.type !== 'fixed') {
                     return;
                 }
@@ -4386,6 +4896,38 @@ let GoalTargetStore;
                     mergedInvestmentDataState,
                     projectedInvestmentsState
                 });
+            });
+
+            typeSection.addEventListener('click', event => {
+                const target = event.target;
+                if (!(target instanceof HTMLElement)) {
+                    return;
+                }
+                const action = target.dataset.action;
+                if (!action) {
+                    return;
+                }
+                if (action === 'start-plan') {
+                    const actions = Array.isArray(goalTypeModel.actionQueue) ? goalTypeModel.actionQueue : [];
+                    if (actions.length === 0) {
+                        showInfoMessage('No actionable drift for this goal type right now.');
+                        return;
+                    }
+                    RebalancePlanStore.startPlan({
+                        bucketName: bucketViewModel.bucketName,
+                        goalType: goalTypeModel.goalType,
+                        actions
+                    });
+                    showSuccessMessage('Rebalance plan started and synced.');
+                    showOverlay();
+                    return;
+                }
+                if (action === 'complete-plan') {
+                    RebalancePlanStore.completePlan();
+                    showSuccessMessage('Rebalance plan marked completed.');
+                    showOverlay();
+                    return;
+                }
             });
             contentDiv.appendChild(typeSection);
         });
@@ -4457,6 +4999,8 @@ let GoalTargetStore;
         rows.forEach(row => {
             const targetInput = row.querySelector(`.${CLASS_NAMES.targetInput}`);
             const diffCell = row.querySelector(`.${CLASS_NAMES.diffCell}`);
+            const actionCell = row.querySelector('.gpv-action-cell');
+            const actionPriorityCell = row.querySelector('.gpv-action-priority-cell');
             if (!targetInput) {
                 return;
             }
@@ -4475,6 +5019,12 @@ let GoalTargetStore;
                 diffCell.className = goalModel.diffClass
                     ? `${CLASS_NAMES.diffCell} ${goalModel.diffClass}`
                     : CLASS_NAMES.diffCell;
+            }
+            if (actionCell) {
+                actionCell.textContent = `${goalModel.actionLabel}${goalModel.actionAmount > 0 ? ` ${formatMoney(goalModel.actionAmount)}` : ''}`;
+            }
+            if (actionPriorityCell) {
+                actionPriorityCell.textContent = goalModel.actionPriority || ACTION_PRIORITIES.low;
             }
         });
     }
@@ -4851,7 +5401,15 @@ function createSyncSettingsHTML() {
                 ${syncStatus.lastError ? `
                     <div class="gpv-sync-status-item gpv-sync-error">
                         <span class="gpv-sync-label">Error:</span>
-                        <span class="gpv-sync-value">${escapeHtml(syncStatus.lastError)}</span>
+                        <span class="gpv-sync-value">${escapeHtml(syncStatus.lastErrorMeta?.userMessage || syncStatus.lastError)}</span>
+                    </div>
+                    <div class="gpv-sync-status-item">
+                        <span class="gpv-sync-label">Category:</span>
+                        <span class="gpv-sync-value">${escapeHtml(syncStatus.lastErrorMeta?.category || 'server')}</span>
+                    </div>
+                    <div class="gpv-sync-status-item">
+                        <span class="gpv-sync-label">Recommended:</span>
+                        <span class="gpv-sync-value">${escapeHtml(syncStatus.lastErrorMeta?.primaryAction || 'Retry sync')}</span>
                     </div>
                 ` : ''}
             </div>
@@ -5585,7 +6143,7 @@ function createConflictDialogHTML(conflict) {
                         <li><strong>Fixed Goals:</strong> ${localFixed} configured</li>
                     </ul>
                     <button class="gpv-sync-btn gpv-sync-btn-primary" id="gpv-conflict-keep-local">
-                        Keep Local
+                        Keep This Device (Overwrite Server)
                     </button>
                 </div>
 
@@ -5600,7 +6158,7 @@ function createConflictDialogHTML(conflict) {
                         <li><strong>Device:</strong> ${conflict.remoteDeviceId.substring(0, 8)}...</li>
                     </ul>
                     <button class="gpv-sync-btn gpv-sync-btn-primary" id="gpv-conflict-use-remote">
-                        Use Remote
+                        Use Server (Overwrite This Device)
                     </button>
                 </div>
             </div>
@@ -5608,7 +6166,7 @@ function createConflictDialogHTML(conflict) {
             ${diffSection}
 
             <div class="gpv-conflict-warning">
-                <p><strong>⚠️ Warning:</strong> Choosing one option will overwrite the other. Make sure to choose carefully.</p>
+                <p><strong>⚠️ Warning:</strong> Keep This Device uploads local settings and overwrites server data. Use Server downloads server settings and overwrites local settings on this device.</p>
             </div>
 
             <div class="gpv-conflict-actions">
@@ -6405,6 +6963,65 @@ updateSyncUI = function updateSyncUI() {
             
             .gpv-diff-cell.negative {
                 color: #dc2626;
+            }
+
+            .gpv-action-cell,
+            .gpv-action-priority-cell {
+                font-size: 12px;
+                font-weight: 600;
+                color: #334155;
+            }
+
+            .gpv-rebalance-plan-header {
+                margin-top: 10px;
+                padding: 10px;
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                background: #f8fafc;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .gpv-rebalance-plan-controls {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+
+            .gpv-action-queue-panel {
+                margin-top: 8px;
+                margin-bottom: 8px;
+                padding: 10px;
+                border-left: 4px solid #0ea5e9;
+                background: #f0f9ff;
+                border-radius: 6px;
+            }
+
+            .gpv-action-queue-list {
+                margin: 8px 0 0 18px;
+                padding: 0;
+            }
+
+            .gpv-action-queue-item {
+                margin-bottom: 6px;
+            }
+
+            .gpv-action-queue-line {
+                font-size: 13px;
+                font-weight: 600;
+                color: #0f172a;
+            }
+
+            .gpv-action-queue-reason {
+                font-size: 12px;
+                color: #334155;
+            }
+
+            .gpv-plan-status-select {
+                margin-left: 6px;
+                font-size: 12px;
             }
             
             /* Projected Investment Input Styles */
@@ -7671,6 +8288,8 @@ updateSyncUI = function updateSyncUI() {
             getReturnClass,
             calculatePercentOfType,
             calculateGoalDiff,
+            deriveGoalActionInstruction,
+            buildActionQueue,
             isDashboardRoute,
             calculateFixedTargetPercent,
             calculateRemainingTargetPercent,

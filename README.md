@@ -53,7 +53,7 @@ Core-satellite strategies complement this approach. The core anchors each goal w
 - **Goal-based clarity:** Keep multiple goals organized without spreadsheets or manual rollups.
 - **Core + satellite aligned:** See long-term core holdings and tactical satellites side-by-side within each life goal.
 - **Asset allocation visibility:** CPF, SRS, and cash investments show together with clear return and growth indicators.
-- **Allocation drift:** Set goal targets to surface per-goal-type drift (measured against target amounts) and spot imbalances early.
+- **Allocation drift + actions:** Set goal targets to surface per-goal-type drift and get prioritized manual actions (Top up / Trim / Monitor) with action amounts.
 - **Privacy first:** By default, all data stays on your device and is processed locally in the browser. Optional sync is opt-in and only sends encrypted configuration data.
 - **Zero friction:** Use the "Bucket Name - Description" naming pattern in your goal names and the script does the rest.
 
@@ -81,6 +81,25 @@ Bring your core-satellite strategy to life with a view that aligns with how you 
 
 ---
 
+
+## 🧭 New User Journey: Manual Rebalance with Sync
+
+Because this is a userscript on top of a third-party platform (no bulk-apply API), the workflow is optimized for **guided manual execution**:
+
+1. **Set targets and fixed goals**
+   - In each goal type table, set target percentages and optional fixed toggles.
+2. **Review action guidance**
+   - Each row now shows `Diff`, `Action`, and `Priority` so you can see exactly what to top up/trim first.
+   - A **Recommended Actions** panel ranks actions by impact.
+3. **Start a rebalance plan**
+   - Click **Start Rebalance Plan** for a goal type to snapshot and track the current action set.
+4. **Track progress over multiple days**
+   - Update each action item status (`Planned`, `Submitted`, `Settling`, `Verified`, `Closed`) as you execute manually over the week.
+5. **Sync across devices (optional)**
+   - With sync enabled, rebalance plan state is encrypted and synced with your targets/fixed flags so progress follows you across devices.
+6. **Recalculate and complete**
+   - Use **Recalculate Plan** if market/holdings changed, then mark the plan completed when done.
+
 ## 🆕 Cross-Device Sync (Optional)
 
 Sync your portfolio configuration across multiple devices with end-to-end encryption.
@@ -95,7 +114,7 @@ Sync your portfolio configuration across multiple devices with end-to-end encryp
 **Privacy & Opt-In**:
 - ✅ Sync is completely optional.
 - ✅ No data is sent until you click **Save Settings**.
-- ✅ Only encrypted config values (goal targets + fixed flags) are synced.
+- ✅ Only encrypted config values are synced, including goal targets, fixed flags, and optional rebalance plan tracker state.
 - ✅ By default, a derived encryption key is stored locally after login or sign up to keep sync unlocked on this device (you can disable remember key or log out to clear it).
 
 **Getting Started**:

@@ -14,6 +14,7 @@ Keep your Goal Portfolio Viewer settings synchronized across all your devices wi
 ✅ **Synced**:
 - Goal target percentages (your custom allocations)
 - Goal fixed flags (whether goals are locked)
+- Optional rebalance plan tracker state (plan status + item status)
 
 ❌ **Not Synced** (cached data, regenerated on each device):
 - API responses
