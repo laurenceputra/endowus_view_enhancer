@@ -82,24 +82,6 @@ Bring your core-satellite strategy to life with a view that aligns with how you 
 ---
 
 
-## 🧭 New User Journey: Manual Rebalance with Sync
-
-Because this is a userscript on top of a third-party platform (no bulk-apply API), the workflow is optimized for **guided manual execution**:
-
-1. **Set targets and fixed goals**
-   - In each goal type table, set target percentages and optional fixed toggles.
-2. **Review action guidance**
-   - Each row now shows `Diff`, `Action`, and `Priority` so you can see exactly what to top up/trim first.
-   - A **Recommended Actions** panel ranks actions by impact.
-3. **Start a rebalance plan**
-   - Click **Start Rebalance Plan** for a goal type to snapshot and track the current action set.
-4. **Track progress over multiple days**
-   - Update each action item status (`Planned`, `Submitted`, `Settling`, `Verified`, `Closed`) as you execute manually over the week.
-5. **Sync across devices (optional)**
-   - With sync enabled, rebalance plan state is encrypted and synced with your targets/fixed flags so progress follows you across devices.
-6. **Recalculate and complete**
-   - Use **Recalculate Plan** if market/holdings changed, then mark the plan completed when done.
-
 ## 🆕 Cross-Device Sync (Optional)
 
 Sync your portfolio configuration across multiple devices with end-to-end encryption.
@@ -114,7 +96,7 @@ Sync your portfolio configuration across multiple devices with end-to-end encryp
 **Privacy & Opt-In**:
 - ✅ Sync is completely optional.
 - ✅ No data is sent until you click **Save Settings**.
-- ✅ Only encrypted config values are synced, including goal targets, fixed flags, and optional rebalance plan tracker state.
+- ✅ Only encrypted config values are synced, including goal targets and fixed flags.
 - ✅ By default, a derived encryption key is stored locally after login or sign up to keep sync unlocked on this device (you can disable remember key or log out to clear it).
 
 **Getting Started**:

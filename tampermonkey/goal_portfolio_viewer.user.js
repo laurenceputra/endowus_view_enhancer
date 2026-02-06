@@ -45,8 +45,7 @@
     const STORAGE_KEY_PREFIXES = {
         goalTarget: 'goal_target_pct_',
         goalFixed: 'goal_fixed_',
-        performanceCache: 'gpv_performance_',
-        rebalancePlan: 'gpv_rebalance_plan_'
+        performanceCache: 'gpv_performance_'
     };
 
     const CLASS_NAMES = {
@@ -72,24 +71,6 @@
         medium: 'Medium',
         low: 'Low'
     };
-
-    const REBALANCE_ITEM_STATUSES = {
-        planned: 'Planned',
-        submitted: 'Submitted',
-        settling: 'Settling',
-        verified: 'Verified',
-        closed: 'Closed',
-        needsRecalc: 'Needs Recalc'
-    };
-
-    const REBALANCE_PLAN_STATUSES = {
-        draft: 'Draft',
-        active: 'Active',
-        completed: 'Completed',
-        archived: 'Archived'
-    };
-
-    const REBALANCE_PLAN_STORAGE_KEY = `${STORAGE_KEY_PREFIXES.rebalancePlan}state`;
 
     // ============================================
     // Sync Constants (Cross-Device Sync Feature)
@@ -411,7 +392,7 @@
                 actionLabel: ACTION_LABELS.fixed,
                 actionAmount: 0,
                 actionPriority: ACTION_PRIORITIES.low,
-                actionReason: 'Goal is fixed and excluded from rebalance actions.',
+                actionReason: 'Goal is fixed and excluded from action guidance.',
                 actionGeneratedAt: Date.now(),
                 actionDriftRatio: null
             };
@@ -1076,105 +1057,9 @@
     }
 
 
-    const RebalancePlanStore = (() => {
-        const ITEM_STATUS_ORDER = Object.values(REBALANCE_ITEM_STATUSES);
 
-        function getState() {
-            return Storage.get(REBALANCE_PLAN_STORAGE_KEY, null);
-        }
 
-        function setState(next, options = {}) {
-            Storage.set(REBALANCE_PLAN_STORAGE_KEY, next);
-            if (options.silent !== true && typeof SyncManager?.scheduleSyncOnChange === 'function') {
-                SyncManager.scheduleSyncOnChange('rebalance-plan');
-            }
-            return next;
-        }
 
-        function clearState(options = {}) {
-            Storage.remove(REBALANCE_PLAN_STORAGE_KEY);
-            if (options.silent !== true && typeof SyncManager?.scheduleSyncOnChange === 'function') {
-                SyncManager.scheduleSyncOnChange('rebalance-plan-clear');
-            }
-        }
-
-        function startPlan({ bucketName, goalType, actions }) {
-            const safeActions = Array.isArray(actions) ? actions : [];
-            const now = Date.now();
-            const previous = getState();
-            const revision = previous?.bucketName === bucketName && previous?.goalType === goalType
-                ? (Number(previous.revision) || 0) + 1
-                : 1;
-            const plan = {
-                version: 1,
-                planId: SyncEncryption.generateUUID(),
-                status: REBALANCE_PLAN_STATUSES.active,
-                bucketName,
-                goalType,
-                revision,
-                createdAt: now,
-                updatedAt: now,
-                actions: safeActions.map(action => ({
-                    ...action,
-                    itemId: SyncEncryption.generateUUID(),
-                    status: REBALANCE_ITEM_STATUSES.planned,
-                    statusUpdatedAt: now,
-                    notes: ''
-                }))
-            };
-            return setState(plan);
-        }
-
-        function updateItemStatus(itemId, status) {
-            const plan = getState();
-            if (!plan || !Array.isArray(plan.actions) || !ITEM_STATUS_ORDER.includes(status)) {
-                return null;
-            }
-            let touched = false;
-            const nextActions = plan.actions.map(item => {
-                if (item.itemId !== itemId) {
-                    return item;
-                }
-                touched = true;
-                return {
-                    ...item,
-                    status,
-                    statusUpdatedAt: Date.now()
-                };
-            });
-            if (!touched) {
-                return plan;
-            }
-            const next = {
-                ...plan,
-                updatedAt: Date.now(),
-                actions: nextActions
-            };
-            return setState(next);
-        }
-
-        function completePlan() {
-            const plan = getState();
-            if (!plan) {
-                return null;
-            }
-            const next = {
-                ...plan,
-                status: REBALANCE_PLAN_STATUSES.completed,
-                updatedAt: Date.now()
-            };
-            return setState(next);
-        }
-
-        return {
-            getState,
-            setState,
-            clearState,
-            startPlan,
-            updateItemStatus,
-            completePlan
-        };
-    })();
 
     /**
      * Merges data from all three API endpoints into a structured bucket map
@@ -2423,10 +2308,9 @@
      */
     function collectConfigData() {
         const config = {
-            version: 2,
+            version: 1,
             goalTargets: {},
             goalFixed: {},
-            rebalancePlan: RebalancePlanStore.getState(),
             timestamp: Date.now()
         };
 
@@ -2473,16 +2357,9 @@
             }
         }
 
-        if (config.rebalancePlan && typeof config.rebalancePlan === 'object') {
-            RebalancePlanStore.setState(config.rebalancePlan, { silent: true });
-        } else if (config.rebalancePlan === null) {
-            RebalancePlanStore.clearState({ silent: true });
-        }
-
         logDebug('[Goal Portfolio Viewer] Applied sync config data', {
             targets: Object.keys(config.goalTargets || {}).length,
-            fixed: Object.keys(config.goalFixed || {}).length,
-            rebalancePlanActions: Array.isArray(config.rebalancePlan?.actions) ? config.rebalancePlan.actions.length : 0
+            fixed: Object.keys(config.goalFixed || {}).length
         });
     }
 
@@ -4586,39 +4463,9 @@ let GoalTargetStore;
     }
 
 
-    function buildRebalancePlanHeader(planState, bucketName, goalType, actionQueueLength) {
-        const container = createElement('div', 'gpv-rebalance-plan-header');
-        const status = planState?.status || REBALANCE_PLAN_STATUSES.draft;
-        const summary = createElement(
-            'div',
-            'gpv-rebalance-plan-summary',
-            `Rebalance Plan: ${status}${planState?.updatedAt ? ` (updated ${formatTimestamp(planState.updatedAt)})` : ''}`
-        );
-        container.appendChild(summary);
 
-        const controls = createElement('div', 'gpv-rebalance-plan-controls');
-        const startBtn = createElement('button', 'gpv-sync-btn gpv-sync-btn-primary', planState?.status === REBALANCE_PLAN_STATUSES.active ? 'Recalculate Plan' : 'Start Rebalance Plan');
-        startBtn.type = 'button';
-        startBtn.dataset.action = 'start-plan';
-        startBtn.dataset.bucket = bucketName;
-        startBtn.dataset.goalType = goalType;
-        startBtn.dataset.count = String(actionQueueLength || 0);
-        controls.appendChild(startBtn);
 
-        if (planState?.status === REBALANCE_PLAN_STATUSES.active) {
-            const completeBtn = createElement('button', 'gpv-sync-btn gpv-sync-btn-secondary', 'Mark Plan Completed');
-            completeBtn.type = 'button';
-            completeBtn.dataset.action = 'complete-plan';
-            completeBtn.dataset.bucket = bucketName;
-            completeBtn.dataset.goalType = goalType;
-            controls.appendChild(completeBtn);
-        }
-
-        container.appendChild(controls);
-        return container;
-    }
-
-    function buildActionQueuePanel(goalTypeModel, planState) {
+    function buildActionQueuePanel(goalTypeModel) {
         const panel = createElement('div', 'gpv-action-queue-panel');
         const title = createElement('h4', 'gpv-action-queue-title', 'Recommended Actions');
         panel.appendChild(title);
@@ -4634,26 +4481,6 @@ let GoalTargetStore;
             li.appendChild(createElement('div', 'gpv-action-queue-line', line));
             if (item.actionReason) {
                 li.appendChild(createElement('div', 'gpv-action-queue-reason', item.actionReason));
-            }
-            const planAction = Array.isArray(planState?.actions)
-                ? planState.actions.find(action => action.goalId === item.goalId)
-                : null;
-            if (planAction) {
-                const statusWrap = createElement('div', 'gpv-action-queue-status');
-                const statusLabel = createElement('label', null, 'Status: ');
-                const statusSelect = createElement('select', 'gpv-plan-status-select');
-                statusSelect.dataset.action = 'plan-status';
-                statusSelect.dataset.itemId = planAction.itemId;
-                Object.values(REBALANCE_ITEM_STATUSES).forEach(status => {
-                    const option = document.createElement('option');
-                    option.value = status;
-                    option.textContent = status;
-                    option.selected = planAction.status === status;
-                    statusSelect.appendChild(option);
-                });
-                statusLabel.appendChild(statusSelect);
-                statusWrap.appendChild(statusLabel);
-                li.appendChild(statusWrap);
             }
             list.appendChild(li);
         });
@@ -4740,18 +4567,7 @@ let GoalTargetStore;
             projectedInputContainer.appendChild(projectedInput);
             
             typeSection.appendChild(projectedInputContainer);
-
-            const rebalancePlanState = RebalancePlanStore.getState();
-            const isSamePlanScope = rebalancePlanState
-                && rebalancePlanState.bucketName === bucketViewModel.bucketName
-                && rebalancePlanState.goalType === goalTypeModel.goalType;
-            typeSection.appendChild(buildRebalancePlanHeader(
-                isSamePlanScope ? rebalancePlanState : null,
-                bucketViewModel.bucketName,
-                goalTypeModel.goalType,
-                goalTypeModel.actionQueue?.length || 0
-            ));
-            typeSection.appendChild(buildActionQueuePanel(goalTypeModel, isSamePlanScope ? rebalancePlanState : null));
+            typeSection.appendChild(buildActionQueuePanel(goalTypeModel));
             
             // Add event listener for projected investment input
             projectedInput.addEventListener('input', function() {
@@ -4869,17 +4685,7 @@ let GoalTargetStore;
             });
 
             typeSection.addEventListener('change', event => {
-                const changeTarget = event.target;
-                if (changeTarget instanceof HTMLElement && changeTarget.dataset.action === 'plan-status') {
-                    const itemId = changeTarget.dataset.itemId;
-                    const status = changeTarget.value;
-                    if (itemId && status) {
-                        RebalancePlanStore.updateItemStatus(itemId, status);
-                        showSuccessMessage('Plan item updated.');
-                    }
-                    return;
-                }
-                const resolved = resolveGoalTypeActionTarget(changeTarget);
+                const changeTarget = event.target;                const resolved = resolveGoalTypeActionTarget(changeTarget);
                 if (!resolved || resolved.type !== 'fixed') {
                     return;
                 }
@@ -4898,38 +4704,8 @@ let GoalTargetStore;
                 });
             });
 
-            typeSection.addEventListener('click', event => {
-                const target = event.target;
-                if (!(target instanceof HTMLElement)) {
-                    return;
-                }
-                const action = target.dataset.action;
-                if (!action) {
-                    return;
-                }
-                if (action === 'start-plan') {
-                    const actions = Array.isArray(goalTypeModel.actionQueue) ? goalTypeModel.actionQueue : [];
-                    if (actions.length === 0) {
-                        showInfoMessage('No actionable drift for this goal type right now.');
-                        return;
-                    }
-                    RebalancePlanStore.startPlan({
-                        bucketName: bucketViewModel.bucketName,
-                        goalType: goalTypeModel.goalType,
-                        actions
-                    });
-                    showSuccessMessage('Rebalance plan started and synced.');
-                    showOverlay();
-                    return;
-                }
-                if (action === 'complete-plan') {
-                    RebalancePlanStore.completePlan();
-                    showSuccessMessage('Rebalance plan marked completed.');
-                    showOverlay();
-                    return;
-                }
-            });
             contentDiv.appendChild(typeSection);
+
         });
     }
 
@@ -6972,24 +6748,6 @@ updateSyncUI = function updateSyncUI() {
                 color: #334155;
             }
 
-            .gpv-rebalance-plan-header {
-                margin-top: 10px;
-                padding: 10px;
-                border: 1px solid #cbd5e1;
-                border-radius: 8px;
-                background: #f8fafc;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .gpv-rebalance-plan-controls {
-                display: flex;
-                gap: 8px;
-                flex-wrap: wrap;
-            }
-
             .gpv-action-queue-panel {
                 margin-top: 8px;
                 margin-bottom: 8px;
@@ -7017,80 +6775,6 @@ updateSyncUI = function updateSyncUI() {
             .gpv-action-queue-reason {
                 font-size: 12px;
                 color: #334155;
-            }
-
-            .gpv-plan-status-select {
-                margin-left: 6px;
-                font-size: 12px;
-            }
-            
-            /* Projected Investment Input Styles */
-            
-            .gpv-projected-input-container {
-                margin-top: 12px;
-                margin-bottom: 12px;
-                padding: 12px;
-                background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
-                border: 2px dashed #0284c7;
-                border-radius: 8px;
-                display: flex;
-                align-items: center;
-                gap: 12px;
-            }
-            
-            .gpv-projected-label {
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                font-size: 13px;
-                font-weight: 600;
-                color: #0c4a6e;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-                white-space: nowrap;
-            }
-            
-            .gpv-projected-icon {
-                font-size: 16px;
-            }
-            
-            .gpv-projected-input {
-                width: 140px;
-                padding: 6px 12px;
-                border: 2px solid #0284c7;
-                border-radius: 6px;
-                font-size: 14px;
-                font-weight: 600;
-                color: #0c4a6e;
-                background: #ffffff;
-                transition: all 0.2s ease;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            }
-            
-            .gpv-projected-input:focus {
-                outline: none;
-                border-color: #0369a1;
-                box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
-            }
-            
-            .gpv-projected-input:hover {
-                border-color: #0369a1;
-            }
-            
-            .gpv-projected-input::placeholder {
-                color: #075985;
-                font-weight: 400;
-                font-size: 13px;
-            }
-            
-            /* Remove spinner arrows for projected input */
-            .gpv-projected-input::-webkit-outer-spin-button,
-            .gpv-projected-input::-webkit-inner-spin-button {
-                -webkit-appearance: none;
-                margin: 0;
-            }
-            
-            .gpv-projected-input[type=number] {
-                -moz-appearance: textfield;
             }
 
             /* Performance Chart + Metrics */

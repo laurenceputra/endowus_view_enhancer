@@ -25,7 +25,6 @@ The Tampermonkey userscript uses a single-file architecture that:
 - Injects UI components directly into the DOM
 - Processes all data client-side
 - Derives action instructions from allocation drift for manual rebalancing
-- Supports an optional multi-day rebalance tracker that can be synced as encrypted config metadata
 
 **File Structure:**
 ```

@@ -1,11 +1,10 @@
-# Manual Rebalance + Reliability Product Spec
+# Action Guidance + Reliability Product Spec
 
 ## Goal
-Define a feasible roadmap for improving Goal Portfolio Viewer when bulk-apply APIs are unavailable and users rebalance manually over multiple days.
+Define a feasible roadmap for improving Goal Portfolio Viewer when bulk-apply APIs are unavailable and users require clearer action guidance and stronger reliability.
 
 This spec covers items **1–5** from the prioritized list:
 1. Action instructions layer (beyond raw diff)
-2. Workflow acceleration for week-long manual rebalance
 3. Reliability hardening for third-party interception
 4. Sync error UX and supportability improvements
 5. Prioritized implementation order and release plan
@@ -62,13 +61,13 @@ Add an explicit action model per goal and per bucket that converts diff into use
 
 ---
 
-### 2) Week-Long Workflow Acceleration (plan tracker)
+### 2) Workflow note (rebalance tracker deferred)
 
 **Problem**
 Manual rebalance is multi-day; single-session checklist assumptions fail in real usage.
 
 **Scope**
-Introduce an explicit rebalance plan tracker that users activate manually.
+Defer plan-tracker implementation until a more robust execution-aware model is designed.
 
 **File targets**
 - `tampermonkey/goal_portfolio_viewer.user.js`
@@ -77,21 +76,16 @@ Introduce an explicit rebalance plan tracker that users activate manually.
 - `TECHNICAL_DESIGN.md`
 
 **Activation model**
-- Tracker starts only when user clicks `Start Rebalance Plan`.
-- It does not auto-trigger on page load or target edits.
+- Plan-tracker behavior is out of scope for now.
 
 **Lifecycle model**
-- Plan states: `Draft` -> `Active` -> `Completed` / `Archived`
-- Item states: `Planned` -> `Submitted` -> `Settling` -> `Verified` -> `Closed`
-- Alternate state: `Needs Recalc` when data drift exceeds threshold.
+No tracker states are currently implemented in this scope.
 
 **Persistence model**
-- Phase 1: local-only persistence in Tampermonkey storage.
-- Phase 2 (optional): sync plan metadata only after explicit opt-in and schema extension.
+N/A (deferred).
 
 **Rebase behavior**
-- User can run `Recalculate Plan` to refresh actions with latest holdings.
-- Previous plan revisions are retained for auditability.
+N/A (deferred).
 
 ---
 
@@ -178,7 +172,7 @@ Deliver in three phases with explicit gates.
 - **Phase 2 (Execution Guidance):**
   - Work item 1 (action instructions layer)
 - **Phase 3 (Long-Running Workflow):**
-  - Work item 2 (week-long tracker)
+  - Work item 2 (deferred workflow note)
 
 **Rationale**
 - Reliability and sync trust reduce regressions/support load before adding new workflow complexity.
@@ -192,10 +186,8 @@ Deliver in three phases with explicit gates.
 - Bucket view provides a sorted queue of recommended manual actions.
 - Existing diff cell remains visible and unchanged in meaning.
 
-### Item 2 (Workflow Acceleration)
-- Tracker starts only via explicit user action.
-- Users can resume plans across days with state intact.
-- Recalculation creates a new revision without deleting prior history.
+### Item 2 (Workflow note)
+- Rebalance plan tracker is intentionally deferred in this scope.
 
 ### Item 3 (Reliability)
 - Partial endpoint failures do not collapse the entire UI.
@@ -222,7 +214,7 @@ Deliver in three phases with explicit gates.
 ### Manual
 - Simulate missing/partial API payloads and verify degraded-state messaging.
 - Simulate sync error categories and verify CTA correctness.
-- Start a plan, leave/reload over multiple days, resume and recalc.
+- Validate action guidance without tracker features.
 
 ### Commands
 ```bash
@@ -240,7 +232,6 @@ Suggested commit message when implementing this spec:
 
 ## Completion Checklist
 - [ ] Action instruction model implemented and tested
-- [ ] Week-long tracker activation/lifecycle implemented and tested
 - [ ] Interception reliability guardrails implemented and tested
 - [ ] Sync error taxonomy + UX implemented and tested
 - [ ] README + TECHNICAL_DESIGN + TESTING docs updated
