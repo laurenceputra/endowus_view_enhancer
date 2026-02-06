@@ -122,7 +122,7 @@ We use a multi-agent workflow to maintain code quality and ensure robust develop
 ### Quick Start for Contributors
 
 1. **Fork and clone** the repository
-2. **Install dependencies**: `npm install`
+2. **Install dependencies**: `pnpm install`
 3. **Make changes** following the workflow below
 4. **Submit PR** with clear description
 
@@ -150,10 +150,12 @@ Our project uses specialized AI agents for different aspects of development:
 
 ```bash
 # Development
-npm test              # Run tests
-npm run lint          # Check code quality
-npm run test:watch    # Development mode
+pnpm test              # Run tests
+pnpm run lint          # Check code quality
+pnpm run test:watch    # Development mode
 ```
+
+`pnpm-lock.yaml` is committed to keep workspace installs reproducible across contributors and CI.
 
 ### Documentation
 

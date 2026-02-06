@@ -19,7 +19,7 @@ const {
     collectAllGoalIds,
     buildGoalTargetById,
     buildGoalFixedById
-} = require('../tampermonkey/goal_portfolio_viewer.user.js');
+} = require('../goal_portfolio_viewer.user.js');
 
 const {
     createBucketMapFixture,

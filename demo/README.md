@@ -81,7 +81,7 @@ This creates `mock-data.json` with randomized investment amounts and returns.
 The E2E smoke test uses Playwright to validate the demo flow and capture screenshots.
 
 ```bash
-npm run test:e2e
+pnpm run test:e2e
 ```
 
 Screenshots are saved to `demo/screenshots/` by default (override with `E2E_SCREENSHOT_DIR`):
@@ -102,7 +102,7 @@ npx playwright install --with-deps
 Using Node.js with Playwright:
 ```bash
 # Install Playwright (one-time setup)
-npm install playwright
+pnpm install
 npx playwright install chromium
 
 # Run automated screenshot capture

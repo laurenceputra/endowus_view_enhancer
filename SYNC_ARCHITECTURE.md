@@ -139,7 +139,7 @@ goal-portfolio-viewer/
 ├── .github/
 │   ├── agents/
 │   └── workflows/
-├── __tests__/
+├── tampermonkey/__tests__/
 ├── demo/
 ├── docs/
 ├── tampermonkey/
@@ -158,7 +158,7 @@ goal-portfolio-viewer/
 │   ├── agents/
 │   └── workflows/
 │       └── deploy-workers.yml          # NEW: Auto-deploy Workers
-├── __tests__/
+├── tampermonkey/__tests__/
 │   ├── sync.test.js                    # NEW: Sync manager tests
 │   └── encryption.test.js              # NEW: Crypto tests
 ├── demo/

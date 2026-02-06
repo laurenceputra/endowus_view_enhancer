@@ -1,0 +1,4 @@
+packages:
+  - "tampermonkey"
+  - "workers"
+  - "demo"

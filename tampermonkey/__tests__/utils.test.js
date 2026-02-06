@@ -47,7 +47,7 @@ const {
     summarizePerformanceMetrics,
     derivePerformanceWindows,
     parseJsonSafely
-} = require('../tampermonkey/goal_portfolio_viewer.user.js');
+} = require('../goal_portfolio_viewer.user.js');
 
 describe('getGoalTargetKey', () => {
     test('should generate correct storage key format', () => {
