@@ -292,6 +292,10 @@ Contributions are welcome! To contribute:
 
 ## Changelog
 
+### Version 2.9.3
+- Rendered sync conflict resolution inside the sync settings overlay
+- Stopped syncing target percentages for fixed goals to avoid unnecessary conflicts
+
 ### Version 2.9.2
 - Updated allocation drift calculations to use target amounts as the denominator
 - Included zero-balance goals with positive targets in allocation drift reporting

@@ -30,6 +30,15 @@ describe('conflict diff helpers', () => {
         expect(items[0].remoteFixedDisplay).toBe('No');
     });
 
+    it('ignores target changes when goal is fixed', () => {
+        const conflict = {
+            local: { goalTargets: { goal1: 10 }, goalFixed: { goal1: true } },
+            remote: { goalTargets: { goal1: 15 }, goalFixed: { goal1: true } }
+        };
+        const items = buildConflictDiffItemsForMap(conflict, { goal1: 'Goal One' });
+        expect(items).toHaveLength(0);
+    });
+
     it('detects fixed change only', () => {
         const conflict = {
             local: { goalTargets: {}, goalFixed: { goal1: true } },
