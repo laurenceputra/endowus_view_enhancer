@@ -1563,7 +1563,8 @@
                 return null;
             }
             const parsed = parseJsonSafely(stored);
-            if (!validateFn(parsed)) {
+            const validator = typeof validateFn === 'function' ? validateFn : () => true;
+            if (!validator(parsed)) {
                 Storage.remove(key, context);
                 return null;
             }
@@ -2224,6 +2225,9 @@
         if (code === 'RATE_LIMIT_EXCEEDED') {
             return 'rate_limit';
         }
+        if (code === 'SYNC_IN_PROGRESS') {
+            return 'in_progress';
+        }
         if (code.includes('AUTH') || /unauthorized|forbidden|token|login/i.test(message)) {
             return 'auth';
         }
@@ -2269,6 +2273,13 @@
                     ? `Rate limit reached. Retry in about ${Math.ceil(retryAfter / 60)} minute(s).`
                     : 'Rate limit reached. Please wait before syncing again.',
                 primaryAction: 'Retry later'
+            };
+        }
+        if (category === 'in_progress') {
+            return {
+                category,
+                userMessage: 'Sync already in progress. Please wait for it to finish before retrying.',
+                primaryAction: 'Wait for sync'
             };
         }
         if (category === 'crypto') {
@@ -2456,6 +2467,12 @@
 
         if (!SyncEncryption.isSupported()) {
             throw new Error('Web Crypto API not supported in this browser');
+        }
+
+        if (syncStatus === SYNC_STATUS.syncing) {
+            const error = new Error('Sync already in progress');
+            error.code = 'SYNC_IN_PROGRESS';
+            throw error;
         }
 
         requireSessionKey();
