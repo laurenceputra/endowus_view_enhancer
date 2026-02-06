@@ -24,7 +24,6 @@ The Tampermonkey userscript uses a single-file architecture that:
 - Uses monkey patching for API interception
 - Injects UI components directly into the DOM
 - Processes all data client-side
-- Derives action instructions from allocation drift for manual rebalancing
 
 **File Structure:**
 ```

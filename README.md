@@ -53,7 +53,7 @@ Core-satellite strategies complement this approach. The core anchors each goal w
 - **Goal-based clarity:** Keep multiple goals organized without spreadsheets or manual rollups.
 - **Core + satellite aligned:** See long-term core holdings and tactical satellites side-by-side within each life goal.
 - **Asset allocation visibility:** CPF, SRS, and cash investments show together with clear return and growth indicators.
-- **Allocation drift + actions:** Set goal targets to surface per-goal-type drift and get prioritized manual actions (Top up / Trim / Monitor) with action amounts.
+- **Allocation drift:** Set goal targets to surface per-goal-type drift (measured against target amounts) and spot imbalances early.
 - **Privacy first:** By default, all data stays on your device and is processed locally in the browser. Optional sync is opt-in and only sends encrypted configuration data.
 - **Zero friction:** Use the "Bucket Name - Description" naming pattern in your goal names and the script does the rest.
 

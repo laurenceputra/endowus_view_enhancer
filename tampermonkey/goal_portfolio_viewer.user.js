@@ -58,20 +58,6 @@
         diffCell: 'gpv-diff-cell'
     };
 
-    const ACTION_LABELS = {
-        topUp: 'Top up',
-        trim: 'Trim',
-        monitor: 'Monitor',
-        needsTarget: 'Needs target setup',
-        fixed: 'No action (fixed)'
-    };
-
-    const ACTION_PRIORITIES = {
-        high: 'High',
-        medium: 'Medium',
-        low: 'Low'
-    };
-
     // ============================================
     // Sync Constants (Cross-Device Sync Feature)
     // ============================================
@@ -368,120 +354,6 @@
     }
 
 
-    function getActionPriorityFromDrift(driftRatio) {
-        if (typeof driftRatio !== 'number' || !Number.isFinite(driftRatio) || driftRatio <= 0) {
-            return ACTION_PRIORITIES.low;
-        }
-        if (driftRatio >= 0.2) {
-            return ACTION_PRIORITIES.high;
-        }
-        if (driftRatio >= 0.1) {
-            return ACTION_PRIORITIES.medium;
-        }
-        return ACTION_PRIORITIES.low;
-    }
-
-    function deriveGoalActionInstruction({
-        diffAmount,
-        targetPercent,
-        adjustedTotal,
-        isFixed
-    }) {
-        if (isFixed === true) {
-            return {
-                actionLabel: ACTION_LABELS.fixed,
-                actionAmount: 0,
-                actionPriority: ACTION_PRIORITIES.low,
-                actionReason: 'Goal is fixed and excluded from action guidance.',
-                actionGeneratedAt: Date.now(),
-                actionDriftRatio: null
-            };
-        }
-        if (targetPercent === null || targetPercent === undefined) {
-            return {
-                actionLabel: ACTION_LABELS.needsTarget,
-                actionAmount: 0,
-                actionPriority: ACTION_PRIORITIES.high,
-                actionReason: 'Set a target percentage before generating actions.',
-                actionGeneratedAt: Date.now(),
-                actionDriftRatio: null
-            };
-        }
-        const numericValues = getFiniteNumbers([targetPercent, adjustedTotal]);
-        if (!numericValues || diffAmount === null || diffAmount === undefined || !Number.isFinite(diffAmount)) {
-            return {
-                actionLabel: ACTION_LABELS.monitor,
-                actionAmount: 0,
-                actionPriority: ACTION_PRIORITIES.low,
-                actionReason: 'Insufficient valid data to derive action amount.',
-                actionGeneratedAt: Date.now(),
-                actionDriftRatio: null
-            };
-        }
-        const [numericTargetPercent, numericAdjustedTotal] = numericValues;
-        const targetAmount = (numericTargetPercent / 100) * numericAdjustedTotal;
-        if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
-            return {
-                actionLabel: ACTION_LABELS.monitor,
-                actionAmount: 0,
-                actionPriority: ACTION_PRIORITIES.low,
-                actionReason: 'Target amount is not actionable.',
-                actionGeneratedAt: Date.now(),
-                actionDriftRatio: null
-            };
-        }
-        const absDiff = Math.abs(diffAmount);
-        const threshold = Math.max(1, targetAmount * 0.05);
-        const driftRatio = absDiff / targetAmount;
-        const roundedAmount = Math.round(absDiff / 10) * 10;
-        if (absDiff <= threshold) {
-            return {
-                actionLabel: ACTION_LABELS.monitor,
-                actionAmount: roundedAmount,
-                actionPriority: ACTION_PRIORITIES.low,
-                actionReason: `Within threshold (${formatMoney(absDiff)} drift). Monitor only.`,
-                actionGeneratedAt: Date.now(),
-                actionDriftRatio: driftRatio
-            };
-        }
-        const isTrim = diffAmount > 0;
-        return {
-            actionLabel: isTrim ? ACTION_LABELS.trim : ACTION_LABELS.topUp,
-            actionAmount: roundedAmount,
-            actionPriority: getActionPriorityFromDrift(driftRatio),
-            actionReason: `${isTrim ? 'Over' : 'Under'} target by ${formatMoney(absDiff)} (${formatPercent(driftRatio, { multiplier: 100, showSign: false })}).`,
-            actionGeneratedAt: Date.now(),
-            actionDriftRatio: driftRatio
-        };
-    }
-
-    function buildActionQueue(goalModels) {
-        const safeGoals = Array.isArray(goalModels) ? goalModels : [];
-        const priorityRank = {
-            [ACTION_PRIORITIES.high]: 0,
-            [ACTION_PRIORITIES.medium]: 1,
-            [ACTION_PRIORITIES.low]: 2
-        };
-        return safeGoals
-            .filter(goal => goal && goal.actionLabel && goal.actionLabel !== ACTION_LABELS.fixed && goal.actionLabel !== ACTION_LABELS.needsTarget)
-            .map(goal => ({
-                goalId: goal.goalId,
-                goalName: goal.goalName,
-                actionLabel: goal.actionLabel,
-                actionAmount: goal.actionAmount,
-                actionPriority: goal.actionPriority,
-                actionReason: goal.actionReason,
-                actionDriftRatio: goal.actionDriftRatio
-            }))
-            .sort((left, right) => {
-                const priorityDelta = (priorityRank[left.actionPriority] ?? 99) - (priorityRank[right.actionPriority] ?? 99);
-                if (priorityDelta !== 0) {
-                    return priorityDelta;
-                }
-                return (right.actionAmount || 0) - (left.actionAmount || 0);
-            });
-    }
-
     function buildAllocationDriftModel(goalModels, adjustedTotal) {
         if (!Array.isArray(goalModels) || goalModels.length === 0) {
             return {
@@ -669,12 +541,6 @@
             ? goal.simpleRateOfReturnPercent
             : null;
         const returnValue = goal.totalCumulativeReturn || 0;
-        const actionInstruction = deriveGoalActionInstruction({
-            diffAmount: diffInfo.diffAmount,
-            targetPercent,
-            adjustedTotal,
-            isFixed
-        });
         return {
             goalId: goal.goalId,
             goalName: goal.goalName,
@@ -685,8 +551,7 @@
             diffAmount: diffInfo.diffAmount,
             diffClass: diffInfo.diffClass,
             returnValue,
-            returnPercent,
-            ...actionInstruction
+            returnPercent
         };
     }
 
@@ -727,20 +592,13 @@
                 return {
                     ...goal,
                     diffAmount: diffInfo.diffAmount,
-                    diffClass: diffInfo.diffClass,
-                    ...deriveGoalActionInstruction({
-                        diffAmount: diffInfo.diffAmount,
-                        targetPercent: remainingTargetPercent,
-                        adjustedTotal,
-                        isFixed: goal.isFixed
-                    })
+                    diffClass: diffInfo.diffClass
                 };
             });
         }
         const allocationDriftModel = buildAllocationDriftModel(goalModels, adjustedTotal);
         return {
             goalModels,
-            actionQueue: buildActionQueue(goalModels),
             remainingTargetPercent: adjustedRemainingTargetPercent,
             allocationDriftPercent: allocationDriftModel.allocationDriftPercent,
             allocationDriftDisplay: allocationDriftModel.allocationDriftDisplay,
@@ -978,17 +836,12 @@
                         allocationDriftDisplay: allocationModel.allocationDriftDisplay,
                         allocationDriftAvailable: allocationModel.allocationDriftAvailable,
                         goalModelsById: allocationModel.goalModelsById,
-                        actionQueue: allocationModel.actionQueue,
                         goals: allocationModel.goalModels.map(goal => ({
                             ...goal,
                             endingBalanceDisplay: formatMoney(goal.endingBalanceAmount),
                             percentOfTypeDisplay: formatPercent(goal.percentOfType),
                             targetDisplay: goal.targetPercent !== null ? goal.targetPercent.toFixed(2) : '',
                             diffDisplay: goal.diffAmount === null ? '-' : formatMoney(goal.diffAmount),
-                            actionAmountDisplay: formatMoney(goal.actionAmount || 0),
-                            actionDisplay: `${goal.actionLabel}${goal.actionAmount > 0 ? ` ${formatMoney(goal.actionAmount)}` : ''}`,
-                            actionReasonDisplay: goal.actionReason || '',
-                            actionPriorityDisplay: goal.actionPriority || ACTION_PRIORITIES.low,
                             returnDisplay: formatMoney(goal.returnValue),
                             returnPercentDisplay: formatPercent(goal.returnPercent, { multiplier: 100, showSign: false }),
                             returnClass: getReturnClass(goal.returnValue)
@@ -4465,28 +4318,7 @@ let GoalTargetStore;
 
 
 
-    function buildActionQueuePanel(goalTypeModel) {
-        const panel = createElement('div', 'gpv-action-queue-panel');
-        const title = createElement('h4', 'gpv-action-queue-title', 'Recommended Actions');
-        panel.appendChild(title);
-        const queue = Array.isArray(goalTypeModel.actionQueue) ? goalTypeModel.actionQueue : [];
-        if (queue.length === 0) {
-            panel.appendChild(createElement('div', 'gpv-action-queue-empty', 'No actionable drift right now.'));
-            return panel;
-        }
-        const list = createElement('ol', 'gpv-action-queue-list');
-        queue.forEach(item => {
-            const li = createElement('li', 'gpv-action-queue-item');
-            const line = `${item.actionPriority} · ${item.actionLabel} ${formatMoney(item.actionAmount)} · ${item.goalName}`;
-            li.appendChild(createElement('div', 'gpv-action-queue-line', line));
-            if (item.actionReason) {
-                li.appendChild(createElement('div', 'gpv-action-queue-reason', item.actionReason));
-            }
-            list.appendChild(li);
-        });
-        panel.appendChild(list);
-        return panel;
-    }
+
 
     function renderBucketView({
         contentDiv,
@@ -4567,7 +4399,6 @@ let GoalTargetStore;
             projectedInputContainer.appendChild(projectedInput);
             
             typeSection.appendChild(projectedInputContainer);
-            typeSection.appendChild(buildActionQueuePanel(goalTypeModel));
             
             // Add event listener for projected investment input
             projectedInput.addEventListener('input', function() {
@@ -4603,8 +4434,6 @@ let GoalTargetStore;
             headerRow.appendChild(targetHeader);
 
             headerRow.appendChild(createElement('th', null, 'Diff'));
-            headerRow.appendChild(createElement('th', null, 'Action'));
-            headerRow.appendChild(createElement('th', null, 'Priority'));
             headerRow.appendChild(createElement('th', null, 'Cumulative Return'));
             headerRow.appendChild(createElement('th', null, 'Return %'));
 
@@ -4650,8 +4479,6 @@ let GoalTargetStore;
                     ? `${CLASS_NAMES.diffCell} ${goalModel.diffClass}`
                     : CLASS_NAMES.diffCell;
                 tr.appendChild(createElement('td', diffClassName, goalModel.diffDisplay));
-                tr.appendChild(createElement('td', 'gpv-action-cell', goalModel.actionDisplay));
-                tr.appendChild(createElement('td', 'gpv-action-priority-cell', goalModel.actionPriorityDisplay));
                 tr.appendChild(createElement('td', goalModel.returnClass || null, goalModel.returnDisplay));
                 tr.appendChild(createElement('td', goalModel.returnClass || null, goalModel.returnPercentDisplay));
 
@@ -4775,8 +4602,6 @@ let GoalTargetStore;
         rows.forEach(row => {
             const targetInput = row.querySelector(`.${CLASS_NAMES.targetInput}`);
             const diffCell = row.querySelector(`.${CLASS_NAMES.diffCell}`);
-            const actionCell = row.querySelector('.gpv-action-cell');
-            const actionPriorityCell = row.querySelector('.gpv-action-priority-cell');
             if (!targetInput) {
                 return;
             }
@@ -4795,12 +4620,6 @@ let GoalTargetStore;
                 diffCell.className = goalModel.diffClass
                     ? `${CLASS_NAMES.diffCell} ${goalModel.diffClass}`
                     : CLASS_NAMES.diffCell;
-            }
-            if (actionCell) {
-                actionCell.textContent = `${goalModel.actionLabel}${goalModel.actionAmount > 0 ? ` ${formatMoney(goalModel.actionAmount)}` : ''}`;
-            }
-            if (actionPriorityCell) {
-                actionPriorityCell.textContent = goalModel.actionPriority || ACTION_PRIORITIES.low;
             }
         });
     }
@@ -6741,42 +6560,6 @@ updateSyncUI = function updateSyncUI() {
                 color: #dc2626;
             }
 
-            .gpv-action-cell,
-            .gpv-action-priority-cell {
-                font-size: 12px;
-                font-weight: 600;
-                color: #334155;
-            }
-
-            .gpv-action-queue-panel {
-                margin-top: 8px;
-                margin-bottom: 8px;
-                padding: 10px;
-                border-left: 4px solid #0ea5e9;
-                background: #f0f9ff;
-                border-radius: 6px;
-            }
-
-            .gpv-action-queue-list {
-                margin: 8px 0 0 18px;
-                padding: 0;
-            }
-
-            .gpv-action-queue-item {
-                margin-bottom: 6px;
-            }
-
-            .gpv-action-queue-line {
-                font-size: 13px;
-                font-weight: 600;
-                color: #0f172a;
-            }
-
-            .gpv-action-queue-reason {
-                font-size: 12px;
-                color: #334155;
-            }
-
             /* Performance Chart + Metrics */
 
             .gpv-performance-container {
@@ -7972,8 +7755,6 @@ updateSyncUI = function updateSyncUI() {
             getReturnClass,
             calculatePercentOfType,
             calculateGoalDiff,
-            deriveGoalActionInstruction,
-            buildActionQueue,
             isDashboardRoute,
             calculateFixedTargetPercent,
             calculateRemainingTargetPercent,

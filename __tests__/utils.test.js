@@ -20,8 +20,6 @@ const {
     formatPercent,
     formatGrowthPercentFromEndingBalance,
     calculateGoalDiff,
-    deriveGoalActionInstruction,
-    buildActionQueue,
     calculateFixedTargetPercent,
     calculateRemainingTargetPercent,
     isRemainingTargetAboveThreshold,
@@ -1778,46 +1776,5 @@ describe('buildMergedInvestmentData', () => {
 });
 
 
-describe('deriveGoalActionInstruction', () => {
-    test('should return needs target when target missing', () => {
-        const result = deriveGoalActionInstruction({
-            diffAmount: null,
-            targetPercent: null,
-            adjustedTotal: 1000,
-            isFixed: false
-        });
-        expect(result.actionLabel).toBe('Needs target setup');
-    });
 
-    test('should return trim for positive diff over threshold', () => {
-        const result = deriveGoalActionInstruction({
-            diffAmount: 250,
-            targetPercent: 50,
-            adjustedTotal: 1000,
-            isFixed: false
-        });
-        expect(result.actionLabel).toBe('Trim');
-        expect(result.actionAmount).toBeGreaterThan(0);
-    });
-
-    test('should return top up for negative diff over threshold', () => {
-        const result = deriveGoalActionInstruction({
-            diffAmount: -250,
-            targetPercent: 50,
-            adjustedTotal: 1000,
-            isFixed: false
-        });
-        expect(result.actionLabel).toBe('Top up');
-    });
-});
-
-describe('buildActionQueue', () => {
-    test('should sort by priority then action amount', () => {
-        const result = buildActionQueue([
-            { goalId: 'a', goalName: 'A', actionLabel: 'Top up', actionPriority: 'Low', actionAmount: 100, actionReason: 'x' },
-            { goalId: 'b', goalName: 'B', actionLabel: 'Trim', actionPriority: 'High', actionAmount: 50, actionReason: 'y' }
-        ]);
-        expect(result[0].goalId).toBe('b');
-    });
-});
 
