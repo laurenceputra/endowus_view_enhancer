@@ -147,4 +147,33 @@ describe('SyncManager', () => {
         expect(scheduleSpy).toHaveBeenCalledWith('fixed-update');
         expect(scheduleSpy).toHaveBeenCalledWith('fixed-clear');
     });
+
+    test('collectConfigData excludes targets for fixed goals', () => {
+        const { SyncManager, getGoalTargetKey, getGoalFixedKey } = loadModule();
+        const targetKey = getGoalTargetKey('goal-1');
+        const fixedKey = getGoalFixedKey('goal-1');
+
+        storage.set(targetKey, 25);
+        storage.set(fixedKey, true);
+        global.GM_listValues = () => [targetKey, fixedKey];
+
+        const config = SyncManager.collectConfigData();
+
+        expect(config.goalTargets).toEqual({});
+        expect(config.goalFixed).toEqual({ 'goal-1': true });
+    });
+
+    test('applyConfigData skips targets when goal is fixed', () => {
+        const { SyncManager, getGoalTargetKey, getGoalFixedKey } = loadModule();
+        const targetKey = getGoalTargetKey('goal-1');
+        const fixedKey = getGoalFixedKey('goal-1');
+
+        SyncManager.applyConfigData({
+            goalTargets: { 'goal-1': 45 },
+            goalFixed: { 'goal-1': true }
+        });
+
+        expect(storage.has(targetKey)).toBe(false);
+        expect(storage.get(fixedKey)).toBe(true);
+    });
 });

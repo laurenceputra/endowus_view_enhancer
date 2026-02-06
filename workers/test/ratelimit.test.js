@@ -5,13 +5,18 @@ import { rateLimit, getRateLimitStatus, resetRateLimit } from '../src/ratelimit.
 
 function createKvMock() {
   const store = new Map();
+  const optionsByKey = new Map();
   return {
     store,
+    optionsByKey,
     async get(key) {
       return store.has(key) ? JSON.parse(store.get(key)) : null;
     },
-    async put(key, value) {
+    async put(key, value, options) {
       store.set(key, value);
+      if (options) {
+        optionsByKey.set(key, options);
+      }
     },
     async delete(key) {
       store.delete(key);
@@ -67,6 +72,24 @@ test('rateLimit normalizes /sync/:userId path config', async () => {
   assert.equal(kv.store.size, 1);
   const [key] = [...kv.store.keys()];
   assert.ok(key.includes('/sync/:userId:GET'));
+});
+
+test('rateLimit uses minimum KV TTL when remaining window is short', async () => {
+  const kv = createKvMock();
+  const env = { SYNC_KV: kv };
+  const now = Date.now();
+  kv.store.set(
+    'ratelimit:user-1:/sync:POST',
+    JSON.stringify({ count: 1, resetAt: now + 30_000 })
+  );
+
+  const request = createRequest('POST', { 'X-User-Id': 'user-1' });
+  const result = await rateLimit(request, env, '/sync');
+
+  assert.equal(result.allowed, true);
+  const options = kv.optionsByKey.get('ratelimit:user-1:/sync:POST');
+  assert.ok(options);
+  assert.equal(options.expirationTtl, 60);
 });
 
 test('getRateLimitStatus returns default when key does not exist', async () => {

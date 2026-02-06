@@ -30,6 +30,8 @@ const RATE_LIMITS = {
 	}
 };
 
+const MIN_KV_TTL_SECONDS = 60;
+
 function getKvBinding(env) {
 	const bindingName = env?.SYNC_KV_BINDING || 'SYNC_KV';
 	const binding = env?.[bindingName];
@@ -105,10 +107,11 @@ export async function rateLimit(request, env, pathname, identifierOverride = nul
 	}
 
 	// Increment counter
+	const remainingSeconds = Math.ceil((currentData.resetAt - now) / 1000);
 	await kv.put(
 		rateLimitKey,
 		JSON.stringify({ count: currentData.count + 1, resetAt: currentData.resetAt }),
-		{ expirationTtl: Math.ceil((currentData.resetAt - now) / 1000) }
+		{ expirationTtl: Math.max(MIN_KV_TTL_SECONDS, remainingSeconds) }
 	);
 
 	return { allowed: true };
