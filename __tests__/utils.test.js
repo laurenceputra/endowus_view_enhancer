@@ -1774,3 +1774,7 @@ describe('buildMergedInvestmentData', () => {
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.goals).toHaveLength(2); // Both goals present
     });
 });
+
+
+
+

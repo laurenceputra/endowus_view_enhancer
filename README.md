@@ -81,6 +81,7 @@ Bring your core-satellite strategy to life with a view that aligns with how you 
 
 ---
 
+
 ## 🆕 Cross-Device Sync (Optional)
 
 Sync your portfolio configuration across multiple devices with end-to-end encryption.
@@ -95,7 +96,7 @@ Sync your portfolio configuration across multiple devices with end-to-end encryp
 **Privacy & Opt-In**:
 - ✅ Sync is completely optional.
 - ✅ No data is sent until you click **Save Settings**.
-- ✅ Only encrypted config values (goal targets + fixed flags) are synced.
+- ✅ Only encrypted config values are synced, including goal targets and fixed flags.
 - ✅ By default, a derived encryption key is stored locally after login or sign up to keep sync unlocked on this device (you can disable remember key or log out to clear it).
 
 **Getting Started**:

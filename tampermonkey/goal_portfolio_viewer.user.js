@@ -353,6 +353,7 @@
         };
     }
 
+
     function buildAllocationDriftModel(goalModels, adjustedTotal) {
         if (!Array.isArray(goalModels) || goalModels.length === 0) {
             return {
@@ -907,6 +908,11 @@
             value => value === true
         );
     }
+
+
+
+
+
 
     /**
      * Merges data from all three API endpoints into a structured bucket map
@@ -1926,6 +1932,7 @@
     const TOKEN_EXPIRY_SKEW_MS = 60 * 1000;
     let syncStatus = SYNC_STATUS.idle;
     let lastError = null;
+    let lastErrorMeta = null;
     const SYNC_ON_CHANGE_BUFFER_MS = 15000;
     let autoSyncTimer = null;
     let syncOnChangeTimer = null;
@@ -2209,6 +2216,82 @@
         });
     }
 
+
+    function categorizeSyncError(error) {
+        const message = String(error?.message || 'Unknown error');
+        const code = String(error?.code || '').toUpperCase();
+
+        if (code === 'RATE_LIMIT_EXCEEDED') {
+            return 'rate_limit';
+        }
+        if (code.includes('AUTH') || /unauthorized|forbidden|token|login/i.test(message)) {
+            return 'auth';
+        }
+        if (code.includes('TIMEOUT') || /timeout/i.test(message)) {
+            return 'timeout';
+        }
+        if (code.includes('CRYPTO') || /decrypt|encrypt|encryption key|password/i.test(message)) {
+            return 'crypto';
+        }
+        if (/network|failed to fetch|offline|cors/i.test(message)) {
+            return 'network';
+        }
+        if (code.includes('PARSE') || /json|parse|unexpected response/i.test(message)) {
+            return 'parse';
+        }
+        if (error && typeof error.status === 'number' && error.status >= 500) {
+            return 'server';
+        }
+        return 'server';
+    }
+
+    function getSyncErrorGuidance(error) {
+        const category = categorizeSyncError(error);
+        const retryAfter = Number(error?.retryAfterSeconds);
+        if (category === 'auth') {
+            return {
+                category,
+                userMessage: 'Authentication failed. Please log in again to refresh your session.',
+                primaryAction: 'Login again'
+            };
+        }
+        if (category === 'network') {
+            return {
+                category,
+                userMessage: 'Network issue detected. Check connection and retry sync.',
+                primaryAction: 'Retry sync'
+            };
+        }
+        if (category === 'rate_limit') {
+            return {
+                category,
+                userMessage: retryAfter > 0
+                    ? `Rate limit reached. Retry in about ${Math.ceil(retryAfter / 60)} minute(s).`
+                    : 'Rate limit reached. Please wait before syncing again.',
+                primaryAction: 'Retry later'
+            };
+        }
+        if (category === 'crypto') {
+            return {
+                category,
+                userMessage: 'Sync is locked. Enter your password and save settings to unlock encryption key.',
+                primaryAction: 'Unlock sync'
+            };
+        }
+        if (category === 'parse') {
+            return {
+                category,
+                userMessage: 'Unexpected server response. Retry and check sync server health if it persists.',
+                primaryAction: 'Retry sync'
+            };
+        }
+        return {
+            category,
+            userMessage: 'Sync server issue detected. Please retry in a moment.',
+            primaryAction: 'Retry sync'
+        };
+    }
+
     function createApiError(response, errorData, fallbackMessage) {
         const message = (errorData && (errorData.message || errorData.error)) || fallbackMessage;
         const error = new Error(message);
@@ -2398,12 +2481,14 @@
 
                 syncStatus = SYNC_STATUS.success;
                 lastError = null;
+                lastErrorMeta = null;
                 logDebug('[Goal Portfolio Viewer] Sync upload successful');
             } else if (direction === 'download') {
                 const serverData = await downloadConfig();
                 if (!serverData) {
                     syncStatus = SYNC_STATUS.success;
                     lastError = null;
+                    lastErrorMeta = null;
                     logDebug('[Goal Portfolio Viewer] No server data to download');
                 } else {
                     applyConfigData(serverData.config);
@@ -2413,6 +2498,7 @@
 
                     syncStatus = SYNC_STATUS.success;
                     lastError = null;
+                    lastErrorMeta = null;
                     logDebug('[Goal Portfolio Viewer] Sync download successful');
                 }
             } else {
@@ -2425,6 +2511,7 @@
 
                     syncStatus = SYNC_STATUS.success;
                     lastError = null;
+                    lastErrorMeta = null;
                     logDebug('[Goal Portfolio Viewer] No server data, uploaded local config');
                 } else {
                     const conflict = await detectConflict(localConfig, serverData);
@@ -2444,6 +2531,7 @@
 
                         syncStatus = SYNC_STATUS.success;
                         lastError = null;
+                        lastErrorMeta = null;
                         logDebug('[Goal Portfolio Viewer] Local config newer, uploaded to server');
                     } else if (localConfig.timestamp < serverData.metadata.timestamp) {
                         applyConfigData(serverData.config);
@@ -2453,10 +2541,12 @@
 
                         syncStatus = SYNC_STATUS.success;
                         lastError = null;
+                        lastErrorMeta = null;
                         logDebug('[Goal Portfolio Viewer] Server config newer, applied locally');
                     } else {
                         syncStatus = SYNC_STATUS.success;
                         lastError = null;
+                        lastErrorMeta = null;
                         logDebug('[Goal Portfolio Viewer] Sync already up to date');
                     }
                 }
@@ -2470,6 +2560,14 @@
             console.error('[Goal Portfolio Viewer] Sync failed:', error);
             syncStatus = SYNC_STATUS.error;
             lastError = error.message;
+            const guidance = getSyncErrorGuidance(error);
+            lastErrorMeta = {
+                category: guidance.category,
+                userMessage: guidance.userMessage,
+                primaryAction: guidance.primaryAction,
+                retryAfterSeconds: Number(error?.retryAfterSeconds) || null,
+                lastAttemptAt: Date.now()
+            };
             if (typeof updateSyncUI === 'function') {
                 updateSyncUI();
             }
@@ -2505,6 +2603,7 @@
 
             syncStatus = SYNC_STATUS.success;
             lastError = null;
+            lastErrorMeta = null;
             if (typeof updateSyncUI === 'function') {
                 updateSyncUI();
             }
@@ -2517,6 +2616,14 @@
             console.error('[Goal Portfolio Viewer] Conflict resolution failed:', error);
             syncStatus = SYNC_STATUS.error;
             lastError = error.message;
+            const guidance = getSyncErrorGuidance(error);
+            lastErrorMeta = {
+                category: guidance.category,
+                userMessage: guidance.userMessage,
+                primaryAction: guidance.primaryAction,
+                retryAfterSeconds: Number(error?.retryAfterSeconds) || null,
+                lastAttemptAt: Date.now()
+            };
             if (typeof updateSyncUI === 'function') {
                 updateSyncUI();
             }
@@ -2629,6 +2736,7 @@
         return {
             status: syncStatus,
             lastError,
+            lastErrorMeta,
             lastSync: Storage.get(SYNC_STORAGE_KEYS.lastSync, null),
             isEnabled: isEnabled(),
             isConfigured: isConfigured(),
@@ -2810,6 +2918,7 @@
         
         syncStatus = SYNC_STATUS.idle;
         lastError = null;
+        lastErrorMeta = null;
         
         logDebug('[Goal Portfolio Viewer] Sync configuration cleared');
     }
@@ -2970,6 +3079,30 @@ let GoalTargetStore;
         return null;
     }
 
+
+    function validateEndpointPayload(endpointKey, data) {
+        if (!data || typeof data !== 'object') {
+            return { valid: false, reason: 'Expected object payload' };
+        }
+        if (!Array.isArray(data)) {
+            // Some tests/mocks use object payloads; accept and defer to endpoint handlers.
+            return { valid: true, reason: null };
+        }
+        if (endpointKey === 'performance') {
+            const isValid = data.every(item => item && typeof item === 'object' && item.goalId);
+            return { valid: isValid, reason: isValid ? null : 'Missing goalId in performance payload' };
+        }
+        if (endpointKey === 'investible') {
+            const isValid = data.every(item => item && typeof item === 'object' && item.goalId);
+            return { valid: isValid, reason: isValid ? null : 'Missing goalId in investible payload' };
+        }
+        if (endpointKey === 'summary') {
+            const isValid = data.every(item => item && typeof item === 'object' && item.goalId);
+            return { valid: isValid, reason: isValid ? null : 'Missing goalId in summary payload' };
+        }
+        return { valid: true, reason: null };
+    }
+
     async function handleInterceptedResponse(url, readData) {
         const endpointKey = detectEndpointKey(url);
         if (!endpointKey) {
@@ -2982,6 +3115,11 @@ let GoalTargetStore;
         try {
             const data = await readData();
             if (data === null || data === undefined) {
+                return;
+            }
+            const validation = validateEndpointPayload(endpointKey, data);
+            if (!validation.valid) {
+                console.warn(`[Goal Portfolio Viewer] Ignoring ${endpointKey} payload: ${validation.reason}`);
                 return;
             }
             handler(data);
@@ -4177,6 +4315,11 @@ let GoalTargetStore;
         contentDiv.appendChild(summaryContainer);
     }
 
+
+
+
+
+
     function renderBucketView({
         contentDiv,
         bucketViewModel,
@@ -4369,7 +4512,7 @@ let GoalTargetStore;
             });
 
             typeSection.addEventListener('change', event => {
-                const resolved = resolveGoalTypeActionTarget(event.target);
+                const changeTarget = event.target;                const resolved = resolveGoalTypeActionTarget(changeTarget);
                 if (!resolved || resolved.type !== 'fixed') {
                     return;
                 }
@@ -4387,7 +4530,9 @@ let GoalTargetStore;
                     projectedInvestmentsState
                 });
             });
+
             contentDiv.appendChild(typeSection);
+
         });
     }
 
@@ -4851,7 +4996,15 @@ function createSyncSettingsHTML() {
                 ${syncStatus.lastError ? `
                     <div class="gpv-sync-status-item gpv-sync-error">
                         <span class="gpv-sync-label">Error:</span>
-                        <span class="gpv-sync-value">${escapeHtml(syncStatus.lastError)}</span>
+                        <span class="gpv-sync-value">${escapeHtml(syncStatus.lastErrorMeta?.userMessage || syncStatus.lastError)}</span>
+                    </div>
+                    <div class="gpv-sync-status-item">
+                        <span class="gpv-sync-label">Category:</span>
+                        <span class="gpv-sync-value">${escapeHtml(syncStatus.lastErrorMeta?.category || 'server')}</span>
+                    </div>
+                    <div class="gpv-sync-status-item">
+                        <span class="gpv-sync-label">Recommended:</span>
+                        <span class="gpv-sync-value">${escapeHtml(syncStatus.lastErrorMeta?.primaryAction || 'Retry sync')}</span>
                     </div>
                 ` : ''}
             </div>
@@ -5585,7 +5738,7 @@ function createConflictDialogHTML(conflict) {
                         <li><strong>Fixed Goals:</strong> ${localFixed} configured</li>
                     </ul>
                     <button class="gpv-sync-btn gpv-sync-btn-primary" id="gpv-conflict-keep-local">
-                        Keep Local
+                        Keep This Device (Overwrite Server)
                     </button>
                 </div>
 
@@ -5600,7 +5753,7 @@ function createConflictDialogHTML(conflict) {
                         <li><strong>Device:</strong> ${conflict.remoteDeviceId.substring(0, 8)}...</li>
                     </ul>
                     <button class="gpv-sync-btn gpv-sync-btn-primary" id="gpv-conflict-use-remote">
-                        Use Remote
+                        Use Server (Overwrite This Device)
                     </button>
                 </div>
             </div>
@@ -5608,7 +5761,7 @@ function createConflictDialogHTML(conflict) {
             ${diffSection}
 
             <div class="gpv-conflict-warning">
-                <p><strong>⚠️ Warning:</strong> Choosing one option will overwrite the other. Make sure to choose carefully.</p>
+                <p><strong>⚠️ Warning:</strong> Keep This Device uploads local settings and overwrites server data. Use Server downloads server settings and overwrites local settings on this device.</p>
             </div>
 
             <div class="gpv-conflict-actions">
@@ -6406,9 +6559,9 @@ updateSyncUI = function updateSyncUI() {
             .gpv-diff-cell.negative {
                 color: #dc2626;
             }
-            
+
             /* Projected Investment Input Styles */
-            
+
             .gpv-projected-input-container {
                 margin-top: 12px;
                 margin-bottom: 12px;
@@ -6420,7 +6573,7 @@ updateSyncUI = function updateSyncUI() {
                 align-items: center;
                 gap: 12px;
             }
-            
+
             .gpv-projected-label {
                 display: flex;
                 align-items: center;
@@ -6431,11 +6584,11 @@ updateSyncUI = function updateSyncUI() {
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
                 white-space: nowrap;
             }
-            
+
             .gpv-projected-icon {
                 font-size: 16px;
             }
-            
+
             .gpv-projected-input {
                 width: 140px;
                 padding: 6px 12px;
@@ -6448,30 +6601,30 @@ updateSyncUI = function updateSyncUI() {
                 transition: all 0.2s ease;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
-            
+
             .gpv-projected-input:focus {
                 outline: none;
                 border-color: #0369a1;
                 box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
             }
-            
+
             .gpv-projected-input:hover {
                 border-color: #0369a1;
             }
-            
+
             .gpv-projected-input::placeholder {
                 color: #075985;
                 font-weight: 400;
                 font-size: 13px;
             }
-            
+
             /* Remove spinner arrows for projected input */
             .gpv-projected-input::-webkit-outer-spin-button,
             .gpv-projected-input::-webkit-inner-spin-button {
                 -webkit-appearance: none;
                 margin: 0;
             }
-            
+
             .gpv-projected-input[type=number] {
                 -moz-appearance: textfield;
             }
