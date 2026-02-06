@@ -7,10 +7,11 @@ runs:
       with:
         node-version: 20.x
         cache: 'pnpm'
-    - name: Setup pnpm
-      uses: pnpm/action-setup@v4
-      with:
-        version: 9.12.3
+    - name: Setup pnpm (corepack)
+      shell: bash
+      run: |
+        corepack enable
+        corepack prepare pnpm@9.12.3 --activate
     - name: Install workers dependencies
       shell: bash
       run: pnpm --filter ./workers install --frozen-lockfile
