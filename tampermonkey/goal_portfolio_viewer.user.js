@@ -7944,7 +7944,7 @@ updateSyncUI = function updateSyncUI() {
             getChartDimensions: fallbackGetChartDimensions,
             createLineChartSvg: fallbackCreateLineChartSvg,
             buildPerformanceWindowGrid: fallbackBuildPerformanceWindowGrid
-        } = require('../__tests__/helpers/chartHelpers');
+        } = require('./__tests__/helpers/chartHelpers');
 
         module.exports = {
             ...baseExports,

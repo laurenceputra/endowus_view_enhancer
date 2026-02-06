@@ -17,7 +17,7 @@ The project uses a unique pattern to enable testing without code duplication:
    - Conditional exports at the bottom: `if (typeof module !== 'undefined' && module.exports)`
    - Works standalone in browser, exports functions in Node.js for testing
 
-2. **Tests** (`__tests__/utils.test.js`):
+2. **Tests** (`tampermonkey/__tests__/utils.test.js`):
    - Import pure functions directly from the userscript
    - Test the REAL implementation, not a duplicate
    - No synchronization needed between files
@@ -29,7 +29,7 @@ The project uses a unique pattern to enable testing without code duplication:
 **IMPORTANT**: Changes to logic are made in ONE place:
 - Update function in `tampermonkey/goal_portfolio_viewer.user.js`
 - Add function to exports section if it's new
-- Add/update tests in `__tests__/utils.test.js`
+- Add/update tests in `tampermonkey/__tests__/utils.test.js`
 
 ### Test Hooks and Conditional Exports
 
@@ -43,20 +43,20 @@ The project uses a unique pattern to enable testing without code duplication:
 Run tests on Node 20.x to match CI and avoid environment drift.
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### Run Tests
 
 ```bash
 # Run all tests once
-npm test
+pnpm test
 
 # Run tests in watch mode (auto-rerun on changes)
-npm run test:watch
+pnpm run test:watch
 
 # Run tests with coverage report
-npm run test:coverage
+pnpm run test:coverage
 
 # Run layered coverage (userscript vs overall)
 ```
@@ -85,7 +85,7 @@ All files |     100 |    94.73 |     100 |     100 |
 
 ### Test Files
 
-- `__tests__/utils.test.js` - Unit tests for all pure functions
+- `tampermonkey/__tests__/utils.test.js` - Unit tests for all pure functions
 
 ### Tested Functions
 
@@ -199,8 +199,8 @@ The CI workflow (`.github/workflows/ci.yml`) runs on:
 
 1. Checkout code
 2. Setup Node.js (18.x and 20.x)
-3. Install dependencies (`npm ci`)
-4. Run tests (`npm test`)
+3. Install dependencies (`pnpm install`)
+4. Run tests (`pnpm test`)
 5. Upload coverage (Node 20.x only)
 
 ### CI Requirements
@@ -221,7 +221,7 @@ The CI workflow (`.github/workflows/ci.yml`) runs on:
 ### Tests Fail Locally But Pass in CI
 
 - Ensure you have the correct Node.js version
-- Delete `node_modules` and `package-lock.json`, then `npm install`
+- Delete `node_modules` and `pnpm-lock.yaml`, then `pnpm install`
 - Check for environment-specific code
 
 ### Tests Pass But Coverage is Low
@@ -250,7 +250,7 @@ When updating the userscript:
 
 1. ✅ Update function in `tampermonkey/goal_portfolio_viewer.user.js`
 2. ✅ If adding a new testable function, add it to the conditional exports section
-3. ✅ Update or add tests in `__tests__/utils.test.js`
+3. ✅ Update or add tests in `tampermonkey/__tests__/utils.test.js`
 4. ✅ Run tests locally
 5. ✅ Commit all changes together
 
@@ -314,7 +314,7 @@ Create initial automated test coverage for the Cloudflare Worker backend using *
    - Changes:
      - Add path filtering/conditional job execution so:
        - Worker unit test job runs for changes under `workers/**` and related workflow/test config files.
-       - Existing userscript unit tests run for `tampermonkey/**`, `__tests__/**`, or root JS test config changes.
+       - Existing userscript unit tests run for `tampermonkey/**` or root JS test config changes.
      - Ensure skipped jobs do not block PRs.
 
 ### Acceptance Criteria
@@ -339,9 +339,9 @@ Create initial automated test coverage for the Cloudflare Worker backend using *
 ### Verification
 
 - Local verification commands (during implementation):
-  - `npm run test`
-  - `npm run test:coverage`
-  - `npm --prefix workers run test:unit` (once added)
+  - `pnpm run test`
+  - `pnpm run test:coverage`
+  - `pnpm --filter ./workers test:unit` (once added)
 - CI verification:
   - Open one PR that changes only `workers/src/**` and confirm only worker unit test path executes.
   - Open one PR that changes only `tampermonkey/**` and confirm worker unit test path is skipped.

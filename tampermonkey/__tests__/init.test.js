@@ -60,7 +60,7 @@ describe('initialization and URL monitoring', () => {
 
     test('auto-init stays disabled when flag is set', () => {
         window.__GPV_DISABLE_AUTO_INIT = true;
-        require('../tampermonkey/goal_portfolio_viewer.user.js');
+        require('../goal_portfolio_viewer.user.js');
 
         document.dispatchEvent(new window.Event('DOMContentLoaded'));
         expect(document.querySelector('.gpv-trigger-btn')).toBeNull();
@@ -73,7 +73,7 @@ describe('initialization and URL monitoring', () => {
             configurable: true
         });
 
-        require('../tampermonkey/goal_portfolio_viewer.user.js');
+        require('../goal_portfolio_viewer.user.js');
         document.dispatchEvent(new window.Event('DOMContentLoaded'));
 
         const button = document.querySelector('.gpv-trigger-btn');
@@ -84,7 +84,7 @@ describe('initialization and URL monitoring', () => {
     });
 
     test('startUrlMonitoring toggles button visibility on route change', () => {
-        const exportsModule = require('../tampermonkey/goal_portfolio_viewer.user.js');
+        const exportsModule = require('../goal_portfolio_viewer.user.js');
         exportsModule.startUrlMonitoring();
 
         expect(document.querySelector('.gpv-trigger-btn')).toBeTruthy();
@@ -116,7 +116,7 @@ describe('initialization and URL monitoring', () => {
         global.GM_setValue('api_summary', JSON.stringify(summaryData));
         global.alert = jest.fn();
 
-        const exportsModule = require('../tampermonkey/goal_portfolio_viewer.user.js');
+        const exportsModule = require('../goal_portfolio_viewer.user.js');
         exportsModule.init();
         exportsModule.showOverlay();
 

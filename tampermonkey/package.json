@@ -1,0 +1,36 @@
+{
+  "name": "tampermonkey",
+  "version": "2.9.3",
+  "description": "Goal Portfolio Viewer userscript tooling",
+  "private": true,
+  "main": "goal_portfolio_viewer.user.js",
+  "scripts": {
+    "lint": "eslint .",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "jest": "^29.7.0",
+    "jsdom": "^22.1.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFiles": [
+      "<rootDir>/__tests__/setup.js"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": [
+      "json-summary",
+      "text"
+    ],
+    "collectCoverageFrom": [
+      "**/*.user.js"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ]
+  }
+}

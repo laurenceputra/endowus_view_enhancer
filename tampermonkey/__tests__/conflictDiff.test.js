@@ -2,7 +2,7 @@ const {
     buildConflictDiffItems: buildConflictDiffItemsForMap,
     formatSyncTarget,
     formatSyncFixed
-} = require('../tampermonkey/goal_portfolio_viewer.user.js');
+} = require('../goal_portfolio_viewer.user.js');
 
 describe('conflict diff helpers', () => {
     const baseConflict = {

@@ -32,7 +32,7 @@ describe('sync settings UI', () => {
         }
         global.XMLHttpRequest = FakeXHR;
 
-        exportsModule = require('../tampermonkey/goal_portfolio_viewer.user.js');
+        exportsModule = require('../goal_portfolio_viewer.user.js');
     });
 
     afterEach(() => {

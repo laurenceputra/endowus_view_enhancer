@@ -88,7 +88,7 @@ describe('SyncManager', () => {
     });
 
     function loadModule() {
-        exportsModule = require('../tampermonkey/goal_portfolio_viewer.user.js');
+        exportsModule = require('../goal_portfolio_viewer.user.js');
         return exportsModule;
     }
 

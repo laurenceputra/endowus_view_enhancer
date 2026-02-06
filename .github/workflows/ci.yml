@@ -30,17 +30,22 @@ jobs:
           filters: |
             userscript:
               - 'tampermonkey/**'
-              - '__tests__/**'
               - 'package.json'
-              - 'package-lock.json'
-              - 'eslint.config.mjs'
+              - 'pnpm-workspace.yaml'
+              - 'pnpm-lock.yaml'
+              - 'tampermonkey/eslint.config.mjs'
+              - 'tampermonkey/package.json'
             workers:
               - 'workers/**'
+              - 'pnpm-workspace.yaml'
+              - 'pnpm-lock.yaml'
             e2e:
               - 'demo/**'
               - 'tampermonkey/**'
               - 'package.json'
-              - 'package-lock.json'
+              - 'pnpm-workspace.yaml'
+              - 'pnpm-lock.yaml'
+              - 'demo/package.json'
 
   lint:
     name: Lint
@@ -55,13 +60,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20.x
-          cache: 'npm'
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run ESLint
-        run: npm run lint
+        run: pnpm --filter ./tampermonkey lint
 
   test:
     name: Test on Node.js ${{ matrix.node-version }}
@@ -81,13 +91,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run tests
-        run: npm run test:coverage
+        run: pnpm --filter ./tampermonkey test:coverage
 
       - name: Post userscript coverage comment
         if: github.event_name == 'pull_request'
@@ -95,7 +110,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const summary = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8')).total;
+            const summary = JSON.parse(fs.readFileSync('tampermonkey/coverage/coverage-summary.json', 'utf8')).total;
             const body = [
               '### 📊 Coverage Summary (Userscript)',
               '',
@@ -123,14 +138,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20.x
-          cache: 'npm'
-          cache-dependency-path: workers/package-lock.json
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
 
       - name: Install worker dependencies
-        run: npm ci --prefix workers
+        run: pnpm --filter ./workers install --frozen-lockfile
 
       - name: Run worker unit tests with coverage
-        run: npm --prefix workers run test:unit:coverage
+        run: pnpm --filter ./workers test:unit:coverage
 
       - name: Post worker coverage comment
         if: github.event_name == 'pull_request'
@@ -167,20 +186,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20.x
-          cache: 'npm'
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm --filter ./demo install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+        run: pnpm --filter ./demo exec playwright install --with-deps
 
       - name: Run E2E demo tests
         id: e2e
         env:
           E2E_SCREENSHOT_DIR: demo/screenshots
           E2E_SUMMARY_PATH: demo/screenshots/e2e-summary.json
-        run: npm run test:e2e
+        run: pnpm --filter ./demo test:e2e
 
       - name: Upload E2E screenshots
         if: always()

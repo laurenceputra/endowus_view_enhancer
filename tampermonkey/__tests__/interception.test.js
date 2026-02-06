@@ -54,7 +54,7 @@ describe('API interception', () => {
         }
         global.XMLHttpRequest = FakeXHR;
 
-        require('../tampermonkey/goal_portfolio_viewer.user.js');
+        require('../goal_portfolio_viewer.user.js');
     });
 
     afterEach(() => {

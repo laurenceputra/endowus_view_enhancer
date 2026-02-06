@@ -1,0 +1,12 @@
+{
+  "name": "demo",
+  "version": "1.0.0",
+  "description": "Goal Portfolio Viewer demo tooling",
+  "private": true,
+  "scripts": {
+    "test:e2e": "node e2e-tests.js"
+  },
+  "dependencies": {
+    "playwright": "^1.57.0"
+  }
+}

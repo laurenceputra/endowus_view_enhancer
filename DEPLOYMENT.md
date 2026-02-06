@@ -8,7 +8,7 @@ This guide covers deploying the sync backend to Cloudflare Workers for productio
 
 - Cloudflare account (free tier sufficient for testing)
 - Node.js 18+ installed
-- Wrangler CLI (`npm install -g wrangler`)
+- Wrangler CLI (`pnpm add -g wrangler`)
 - GitHub account (for secrets management)
 
 ## Quick Deploy (5 Minutes)
@@ -17,7 +17,7 @@ This guide covers deploying the sync backend to Cloudflare Workers for productio
 
 ```bash
 cd workers
-npm install
+pnpm install
 ```
 
 ### Step 2: Login to Cloudflare
@@ -280,7 +280,7 @@ npx wrangler kv:key list --binding=SYNC_KV --env production | \
 git pull origin main
 
 # Install dependencies
-cd workers && npm install
+cd workers && pnpm install
 
 # Deploy update
 npx wrangler deploy --env production

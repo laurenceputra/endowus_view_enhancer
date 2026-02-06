@@ -24,7 +24,7 @@ This directory contains the backend sync service for Goal Portfolio Viewer, buil
 
 ```bash
 cd workers
-npm install
+pnpm install
 ```
 
 ### 2. Login to Cloudflare
@@ -90,10 +90,10 @@ npx wrangler secret put JWT_SECRET
 
 ```bash
 # Deploy to production
-npm run deploy
+pnpm run deploy
 
 # Or deploy to staging first
-npm run deploy:staging
+pnpm run deploy:staging
 ```
 
 Your API will be available at: `https://goal-portfolio-sync.YOUR_SUBDOMAIN.workers.dev`
@@ -126,7 +126,7 @@ npx wrangler secret put JWT_SECRET --env staging
 4. **Deploy the test build**:
 
 ```bash
-npm run deploy:staging
+pnpm run deploy:staging
 # or: npx wrangler deploy --env staging
 ```
 
@@ -147,7 +147,7 @@ For per‑PR preview URLs that follow Cloudflare’s preview alias pattern:
    - The alias is derived from the PR number or branch name and is length‑safe.
    - The preview URL is posted to the PR.
 
-**Note:** Preview versions require the base worker to exist. Run one normal deploy (e.g., `npm run deploy`) before the first preview if the script has never been created in your account.
+**Note:** Preview versions require the base worker to exist. Run one normal deploy (e.g., `pnpm run deploy`) before the first preview if the script has never been created in your account.
 
 After a PR is opened or updated, the workflow posts the preview URL in the PR comments.
 Preview versions are managed by Cloudflare and clean up automatically, so no additional cleanup jobs are required.
@@ -311,7 +311,7 @@ Legacy password-hash auth is still accepted for older clients but is no longer r
 
 ```bash
 # Start local development server
-npm run dev
+pnpm run dev
 
 # API available at http://localhost:8787
 ```
@@ -362,7 +362,7 @@ curl http://localhost:8787/sync/test@example.com \
 # Run auth + token test suite
 node test-password-auth.js
 
-# Note: Ensure local dev server is running first (npm run dev)
+# Note: Ensure local dev server is running first (pnpm run dev)
 ```
 ```
 
@@ -665,9 +665,9 @@ Before deploying to production:
 ## 🤝 Contributing
 
 Improvements welcome! Please:
-1. Test changes locally (`npm run dev`)
-2. Run tests (`npm test`)
-3. Deploy to staging first (`npm run deploy:staging`)
+1. Test changes locally (`pnpm run dev`)
+2. Run tests (`pnpm test`)
+3. Deploy to staging first (`pnpm run deploy:staging`)
 4. Submit PR with clear description
 
 ## 📄 License

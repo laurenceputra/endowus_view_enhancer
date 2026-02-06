@@ -14,7 +14,7 @@ describe('Demo Mock Data Structure', () => {
     let mockData;
     
     beforeAll(() => {
-        const mockDataPath = path.join(__dirname, '../demo/mock-data.json');
+        const mockDataPath = path.join(__dirname, '../../demo/mock-data.json');
         const mockDataJson = fs.readFileSync(mockDataPath, 'utf8');
         mockData = JSON.parse(mockDataJson);
     });

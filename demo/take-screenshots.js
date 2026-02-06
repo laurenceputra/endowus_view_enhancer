@@ -7,7 +7,7 @@
  * Usage: node take-screenshots.js
  * 
  * Requirements:
- *   npm install playwright
+ *   pnpm install
  *   npx playwright install chromium
  * 
  * @eslint-env node
@@ -25,7 +25,7 @@ async function takeScreenshots() {
     } catch (_error) {
         console.error('\n❌ Playwright not installed!');
         console.error('\nTo use automated screenshots, install Playwright:');
-        console.error('  npm install playwright');
+        console.error('  pnpm install');
         console.error('  npx playwright install chromium');
         console.error('\nFor manual screenshots, run: python3 take-screenshots.py\n');
         process.exit(1);

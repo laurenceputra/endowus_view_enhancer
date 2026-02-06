@@ -1,14 +1,15 @@
 {
   "name": "goal-portfolio-viewer",
   "version": "2.9.3",
-  "description": "View and organize your investment portfolio by buckets with a modern interface",
-  "main": "tampermonkey/goal_portfolio_viewer.user.js",
+  "description": "Goal Portfolio Viewer workspace",
+  "private": true,
+  "packageManager": "pnpm@9.12.3",
   "scripts": {
-    "lint": "eslint tampermonkey __tests__",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "test:e2e": "node demo/e2e-tests.js"
+    "lint": "pnpm --filter ./tampermonkey lint",
+    "test": "pnpm --filter ./tampermonkey test",
+    "test:watch": "pnpm --filter ./tampermonkey test:watch",
+    "test:coverage": "pnpm --filter ./tampermonkey test:coverage",
+    "test:e2e": "pnpm --filter ./demo test:e2e"
   },
   "repository": {
     "type": "git",
@@ -26,30 +27,5 @@
   "bugs": {
     "url": "https://github.com/laurenceputra/goal-portfolio-viewer/issues"
   },
-  "homepage": "https://github.com/laurenceputra/goal-portfolio-viewer#readme",
-  "devDependencies": {
-    "eslint": "^9.39.2",
-    "jest": "^29.7.0",
-    "jsdom": "^22.1.0"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "setupFiles": [
-      "<rootDir>/__tests__/setup.js"
-    ],
-    "coverageDirectory": "coverage",
-    "coverageReporters": [
-      "json-summary",
-      "text"
-    ],
-    "collectCoverageFrom": [
-      "tampermonkey/**/*.user.js"
-    ],
-    "testMatch": [
-      "**/__tests__/**/*.test.js"
-    ]
-  },
-  "dependencies": {
-    "playwright": "^1.57.0"
-  }
+  "homepage": "https://github.com/laurenceputra/goal-portfolio-viewer#readme"
 }

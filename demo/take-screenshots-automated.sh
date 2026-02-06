@@ -22,7 +22,7 @@ echo "Start the demo server with: node demo/mock-server.js"
 echo ""
 
 echo "Note: For automated screenshots using Playwright:"
-echo "  1. Install Playwright: npm install playwright"
+echo "  1. Install Playwright: pnpm install"
 echo "  2. Install browser: npx playwright install chromium"
 echo "  3. Run: node demo/take-screenshots.js"
 echo ""

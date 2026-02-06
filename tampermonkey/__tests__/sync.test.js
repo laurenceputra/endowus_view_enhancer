@@ -33,7 +33,7 @@ global.window = global.window || {};
 global.window.__GPV_DISABLE_AUTO_INIT = true;
 
 // Import the UserScript to get access to SyncEncryption
-const { SyncEncryption } = require('../tampermonkey/goal_portfolio_viewer.user.js');
+const { SyncEncryption } = require('../goal_portfolio_viewer.user.js');
 
 describe('SyncEncryption', () => {
     describe('isSupported', () => {
