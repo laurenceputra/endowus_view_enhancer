@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.9.2
+// @version      2.9.3
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore). Now with optional cross-device sync!
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -1563,7 +1563,8 @@
                 return null;
             }
             const parsed = parseJsonSafely(stored);
-            if (!validateFn(parsed)) {
+            const validator = typeof validateFn === 'function' ? validateFn : () => true;
+            if (!validator(parsed)) {
                 Storage.remove(key, context);
                 return null;
             }
@@ -2183,6 +2184,12 @@
             }
         }
 
+        Object.entries(config.goalFixed).forEach(([goalId, isFixed]) => {
+            if (isFixed === true) {
+                delete config.goalTargets[goalId];
+            }
+        });
+
         return config;
     }
 
@@ -2196,7 +2203,13 @@
 
         // Apply goal targets
         if (config.goalTargets && typeof config.goalTargets === 'object') {
+            const fixedMap = config.goalFixed && typeof config.goalFixed === 'object'
+                ? config.goalFixed
+                : {};
             for (const [goalId, value] of Object.entries(config.goalTargets)) {
+                if (fixedMap[goalId] === true) {
+                    continue;
+                }
                 const key = getGoalTargetKey(goalId);
                 Storage.set(key, value);
             }
@@ -2223,6 +2236,9 @@
 
         if (code === 'RATE_LIMIT_EXCEEDED') {
             return 'rate_limit';
+        }
+        if (code === 'SYNC_IN_PROGRESS') {
+            return 'in_progress';
         }
         if (code.includes('AUTH') || /unauthorized|forbidden|token|login/i.test(message)) {
             return 'auth';
@@ -2269,6 +2285,13 @@
                     ? `Rate limit reached. Retry in about ${Math.ceil(retryAfter / 60)} minute(s).`
                     : 'Rate limit reached. Please wait before syncing again.',
                 primaryAction: 'Retry later'
+            };
+        }
+        if (category === 'in_progress') {
+            return {
+                category,
+                userMessage: 'Sync already in progress. Please wait for it to finish before retrying.',
+                primaryAction: 'Wait for sync'
             };
         }
         if (category === 'crypto') {
@@ -2456,6 +2479,12 @@
 
         if (!SyncEncryption.isSupported()) {
             throw new Error('Web Crypto API not supported in this browser');
+        }
+
+        if (syncStatus === SYNC_STATUS.syncing) {
+            const error = new Error('Sync already in progress');
+            error.code = 'SYNC_IN_PROGRESS';
+            throw error;
         }
 
         requireSessionKey();
@@ -2969,7 +2998,8 @@ function buildConflictDiffItemsForMap(conflict, nameMapOverride = {}) {
             const remoteTarget = remoteTargets[goalId];
             const localFixedValue = localFixed[goalId] === true;
             const remoteFixedValue = remoteFixed[goalId] === true;
-            const targetChanged = localTarget !== remoteTarget;
+            const shouldIgnoreTarget = localFixedValue || remoteFixedValue;
+            const targetChanged = !shouldIgnoreTarget && localTarget !== remoteTarget;
             const fixedChanged = localFixedValue !== remoteFixedValue;
             if (!targetChanged && !fixedChanged) {
                 return null;
@@ -2994,6 +3024,10 @@ function formatSyncTarget(target) {
 
 function formatSyncFixed(isFixed) {
     return isFixed ? 'Yes' : 'No';
+}
+
+function countSyncedTargets(targets = {}, fixed = {}) {
+    return Object.keys(targets || {}).filter(goalId => fixed?.[goalId] !== true).length;
 }
 
 let GoalTargetStore;
@@ -5568,6 +5602,81 @@ function setupSyncSettingsListeners() {
         };
     }
 
+function renderSyncOverlayView({
+    title,
+    bodyHtml,
+    onBack,
+    backLabel,
+    overlayClassName = 'gpv-overlay',
+    containerClassName = 'gpv-container',
+    allowOverlayClose = true,
+    onOverlayClick
+}) {
+    let overlay = document.getElementById('gpv-overlay');
+    if (overlay) {
+        overlay.remove();
+    }
+    overlay = document.createElement('div');
+    overlay.id = 'gpv-overlay';
+    overlay.className = overlayClassName;
+    document.body.appendChild(overlay);
+
+    const container = document.createElement('div');
+    container.className = containerClassName;
+
+    const header = document.createElement('div');
+    header.className = 'gpv-header';
+
+    const headerButtons = document.createElement('div');
+    headerButtons.className = 'gpv-header-buttons';
+
+    if (typeof onBack === 'function') {
+        const backBtn = document.createElement('button');
+        backBtn.className = 'gpv-sync-btn';
+        backBtn.innerHTML = backLabel || '← Back';
+        backBtn.title = 'Return to previous view';
+        backBtn.onclick = onBack;
+        headerButtons.appendChild(backBtn);
+    }
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'gpv-close-btn';
+    closeBtn.innerHTML = '✕';
+    closeBtn.onclick = () => {
+        overlay.remove();
+    };
+    headerButtons.appendChild(closeBtn);
+
+    const titleNode = document.createElement('h1');
+    titleNode.textContent = title;
+
+    header.appendChild(titleNode);
+    header.appendChild(headerButtons);
+
+    const body = document.createElement('div');
+    body.className = 'gpv-content';
+    body.innerHTML = bodyHtml;
+
+    container.appendChild(header);
+    container.appendChild(body);
+    overlay.appendChild(container);
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target !== overlay) {
+            return;
+        }
+        if (allowOverlayClose) {
+            overlay.remove();
+            return;
+        }
+        if (typeof onOverlayClick === 'function') {
+            onOverlayClick();
+        }
+    });
+
+    return { overlay, container, body };
+}
+
 /**
  * Show sync settings modal
  */
@@ -5575,22 +5684,6 @@ function setupSyncSettingsListeners() {
 function showSyncSettings() {
     
     try {
-        // Get or create overlay
-        let overlay = document.getElementById('gpv-overlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'gpv-overlay';
-            overlay.className = 'gpv-overlay';
-            document.body.appendChild(overlay);
-        }
-        
-        // Clear existing content
-        overlay.innerHTML = '';
-        
-        // Create container
-        const container = document.createElement('div');
-        container.className = 'gpv-container';
-        
         let settingsHTML;
         try {
             settingsHTML = createSyncSettingsHTML();
@@ -5598,56 +5691,19 @@ function showSyncSettings() {
             console.error('[Goal Portfolio Viewer] Error creating settings HTML:', error);
             settingsHTML = '<div style="padding: 20px; color: #ef4444;">Error loading sync settings. Please check console for details.</div>';
         }
-        
-        // Create header with back button
-        const header = document.createElement('div');
-        header.className = 'gpv-header';
-        
-        const headerButtons = document.createElement('div');
-        headerButtons.className = 'gpv-header-buttons';
-        
-        // Back to Investments button
-        const backBtn = document.createElement('button');
-        backBtn.className = 'gpv-sync-btn';
-        backBtn.innerHTML = '← Back to Investments';
-        backBtn.title = 'Return to portfolio view';
-        backBtn.onclick = () => {
-            // Re-render portfolio view
-            if (typeof renderPortfolioView === 'function') {
-                overlay.innerHTML = '';
-                // Trigger the main portfolio view to re-render
-                const event = new CustomEvent('gpv-show-portfolio');
-                document.dispatchEvent(event);
-            }
-        };
-        
-        // Close button
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'gpv-close-btn';
-        closeBtn.innerHTML = '✕';
-        closeBtn.onclick = () => {
-            overlay.remove();
-        };
-        
-        headerButtons.appendChild(backBtn);
-        headerButtons.appendChild(closeBtn);
-        
-        const title = document.createElement('h1');
-        title.textContent = 'Sync Settings';
-        
-        header.appendChild(title);
-        header.appendChild(headerButtons);
-        
-        // Create body (use gpv-content for scrolling)
-        const body = document.createElement('div');
-        body.className = 'gpv-content';
-        body.innerHTML = settingsHTML;
-        
-        // Assemble
-        container.appendChild(header);
-        container.appendChild(body);
-        overlay.appendChild(container);
-        
+
+        const { overlay } = renderSyncOverlayView({
+            title: 'Sync Settings',
+            bodyHtml: settingsHTML,
+            onBack: () => {
+                if (typeof renderPortfolioView === 'function') {
+                    overlay.innerHTML = '';
+                    const event = new CustomEvent('gpv-show-portfolio');
+                    document.dispatchEvent(event);
+                }
+            },
+            backLabel: '← Back to Investments'
+        });
 
         // Setup listeners
         try {
@@ -5655,13 +5711,6 @@ function showSyncSettings() {
         } catch (error) {
             console.error('[Goal Portfolio Viewer] Error setting up listeners:', error);
         }
-
-        // Close on overlay click (outside container)
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                overlay.remove();
-            }
-        });
         
     } catch (error) {
         console.error('[Goal Portfolio Viewer] Critical error in showSyncSettings:', error);
@@ -5678,8 +5727,8 @@ function showSyncSettings() {
  */
 
 function createConflictDialogHTML(conflict) {
-    const localTargets = Object.keys(conflict.local.goalTargets || {}).length;
-    const remoteTargets = Object.keys(conflict.remote.goalTargets || {}).length;
+    const localTargets = countSyncedTargets(conflict.local.goalTargets, conflict.local.goalFixed);
+    const remoteTargets = countSyncedTargets(conflict.remote.goalTargets, conflict.remote.goalFixed);
     const localFixed = Object.keys(conflict.local.goalFixed || {}).length;
     const remoteFixed = Object.keys(conflict.remote.goalFixed || {}).length;
     const diffItems = _buildConflictDiffItems(conflict);
@@ -5825,16 +5874,18 @@ function _buildConflictDiffItems(conflict) {
  */
 
 showConflictResolutionUI = function showConflictResolutionUI(conflict) {
-    // Create modal overlay
-    const overlay = document.createElement('div');
-    overlay.className = 'gpv-modal-overlay gpv-conflict-overlay';
-    overlay.innerHTML = `
-        <div class="gpv-modal gpv-conflict-modal">
-            ${createConflictDialogHTML(conflict)}
-        </div>
-    `;
-    
-    document.body.appendChild(overlay);
+    renderSyncOverlayView({
+        title: 'Sync Conflict',
+        bodyHtml: createConflictDialogHTML(conflict),
+        onBack: () => showSyncSettings(),
+        backLabel: '← Back to Sync Settings',
+        overlayClassName: 'gpv-overlay gpv-conflict-overlay',
+        containerClassName: 'gpv-container gpv-conflict-modal',
+        allowOverlayClose: false,
+        onOverlayClick: () => {
+            showInfoMessage('Please choose an option to resolve the conflict.');
+        }
+    });
 
     // Keep local button
     const keepLocalBtn = document.getElementById('gpv-conflict-keep-local');
@@ -5846,7 +5897,10 @@ showConflictResolutionUI = function showConflictResolutionUI(conflict) {
                 
                 await SyncManager.resolveConflict('local', conflict);
                 showSuccessMessage('Conflict resolved! Local data uploaded to server.');
-                overlay.remove();
+                const overlay = document.getElementById('gpv-overlay');
+                if (overlay) {
+                    overlay.remove();
+                }
             } catch (error) {
                 console.error('[Goal Portfolio Viewer] Conflict resolution failed:', error);
                 showErrorMessage(`Failed to resolve conflict: ${error.message}`);
@@ -5866,7 +5920,10 @@ showConflictResolutionUI = function showConflictResolutionUI(conflict) {
                 
                 await SyncManager.resolveConflict('remote', conflict);
                 showSuccessMessage('Conflict resolved! Remote data applied locally.');
-                overlay.remove();
+                const overlay = document.getElementById('gpv-overlay');
+                if (overlay) {
+                    overlay.remove();
+                }
             } catch (error) {
                 console.error('[Goal Portfolio Viewer] Conflict resolution failed:', error);
                 showErrorMessage(`Failed to resolve conflict: ${error.message}`);
@@ -5880,17 +5937,13 @@ showConflictResolutionUI = function showConflictResolutionUI(conflict) {
     const cancelBtn = document.getElementById('gpv-conflict-cancel');
     if (cancelBtn) {
         cancelBtn.addEventListener('click', () => {
-            overlay.remove();
+            const overlay = document.getElementById('gpv-overlay');
+            if (overlay) {
+                overlay.remove();
+            }
             showInfoMessage('Conflict resolution postponed. Sync will retry later.');
         });
     }
-
-    // Prevent closing on overlay click for conflicts
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-            showInfoMessage('Please choose an option to resolve the conflict.');
-        }
-    });
 }
 
 // ============================================
