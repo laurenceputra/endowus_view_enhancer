@@ -6560,6 +6560,75 @@ updateSyncUI = function updateSyncUI() {
                 color: #dc2626;
             }
 
+            /* Projected Investment Input Styles */
+
+            .gpv-projected-input-container {
+                margin-top: 12px;
+                margin-bottom: 12px;
+                padding: 12px;
+                background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+                border: 2px dashed #0284c7;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .gpv-projected-label {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 13px;
+                font-weight: 600;
+                color: #0c4a6e;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                white-space: nowrap;
+            }
+
+            .gpv-projected-icon {
+                font-size: 16px;
+            }
+
+            .gpv-projected-input {
+                width: 140px;
+                padding: 6px 12px;
+                border: 2px solid #0284c7;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: 600;
+                color: #0c4a6e;
+                background: #ffffff;
+                transition: all 0.2s ease;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            }
+
+            .gpv-projected-input:focus {
+                outline: none;
+                border-color: #0369a1;
+                box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
+            }
+
+            .gpv-projected-input:hover {
+                border-color: #0369a1;
+            }
+
+            .gpv-projected-input::placeholder {
+                color: #075985;
+                font-weight: 400;
+                font-size: 13px;
+            }
+
+            /* Remove spinner arrows for projected input */
+            .gpv-projected-input::-webkit-outer-spin-button,
+            .gpv-projected-input::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+
+            .gpv-projected-input[type=number] {
+                -moz-appearance: textfield;
+            }
+
             /* Performance Chart + Metrics */
 
             .gpv-performance-container {
