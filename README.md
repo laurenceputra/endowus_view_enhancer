@@ -155,6 +155,8 @@ pnpm run lint          # Check code quality
 pnpm run test:watch    # Development mode
 ```
 
+`pnpm-lock.yaml` is committed to keep workspace installs reproducible across contributors and CI.
+
 ### Documentation
 
 - **[Development Guide](.github/copilot-instructions.md)** - Comprehensive instructions with workflow
