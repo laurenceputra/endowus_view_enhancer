@@ -210,8 +210,7 @@ https://sync.your-domain.workers.dev
 ```
 
 ### Authentication
-Access tokens issued via password login. Send `Authorization: Bearer <accessToken>` and `X-User-Id`.
-Legacy password-hash auth is supported via `X-Password-Hash` + `X-User-Id`.
+Access tokens are issued via password login. Send `Authorization: Bearer <accessToken>`.
 
 ### Endpoints
 
@@ -221,7 +220,6 @@ POST /sync
 
 Headers:
   Authorization: Bearer <accessToken>
-  X-User-Id: <user-id>
   Content-Type: application/json
 
 Request Body:
@@ -272,7 +270,6 @@ GET /sync/:userId
 
 Headers:
   Authorization: Bearer <accessToken>
-  X-User-Id: <user-id>
 
 Response (200 OK):
 {
@@ -304,7 +301,6 @@ DELETE /sync/:userId
 
 Headers:
   Authorization: Bearer <accessToken>
-  X-User-Id: <user-id>
 
 Response (200 OK):
 {
@@ -325,7 +321,7 @@ GET /health
 Response (200 OK):
 {
   "status": "ok",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "timestamp": 1234567890000
 }
 ```
@@ -911,8 +907,7 @@ const SyncManager = (() => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${config.accessToken}`,
-                    'X-User-Id': config.userId
+                    'Authorization': `Bearer ${config.accessToken}`
                 },
                 body: JSON.stringify({
                     userId: config.userId,
@@ -953,8 +948,7 @@ const SyncManager = (() => {
     async function downloadConfig() {
         const response = await fetch(`${config.serverUrl}/sync/${config.userId}`, {
             headers: {
-                'Authorization': `Bearer ${config.accessToken}`,
-                'X-User-Id': config.userId
+                'Authorization': `Bearer ${config.accessToken}`
             }
         });
 
@@ -1286,7 +1280,7 @@ const SyncManager = (() => {
 **Tasks**:
 1. Setup Cloudflare Workers project structure
 2. Implement API routes (POST/GET/DELETE /sync)
-3. Add authentication middleware (JWT tokens + password hash)
+3. Add authentication middleware (JWT access/refresh tokens)
 4. Add rate limiting
 5. Add KV storage operations
 6. Write unit tests

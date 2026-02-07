@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.9.3
+// @version      2.10.0
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore). Now with optional cross-device sync!
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -76,12 +76,8 @@
         accessTokenExpiry: 'sync_access_token_expiry',
         refreshTokenExpiry: 'sync_refresh_token_expiry',
         rememberKey: 'sync_remember_key',
-        rememberedMasterKey: 'sync_master_key',
-        legacyRememberPassword: 'sync_remember_password',
-        legacyRememberedPassword: 'sync_remembered_password'
+        rememberedMasterKey: 'sync_master_key'
     };
-
-    const LEGACY_SYNC_PASSWORD_KEY = 'sync_password';
 
     const SYNC_DEFAULTS = {
         serverUrl: 'https://goal-portfolio-sync.laurenceputra.workers.dev',
@@ -89,12 +85,74 @@
         syncInterval: 30 // minutes
     };
 
-    function normalizeServerUrl(serverUrl) {
-        if (!serverUrl || typeof serverUrl !== 'string') {
-            return '';
+    const utils = {
+        normalizeServerUrl(serverUrl) {
+            if (!serverUrl || typeof serverUrl !== 'string') {
+                return '';
+            }
+            return serverUrl.trim().replace(/\/+$/, '');
+        },
+        normalizeString(value, fallback = '') {
+            if (value === null || value === undefined) {
+                return fallback;
+            }
+            if (typeof value === 'string') {
+                const trimmed = value.trim();
+                return trimmed ? trimmed : fallback;
+            }
+            return String(value);
+        },
+        normalizePerformanceResponse(response) {
+            const safeResponse = response && typeof response === 'object' ? response : {};
+            const returnsTable = safeResponse.returnsTable && typeof safeResponse.returnsTable === 'object'
+                ? safeResponse.returnsTable
+                : {};
+            const performanceDates = safeResponse.performanceDates && typeof safeResponse.performanceDates === 'object'
+                ? safeResponse.performanceDates
+                : {};
+            const timeSeries = safeResponse.timeSeries && typeof safeResponse.timeSeries === 'object'
+                ? safeResponse.timeSeries
+                : {};
+            const timeSeriesData = Array.isArray(timeSeries.data) ? timeSeries.data : [];
+            return {
+                ...safeResponse,
+                returnsTable,
+                performanceDates,
+                timeSeries: {
+                    ...timeSeries,
+                    data: timeSeriesData
+                }
+            };
+        },
+        indexBy(items, keyFn) {
+            const safeItems = Array.isArray(items) ? items : [];
+            if (typeof keyFn !== 'function') {
+                return {};
+            }
+            return safeItems.reduce((acc, item) => {
+                const key = keyFn(item);
+                if (key !== null && key !== undefined && key !== '') {
+                    acc[key] = item;
+                }
+                return acc;
+            }, {});
+        },
+        extractBucketName(goalName) {
+            if (!goalName || typeof goalName !== 'string') {
+                return 'Uncategorized';
+            }
+            const trimmed = goalName.trim();
+            if (!trimmed) {
+                return 'Uncategorized';
+            }
+            const separatorIndex = trimmed.indexOf(' - ');
+            if (separatorIndex === -1) {
+                return trimmed;
+            }
+            const bucket = trimmed.substring(0, separatorIndex).trim();
+            return bucket || 'Uncategorized';
         }
-        return serverUrl.trim().replace(/\/+$/, '');
-    }
+    };
 
     const SYNC_STATUS = {
         idle: 'idle',
@@ -104,8 +162,10 @@
         conflict: 'conflict'
     };
 
-    let updateSyncUI = null;
-    let showConflictResolutionUI = null;
+    const syncUi = {
+        update: null,
+        showConflictResolution: null
+    };
 
 
     // Export surface for tests; populated as helpers become available.
@@ -127,107 +187,27 @@
         console.log(message);
     }
 
-    /**
-     * Get storage key for a goal's target percentage
-     * @param {string} goalId - Unique goal identifier
-     * @returns {string} Storage key
-     */
-    function getGoalTargetKey(goalId) {
-        return `${STORAGE_KEY_PREFIXES.goalTarget}${goalId}`;
+    function buildStorageKey(...parts) {
+        return parts.map(part => part ?? '').join('');
     }
 
-    /**
-     * Get storage key for a goal's fixed toggle state
-     * @param {string} goalId - Unique goal identifier
-     * @returns {string} Storage key
-     */
-    function getGoalFixedKey(goalId) {
-        return `${STORAGE_KEY_PREFIXES.goalFixed}${goalId}`;
-    }
-
-    /**
-     * Get storage key for a goal type's projected investment
-     * @param {string} bucket - Bucket name
-     * @param {string} goalType - Goal type
-     * @returns {string} Storage key
-     */
-    function getProjectedInvestmentKey(bucket, goalType) {
-        const safeBucket = encodeURIComponent(bucket ?? '');
-        const safeGoalType = encodeURIComponent(goalType ?? '');
-        // Keep separator unencoded to preserve a stable split point in storage keys.
-        return `${safeBucket}${PROJECTED_KEY_SEPARATOR}${safeGoalType}`;
-    }
-
-    function normalizeString(value, fallback = '') {
-        if (value === null || value === undefined) {
-            return fallback;
+    const storageKeys = {
+        goalTarget(goalId) {
+            return buildStorageKey(STORAGE_KEY_PREFIXES.goalTarget, goalId ?? '');
+        },
+        goalFixed(goalId) {
+            return buildStorageKey(STORAGE_KEY_PREFIXES.goalFixed, goalId ?? '');
+        },
+        performanceCache(goalId) {
+            return buildStorageKey(STORAGE_KEY_PREFIXES.performanceCache, goalId ?? '');
+        },
+        projectedInvestment(bucket, goalType) {
+            const safeBucket = encodeURIComponent(bucket ?? '');
+            const safeGoalType = encodeURIComponent(goalType ?? '');
+            // Keep separator unencoded to preserve a stable split point in storage keys.
+            return buildStorageKey(safeBucket, PROJECTED_KEY_SEPARATOR, safeGoalType);
         }
-        if (typeof value === 'string') {
-            const trimmed = value.trim();
-            return trimmed ? trimmed : fallback;
-        }
-        return String(value);
-    }
-
-    function normalizePerformanceResponse(response) {
-        const safeResponse = response && typeof response === 'object' ? response : {};
-        const returnsTable = safeResponse.returnsTable && typeof safeResponse.returnsTable === 'object'
-            ? safeResponse.returnsTable
-            : {};
-        const performanceDates = safeResponse.performanceDates && typeof safeResponse.performanceDates === 'object'
-            ? safeResponse.performanceDates
-            : {};
-        const timeSeries = safeResponse.timeSeries && typeof safeResponse.timeSeries === 'object'
-            ? safeResponse.timeSeries
-            : {};
-        const timeSeriesData = Array.isArray(timeSeries.data) ? timeSeries.data : [];
-        return {
-            ...safeResponse,
-            returnsTable,
-            performanceDates,
-            timeSeries: {
-                ...timeSeries,
-                data: timeSeriesData
-            }
-        };
-    }
-
-    /**
-     * Build a lookup map from an array using a key selector.
-     * Duplicate keys overwrite earlier entries (last write wins).
-     * @param {Array} items - Array of items to index
-     * @param {Function} keyFn - Function returning a key for each item
-     * @returns {Object} Lookup map keyed by the resolved key
-     */
-    function indexBy(items, keyFn) {
-        const safeItems = Array.isArray(items) ? items : [];
-        if (typeof keyFn !== 'function') {
-            return {};
-        }
-        return safeItems.reduce((acc, item) => {
-            const key = keyFn(item);
-            if (key !== null && key !== undefined && key !== '') {
-                acc[key] = item;
-            }
-            return acc;
-        }, {});
-    }
-
-    function extractBucketName(goalName) {
-        if (!goalName || typeof goalName !== 'string') {
-            return 'Uncategorized';
-        }
-        const trimmed = goalName.trim();
-        if (!trimmed) {
-            return 'Uncategorized';
-        }
-        const separatorIndex = trimmed.indexOf(' - ');
-        if (separatorIndex === -1) {
-            return trimmed;
-        }
-        const bucket = trimmed.substring(0, separatorIndex).trim();
-        return bucket || 'Uncategorized';
-    }
+    };
 
     const GOAL_TYPE_LABELS = {
         GENERAL_WEALTH_ACCUMULATION: 'Investment',
@@ -637,7 +617,7 @@
         if (!projectedInvestmentsState || typeof projectedInvestmentsState !== 'object') {
             return 0;
         }
-        const key = getProjectedInvestmentKey(bucket, goalType);
+        const key = storageKeys.projectedInvestment(bucket, goalType);
         const value = projectedInvestmentsState[key];
         return typeof value === 'number' && Number.isFinite(value) ? value : 0;
     }
@@ -931,17 +911,17 @@
             return null;
         }
 
-        const investibleMap = indexBy(investibleData, item => item?.goalId);
-        const summaryMap = indexBy(summaryData, item => item?.goalId);
+        const investibleMap = utils.indexBy(investibleData, item => item?.goalId);
+        const summaryMap = utils.indexBy(summaryData, item => item?.goalId);
 
         const bucketMap = {};
 
         performanceData.forEach(perf => {
             const invest = investibleMap[perf.goalId] || {};
             const summary = summaryMap[perf.goalId] || {};
-            const goalName = normalizeString(invest.goalName || summary.goalName || '', '');
+            const goalName = utils.normalizeString(invest.goalName || summary.goalName || '', '');
             // Extract bucket name using "Bucket Name - Goal Description" convention
-            const goalBucket = extractBucketName(goalName);
+            const goalBucket = utils.extractBucketName(goalName);
             // Note: investible API `totalInvestmentAmount` is misnamed and represents ending balance.
             // We map it internally to endingBalanceAmount to avoid confusing it with principal invested.
             const performanceEndingBalance = extractAmount(perf.totalInvestmentValue);
@@ -960,7 +940,7 @@
                 goalId: perf.goalId,
                 goalName: goalName,
                 goalBucket: goalBucket,
-                goalType: normalizeString(
+                goalType: utils.normalizeString(
                     invest.investmentGoalType || summary.investmentGoalType || '',
                     UNKNOWN_GOAL_TYPE
                 ),
@@ -1015,7 +995,7 @@
     };
 
     function getPerformanceCacheKey(goalId) {
-        return `${STORAGE_KEY_PREFIXES.performanceCache}${goalId}`;
+        return storageKeys.performanceCache(goalId);
     }
 
     function isCacheFresh(fetchedAt, maxAgeMs, nowMs = Date.now()) {
@@ -1317,7 +1297,7 @@
 
     function calculateWeightedWindowReturns(performanceResponses) {
         const responses = Array.isArray(performanceResponses)
-            ? performanceResponses.map(normalizePerformanceResponse)
+            ? performanceResponses.map(utils.normalizePerformanceResponse)
             : [];
         const windowKeys = Object.values(PERFORMANCE_WINDOWS).map(window => window.key);
         const valuesByWindow = {};
@@ -1361,7 +1341,7 @@
 
     function summarizePerformanceMetrics(performanceResponses, mergedTimeSeries) {
         const responses = Array.isArray(performanceResponses)
-            ? performanceResponses.map(normalizePerformanceResponse)
+            ? performanceResponses.map(utils.normalizePerformanceResponse)
             : [];
         const netInvestments = [];
         const totalReturns = [];
@@ -1619,23 +1599,6 @@
     function clearRememberedMasterKey() {
         Storage.set(SYNC_STORAGE_KEYS.rememberKey, false);
         Storage.remove(SYNC_STORAGE_KEYS.rememberedMasterKey);
-    }
-
-    function getLegacyRememberedPassword() {
-        const remember = Storage.get(SYNC_STORAGE_KEYS.legacyRememberPassword, false);
-        if (!remember) {
-            return null;
-        }
-        const stored = Storage.get(SYNC_STORAGE_KEYS.legacyRememberedPassword, null);
-        if (typeof stored === 'string' && stored.trim()) {
-            return stored;
-        }
-        return null;
-    }
-
-    function clearLegacyRememberedPassword() {
-        Storage.set(SYNC_STORAGE_KEYS.legacyRememberPassword, false);
-        Storage.remove(SYNC_STORAGE_KEYS.legacyRememberedPassword);
     }
 
     // ============================================
@@ -1939,22 +1902,10 @@
     let syncOnChangeTimer = null;
     let syncOnChangeRetryTimer = null;
     let sessionMasterKey = getRememberedMasterKey();
-    let legacyMigrationPromise = null;
 
     function getStoredServerUrl(fallback = '') {
         const stored = Storage.get(SYNC_STORAGE_KEYS.serverUrl, fallback);
-        return normalizeServerUrl(stored || '');
-    }
-
-    function clearLegacyPasswordIfPresent() {
-        if (typeof GM_getValue !== 'function' || typeof GM_deleteValue !== 'function') {
-            return;
-        }
-        const legacyPassword = Storage.get(LEGACY_SYNC_PASSWORD_KEY, null);
-        if (legacyPassword !== null) {
-            Storage.remove(LEGACY_SYNC_PASSWORD_KEY);
-            logDebug('[Goal Portfolio Viewer] Cleared legacy sync password from storage');
-        }
+        return utils.normalizeServerUrl(stored || '');
     }
 
     function decodeBase64Url(value) {
@@ -2029,31 +1980,6 @@
         return sessionMasterKey;
     }
 
-    function migrateLegacyPasswordIfNeeded() {
-        if (sessionMasterKey || legacyMigrationPromise) {
-            return;
-        }
-        const legacyPassword = getLegacyRememberedPassword();
-        if (!legacyPassword) {
-            return;
-        }
-        legacyMigrationPromise = SyncEncryption.deriveMasterKey(legacyPassword)
-            .then(masterKey => {
-                setSessionMasterKey(masterKey);
-                setRememberedMasterKey(masterKey, true);
-                clearLegacyRememberedPassword();
-                if (isEnabled() && hasValidRefreshToken()) {
-                    startAutoSync();
-                }
-            })
-            .catch(error => {
-                console.warn('[Goal Portfolio Viewer] Failed to migrate legacy remembered password:', error);
-            })
-            .finally(() => {
-                legacyMigrationPromise = null;
-            });
-    }
-
     async function hashConfigData(config) {
         if (!config || typeof config !== 'object') {
             return null;
@@ -2090,7 +2016,6 @@
     async function refreshAccessToken() {
         const serverUrl = getStoredServerUrl(SYNC_DEFAULTS.serverUrl);
         const refreshToken = Storage.get(SYNC_STORAGE_KEYS.refreshToken, null);
-        const userId = Storage.get(SYNC_STORAGE_KEYS.userId, null);
         if (!refreshToken) {
             throw new Error('Not logged in. Please login again.');
         }
@@ -2098,8 +2023,7 @@
         const response = await fetch(`${serverUrl}/auth/refresh`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${refreshToken}`,
-                ...(userId ? { 'X-User-Id': userId } : {})
+                'Authorization': `Bearer ${refreshToken}`
             }
         });
 
@@ -2120,10 +2044,6 @@
         }
         return refreshAccessToken();
     }
-
-    clearLegacyPasswordIfPresent();
-
-    migrateLegacyPasswordIfNeeded();
 
     if (isEnabled() && hasValidRefreshToken() && sessionMasterKey) {
         startAutoSync();
@@ -2210,7 +2130,7 @@
                 if (fixedMap[goalId] === true) {
                     continue;
                 }
-                const key = getGoalTargetKey(goalId);
+                const key = storageKeys.goalTarget(goalId);
                 Storage.set(key, value);
             }
         }
@@ -2218,7 +2138,7 @@
         // Apply goal fixed states
         if (config.goalFixed && typeof config.goalFixed === 'object') {
             for (const [goalId, value] of Object.entries(config.goalFixed)) {
-                const key = getGoalFixedKey(goalId);
+                const key = storageKeys.goalFixed(goalId);
                 Storage.set(key, value === true);
             }
         }
@@ -2365,8 +2285,7 @@
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${accessToken}`,
-                'X-User-Id': userId
+                'Authorization': `Bearer ${accessToken}`
             },
             body: JSON.stringify(payload)
         });
@@ -2396,8 +2315,7 @@
         const response = await fetch(`${serverUrl}/sync/${userId}`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'X-User-Id': userId
+                'Authorization': `Bearer ${accessToken}`
             }
         });
 
@@ -2490,8 +2408,8 @@
         requireSessionKey();
 
         syncStatus = SYNC_STATUS.syncing;
-        if (typeof updateSyncUI === 'function') {
-            updateSyncUI();
+        if (typeof syncUi.update === 'function') {
+            syncUi.update();
         }
 
         try {
@@ -2547,8 +2465,8 @@
 
                     if (conflict && !force) {
                         syncStatus = SYNC_STATUS.conflict;
-                        if (typeof showConflictResolutionUI === 'function') {
-                            showConflictResolutionUI(conflict);
+                        if (typeof syncUi.showConflictResolution === 'function') {
+                            syncUi.showConflictResolution(conflict);
                         }
                         return { status: 'conflict', conflict };
                     }
@@ -2581,8 +2499,8 @@
                 }
             }
 
-            if (typeof updateSyncUI === 'function') {
-                updateSyncUI();
+            if (typeof syncUi.update === 'function') {
+                syncUi.update();
             }
             return { status: 'success' };
         } catch (error) {
@@ -2597,8 +2515,8 @@
                 retryAfterSeconds: Number(error?.retryAfterSeconds) || null,
                 lastAttemptAt: Date.now()
             };
-            if (typeof updateSyncUI === 'function') {
-                updateSyncUI();
+            if (typeof syncUi.update === 'function') {
+                syncUi.update();
             }
             throw error;
         }
@@ -2610,8 +2528,8 @@
     async function resolveConflict(resolution, conflict) {
         try {
             syncStatus = SYNC_STATUS.syncing;
-            if (typeof updateSyncUI === 'function') {
-                updateSyncUI();
+            if (typeof syncUi.update === 'function') {
+                syncUi.update();
             }
 
             if (resolution === 'local') {
@@ -2633,8 +2551,8 @@
             syncStatus = SYNC_STATUS.success;
             lastError = null;
             lastErrorMeta = null;
-            if (typeof updateSyncUI === 'function') {
-                updateSyncUI();
+            if (typeof syncUi.update === 'function') {
+                syncUi.update();
             }
             
             // Refresh the portfolio view
@@ -2653,8 +2571,8 @@
                 retryAfterSeconds: Number(error?.retryAfterSeconds) || null,
                 lastAttemptAt: Date.now()
             };
-            if (typeof updateSyncUI === 'function') {
-                updateSyncUI();
+            if (typeof syncUi.update === 'function') {
+                syncUi.update();
             }
             throw error;
         }
@@ -2779,7 +2697,7 @@
      * Enable sync
      */
     async function enable(config) {
-        const normalizedServerUrl = normalizeServerUrl(config?.serverUrl);
+        const normalizedServerUrl = utils.normalizeServerUrl(config?.serverUrl);
         if (!config || !normalizedServerUrl || !config.userId) {
             throw new Error('Invalid sync configuration: serverUrl and userId required');
         }
@@ -2834,7 +2752,7 @@
      * Register a new user account
      */
     async function register(serverUrl, userId, password) {
-        const normalizedServerUrl = normalizeServerUrl(serverUrl);
+        const normalizedServerUrl = utils.normalizeServerUrl(serverUrl);
         if (!normalizedServerUrl || !userId || !password) {
             throw new Error('serverUrl, userId, and password are required');
         }
@@ -2876,7 +2794,7 @@
      * Login (verify credentials)
      */
     async function login(serverUrl, userId, password) {
-        const normalizedServerUrl = normalizeServerUrl(serverUrl);
+        const normalizedServerUrl = utils.normalizeServerUrl(serverUrl);
         if (!normalizedServerUrl || !userId || !password) {
             throw new Error('serverUrl, userId, and password are required');
         }
@@ -2939,11 +2857,9 @@
         Object.values(SYNC_STORAGE_KEYS).forEach(key => {
             Storage.remove(key);
         });
-        Storage.remove(LEGACY_SYNC_PASSWORD_KEY);
         clearTokens();
         setSessionMasterKey(null);
         clearRememberedMasterKey();
-        clearLegacyRememberedPassword();
         
         syncStatus = SYNC_STATUS.idle;
         lastError = null;
@@ -3238,7 +3154,7 @@ let GoalTargetStore;
 
     GoalTargetStore = {
         getTarget(goalId) {
-            const key = getGoalTargetKey(goalId);
+            const key = storageKeys.goalTarget(goalId);
             const value = Storage.get(key, null, 'Error loading goal target percentage');
             if (value === null) {
                 return null;
@@ -3252,7 +3168,7 @@ let GoalTargetStore;
                 return null;
             }
             const validPercentage = Math.max(0, Math.min(100, numericPercentage));
-            const key = getGoalTargetKey(goalId);
+            const key = storageKeys.goalTarget(goalId);
             const didSet = Storage.set(key, validPercentage, 'Error saving goal target percentage');
             if (!didSet) {
                 return null;
@@ -3264,7 +3180,7 @@ let GoalTargetStore;
             return validPercentage;
         },
         clearTarget(goalId) {
-            const key = getGoalTargetKey(goalId);
+            const key = storageKeys.goalTarget(goalId);
             Storage.remove(key, 'Error deleting goal target percentage');
             logDebug(`[Goal Portfolio Viewer] Deleted goal target percentage for ${goalId}`);
             if (typeof SyncManager?.scheduleSyncOnChange === 'function') {
@@ -3272,11 +3188,11 @@ let GoalTargetStore;
             }
         },
         getFixed(goalId) {
-            const key = getGoalFixedKey(goalId);
+            const key = storageKeys.goalFixed(goalId);
             return Storage.get(key, false, 'Error loading goal fixed state') === true;
         },
         setFixed(goalId, isFixed) {
-            const key = getGoalFixedKey(goalId);
+            const key = storageKeys.goalFixed(goalId);
             Storage.set(key, isFixed === true, 'Error saving goal fixed state');
             logDebug(`[Goal Portfolio Viewer] Saved goal fixed state for ${goalId}: ${isFixed === true}`);
             if (typeof SyncManager?.scheduleSyncOnChange === 'function') {
@@ -3284,7 +3200,7 @@ let GoalTargetStore;
             }
         },
         clearFixed(goalId) {
-            const key = getGoalFixedKey(goalId);
+            const key = storageKeys.goalFixed(goalId);
             Storage.remove(key, 'Error deleting goal fixed state');
             logDebug(`[Goal Portfolio Viewer] Deleted goal fixed state for ${goalId}`);
             if (typeof SyncManager?.scheduleSyncOnChange === 'function') {
@@ -3337,7 +3253,7 @@ let GoalTargetStore;
      * @param {number} amount - Projected investment amount
      */
     function setProjectedInvestment(projectedInvestmentsState, bucket, goalType, amount) {
-        const key = getProjectedInvestmentKey(bucket, goalType);
+        const key = storageKeys.projectedInvestment(bucket, goalType);
         const validAmount = parseFloat(amount) || 0;
         projectedInvestmentsState[key] = validAmount;
         logDebug(`[Goal Portfolio Viewer] Set projected investment for ${bucket}|${goalType}: ${validAmount}`);
@@ -3349,7 +3265,7 @@ let GoalTargetStore;
      * @param {string} goalType - Goal type
      */
     function clearProjectedInvestment(projectedInvestmentsState, bucket, goalType) {
-        const key = getProjectedInvestmentKey(bucket, goalType);
+        const key = storageKeys.projectedInvestment(bucket, goalType);
         delete projectedInvestmentsState[key];
         logDebug(`[Goal Portfolio Viewer] Cleared projected investment for ${bucket}|${goalType}`);
     }
@@ -3599,7 +3515,7 @@ let GoalTargetStore;
         if (!cached) {
             return null;
         }
-        return cached.response ? normalizePerformanceResponse(cached.response) : null;
+        return cached.response ? utils.normalizePerformanceResponse(cached.response) : null;
     }
 
     async function fetchPerformanceForGoal(goalId) {
@@ -3656,7 +3572,7 @@ let GoalTargetStore;
         const queueResults = await state.performance.requestQueue(idsToFetch, async goalId => {
             try {
                 const data = await fetchPerformanceForGoal(goalId);
-                const normalized = normalizePerformanceResponse(data);
+                const normalized = utils.normalizePerformanceResponse(data);
                 writePerformanceCache(goalId, normalized);
                 state.performance.goalData[goalId] = normalized;
                 return normalized;
@@ -3683,7 +3599,7 @@ let GoalTargetStore;
         // Filter nulls defensively (should already be filtered, but double-check)
         const responses = performanceResponses
             .filter(r => r && typeof r === 'object')
-            .map(normalizePerformanceResponse);
+            .map(utils.normalizePerformanceResponse);
         
         if (!responses.length) {
             return null;
@@ -4983,7 +4899,7 @@ function getSyncServerUrlFromInput() {
 function resolveSyncServerUrl(preferInput = true) {
     const inputValue = preferInput ? getSyncServerUrlFromInput() : '';
     const fallback = Storage.get(SYNC_STORAGE_KEYS.serverUrl, SYNC_DEFAULTS.serverUrl);
-    return normalizeServerUrl(inputValue || fallback || '');
+    return utils.normalizeServerUrl(inputValue || fallback || '');
 }
 
 function createSyncSettingsHTML() {
@@ -4994,7 +4910,7 @@ function createSyncSettingsHTML() {
     const hasSessionKey = syncStatus.hasSessionKey;
     const hasValidRefreshToken = syncStatus.hasValidRefreshToken;
     
-    const serverUrl = normalizeServerUrl(Storage.get(SYNC_STORAGE_KEYS.serverUrl, SYNC_DEFAULTS.serverUrl)) || SYNC_DEFAULTS.serverUrl;
+    const serverUrl = utils.normalizeServerUrl(Storage.get(SYNC_STORAGE_KEYS.serverUrl, SYNC_DEFAULTS.serverUrl)) || SYNC_DEFAULTS.serverUrl;
     const userId = Storage.get(SYNC_STORAGE_KEYS.userId, '');
     const rememberKey = Storage.get(SYNC_STORAGE_KEYS.rememberKey, false);
     const password = '';
@@ -5231,7 +5147,7 @@ function setupSyncSettingsListeners() {
     const serverUrlInput = document.getElementById('gpv-sync-server-url');
     if (serverUrlInput) {
         serverUrlInput.addEventListener('blur', () => {
-            const normalized = normalizeServerUrl(serverUrlInput.value);
+            const normalized = utils.normalizeServerUrl(serverUrlInput.value);
             if (normalized) {
                 Storage.set(SYNC_STORAGE_KEYS.serverUrl, normalized);
             }
@@ -5329,7 +5245,7 @@ function setupSyncSettingsListeners() {
 
                 const enabled = document.getElementById('gpv-sync-enabled').checked;
                 const rawServerUrl = getSyncServerUrlFromInput();
-                const serverUrl = normalizeServerUrl(rawServerUrl);
+                const serverUrl = utils.normalizeServerUrl(rawServerUrl);
                 const userId = document.getElementById('gpv-sync-user-id').value.trim();
                 const password = document.getElementById('gpv-sync-password').value;
                 const rememberKey = document.getElementById('gpv-sync-remember-key')?.checked === true;
@@ -5408,7 +5324,7 @@ function setupSyncSettingsListeners() {
                 registerBtn.disabled = true;
                 registerBtn.textContent = 'Signing up...';
 
-                const serverUrl = normalizeServerUrl(getSyncServerUrlFromInput());
+                const serverUrl = utils.normalizeServerUrl(getSyncServerUrlFromInput());
                 const userId = document.getElementById('gpv-sync-user-id').value.trim();
                 const password = document.getElementById('gpv-sync-password').value;
 
@@ -5462,7 +5378,7 @@ function setupSyncSettingsListeners() {
                 loginBtn.disabled = true;
                 loginBtn.textContent = 'Logging in...';
 
-                const serverUrl = normalizeServerUrl(getSyncServerUrlFromInput());
+                const serverUrl = utils.normalizeServerUrl(getSyncServerUrlFromInput());
                 const userId = document.getElementById('gpv-sync-user-id').value.trim();
                 const password = document.getElementById('gpv-sync-password').value;
                 const rememberKeyCheckbox = document.getElementById('gpv-sync-remember-key');
@@ -5487,8 +5403,8 @@ function setupSyncSettingsListeners() {
                 });
                 showSuccessMessage('✅ Login successful! Sync enabled with encryption by default.');
 
-                if (typeof updateSyncUI === 'function') {
-                    updateSyncUI();
+                if (typeof syncUi.update === 'function') {
+                    syncUi.update();
                 }
 
                 setTimeout(() => {
@@ -5838,11 +5754,11 @@ function createConflictDialogHTML(conflict) {
 function buildGoalNameMap() {
     const cached = Storage.readJson(STORAGE_KEYS.summary, null);
     const goalMap = Array.isArray(cached)
-        ? indexBy(cached, item => item?.goalId)
+        ? utils.indexBy(cached, item => item?.goalId)
         : null;
     const nameMap = goalMap
         ? Object.entries(goalMap).reduce((acc, [goalId, goal]) => {
-            const name = normalizeString(goal?.goalName || '', '');
+            const name = utils.normalizeString(goal?.goalName || '', '');
             if (name) {
                 acc[goalId] = name;
             }
@@ -5886,7 +5802,7 @@ function _buildConflictDiffItems(conflict) {
  * Show conflict resolution UI
  */
 
-showConflictResolutionUI = function showConflictResolutionUI(conflict) {
+syncUi.showConflictResolution = function showConflictResolution(conflict) {
     renderSyncOverlayView({
         title: 'Sync Conflict',
         bodyHtml: createConflictDialogHTML(conflict),
@@ -6006,7 +5922,7 @@ function createSyncIndicatorHTML() {
  * Update sync UI elements
  */
 
-updateSyncUI = function updateSyncUI() {
+syncUi.update = function updateSyncUI() {
     // Update sync indicator
     const indicator = document.getElementById('gpv-sync-indicator');
     if (indicator) {
@@ -7871,17 +7787,13 @@ updateSyncUI = function updateSyncUI() {
     // Pattern: Keep all logic in ONE place (this file), test the real implementation.
         if (typeof module !== 'undefined' && module.exports) {
         const chartHelpers = typeof globalThis !== 'undefined' ? globalThis.__gpvChartHelpers : null;
-        const syncUi = typeof window !== 'undefined'
+        const syncUiExports = typeof window !== 'undefined'
             ? window.__gpvSyncUi
             : (typeof globalThis !== 'undefined' ? globalThis.__gpvSyncUi : null);
         const testingHooks = typeof window !== 'undefined' ? window.__gpvTestingHooks : null;
         const baseExports = {
-            normalizeString,
-            indexBy,
-            getGoalTargetKey,
-            getGoalFixedKey,
-            getProjectedInvestmentKey,
-            extractBucketName,
+            utils,
+            storageKeys,
             getDisplayGoalType,
             sortGoalTypes,
             formatMoney,
@@ -7916,7 +7828,7 @@ updateSyncUI = function updateSyncUI() {
             isCacheRefreshAllowed,
             formatPercentage,
             normalizeTimeSeriesData,
-            normalizePerformanceResponse,
+            normalizePerformanceResponse: utils.normalizePerformanceResponse,
             getLatestTimeSeriesPoint,
             findNearestPointOnOrBefore,
             getPerformanceDate,
@@ -7936,8 +7848,8 @@ updateSyncUI = function updateSyncUI() {
             SyncEncryption,
             SyncManager,
             GoalTargetStore,
-            createSyncSettingsHTML: syncUi?.createSyncSettingsHTML,
-            setupSyncSettingsListeners: syncUi?.setupSyncSettingsListeners,
+            createSyncSettingsHTML: syncUiExports?.createSyncSettingsHTML,
+            setupSyncSettingsListeners: syncUiExports?.setupSyncSettingsListeners,
             buildConflictDiffItems: buildConflictDiffItemsForMap,
             formatSyncTarget,
             formatSyncFixed,

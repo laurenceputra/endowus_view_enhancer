@@ -1,6 +1,6 @@
 const DEFAULT_ORIGIN = 'https://app.sg.endowus.com';
 const ALLOWED_METHODS = 'GET, POST, DELETE, OPTIONS';
-const ALLOWED_HEADERS = 'Content-Type, Authorization, X-Password-Hash, X-User-Id';
+const ALLOWED_HEADERS = 'Content-Type, Authorization';
 
 export function buildCorsHeaders(env) {
 	return {

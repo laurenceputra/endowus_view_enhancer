@@ -138,7 +138,7 @@ test('registerUser rejects invalid userId format', async () => {
   const kv = createKvStore();
   const env = { SYNC_KV: kv };
 
-  const result = await auth.registerUser('not an email', 'hashed', env);
+  const result = await auth.credentials.registerUser('not an email', 'hashed', env);
 
   assert.equal(result.success, false);
   assert.match(result.message, /Invalid userId/i);
@@ -148,7 +148,7 @@ test('registerUser rejects existing user', async () => {
   const kv = createKvStore({ 'user:existing': JSON.stringify({ salt: '00', derivedHash: '11' }) });
   const env = { SYNC_KV: kv };
 
-  const result = await auth.registerUser('existing', 'hashed', env);
+  const result = await auth.credentials.registerUser('existing', 'hashed', env);
 
   assert.equal(result.success, false);
   assert.equal(result.message, 'User already exists');
@@ -158,7 +158,7 @@ test('registerUser stores salt and derived hash', async () => {
   const kv = createKvStore();
   const env = { SYNC_KV: kv };
 
-  const result = await auth.registerUser('user-123', 'hashed-value', env);
+  const result = await auth.credentials.registerUser('user-123', 'hashed-value', env);
 
   assert.equal(result.success, true);
   const stored = kv._dump().get('user:user-123');
@@ -175,7 +175,7 @@ test('validatePassword returns false for missing user', async () => {
   const kv = createKvStore();
   const env = { SYNC_KV: kv };
 
-  const result = await auth.validatePassword('missing', 'hash', env);
+  const result = await auth.credentials.validatePassword('missing', 'hash', env);
 
   assert.equal(result, false);
 });
@@ -187,8 +187,8 @@ test('validatePassword returns false when salt or derivedHash missing', async ()
   });
   const env = { SYNC_KV: kv };
 
-  const missingSalt = await auth.validatePassword('missing-salt', 'hash', env);
-  const missingHash = await auth.validatePassword('missing-hash', 'hash', env);
+  const missingSalt = await auth.credentials.validatePassword('missing-salt', 'hash', env);
+  const missingHash = await auth.credentials.validatePassword('missing-hash', 'hash', env);
 
   assert.equal(missingSalt, false);
   assert.equal(missingHash, false);
@@ -203,7 +203,7 @@ test('validatePassword returns false on timing-safe mismatch', async () => {
   });
   const env = { SYNC_KV: kv };
 
-  const result = await auth.validatePassword('mismatch', 'hash', env);
+  const result = await auth.credentials.validatePassword('mismatch', 'hash', env);
 
   assert.equal(result, false);
 });

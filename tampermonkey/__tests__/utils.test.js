@@ -7,12 +7,8 @@
  */
 
 const {
-    normalizeString,
-    indexBy,
-    getGoalTargetKey,
-    getGoalFixedKey,
-    getProjectedInvestmentKey,
-    extractBucketName,
+    utils,
+    storageKeys,
     getDisplayGoalType,
     sortGoalTypes,
     sortGoalsByName,
@@ -52,14 +48,14 @@ const {
 describe('storage key helpers', () => {
     test('should generate consistent storage keys', () => {
         const cases = [
-            { name: 'goal target', actual: getGoalTargetKey('goal123'), expected: 'goal_target_pct_goal123' },
-            { name: 'goal target empty', actual: getGoalTargetKey(''), expected: 'goal_target_pct_' },
-            { name: 'goal target special', actual: getGoalTargetKey('goal-123-abc'), expected: 'goal_target_pct_goal-123-abc' },
-            { name: 'goal fixed', actual: getGoalFixedKey('goal123'), expected: 'goal_fixed_goal123' },
-            { name: 'goal fixed empty', actual: getGoalFixedKey(''), expected: 'goal_fixed_' },
+            { name: 'goal target', actual: storageKeys.goalTarget('goal123'), expected: 'goal_target_pct_goal123' },
+            { name: 'goal target empty', actual: storageKeys.goalTarget(''), expected: 'goal_target_pct_' },
+            { name: 'goal target special', actual: storageKeys.goalTarget('goal-123-abc'), expected: 'goal_target_pct_goal-123-abc' },
+            { name: 'goal fixed', actual: storageKeys.goalFixed('goal123'), expected: 'goal_fixed_goal123' },
+            { name: 'goal fixed empty', actual: storageKeys.goalFixed(''), expected: 'goal_fixed_' },
             {
                 name: 'projected investment empty',
-                actual: getProjectedInvestmentKey('', ''),
+                actual: storageKeys.projectedInvestment('', ''),
                 expected: '|'
             },
             {
@@ -69,7 +65,7 @@ describe('storage key helpers', () => {
             }
         ];
 
-        cases.forEach(({ name, actual, expected }) => {
+        cases.forEach(({ name: _name, actual, expected }) => {
             expect(actual).toBe(expected);
         });
     });
@@ -77,19 +73,19 @@ describe('storage key helpers', () => {
 
 describe('normalizeString', () => {
     test('should return fallback for null/undefined', () => {
-        expect(normalizeString(null, 'fallback')).toBe('fallback');
-        expect(normalizeString(undefined, 'fallback')).toBe('fallback');
+        expect(utils.normalizeString(null, 'fallback')).toBe('fallback');
+        expect(utils.normalizeString(undefined, 'fallback')).toBe('fallback');
     });
 
     test('should trim strings and collapse whitespace-only to fallback', () => {
-        expect(normalizeString('  Hello  ', 'fallback')).toBe('Hello');
-        expect(normalizeString('   ', 'fallback')).toBe('fallback');
+        expect(utils.normalizeString('  Hello  ', 'fallback')).toBe('Hello');
+        expect(utils.normalizeString('   ', 'fallback')).toBe('fallback');
     });
 
     test('should coerce non-string types', () => {
-        expect(normalizeString(123)).toBe('123');
-        expect(normalizeString(false)).toBe('false');
-        expect(normalizeString({ key: 'value' })).toBe('[object Object]');
+        expect(utils.normalizeString(123)).toBe('123');
+        expect(utils.normalizeString(false)).toBe('false');
+        expect(utils.normalizeString({ key: 'value' })).toBe('[object Object]');
     });
 });
 
@@ -99,7 +95,7 @@ describe('indexBy', () => {
             { goalId: 'a', value: 1 },
             { goalId: 'b', value: 2 }
         ];
-        const result = indexBy(items, item => item.goalId);
+        const result = utils.indexBy(items, item => item.goalId);
         expect(result.a.value).toBe(1);
         expect(result.b.value).toBe(2);
     });
@@ -110,7 +106,7 @@ describe('indexBy', () => {
             { goalId: null, value: 2 },
             { goalId: 'c', value: 3 }
         ];
-        const result = indexBy(items, item => item.goalId);
+        const result = utils.indexBy(items, item => item.goalId);
         expect(result.c.value).toBe(3);
         expect(Object.keys(result)).toHaveLength(1);
     });
@@ -120,50 +116,50 @@ describe('indexBy', () => {
             { goalId: 'dup', value: 1 },
             { goalId: 'dup', value: 2 }
         ];
-        const result = indexBy(items, item => item.goalId);
+        const result = utils.indexBy(items, item => item.goalId);
         expect(result.dup.value).toBe(2);
     });
 
     test('should return empty object for invalid inputs', () => {
-        expect(indexBy(null, () => 'a')).toEqual({});
-        expect(indexBy([], null)).toEqual({});
+        expect(utils.indexBy(null, () => 'a')).toEqual({});
+        expect(utils.indexBy([], null)).toEqual({});
     });
 });
 
 describe('getProjectedInvestmentKey', () => {
     test('should generate correct key with pipe separator', () => {
-        expect(getProjectedInvestmentKey('Retirement', 'GENERAL_WEALTH_ACCUMULATION'))
+        expect(storageKeys.projectedInvestment('Retirement', 'GENERAL_WEALTH_ACCUMULATION'))
             .toBe('Retirement|GENERAL_WEALTH_ACCUMULATION');
     });
 
     test('should preserve special characters', () => {
-        expect(getProjectedInvestmentKey('Emergency-Fund', 'CASH_MANAGEMENT'))
+        expect(storageKeys.projectedInvestment('Emergency-Fund', 'CASH_MANAGEMENT'))
             .toBe('Emergency-Fund|CASH_MANAGEMENT');
     });
 
     test('should encode separator characters', () => {
-        expect(getProjectedInvestmentKey('Bucket|Name', 'TYPE|A'))
+        expect(storageKeys.projectedInvestment('Bucket|Name', 'TYPE|A'))
             .toBe('Bucket%7CName|TYPE%7CA');
     });
 });
 
 describe('extractBucketName', () => {
     test('should return Uncategorized for invalid inputs', () => {
-        expect(extractBucketName(null)).toBe('Uncategorized');
-        expect(extractBucketName(123)).toBe('Uncategorized');
-        expect(extractBucketName('   ')).toBe('Uncategorized');
+        expect(utils.extractBucketName(null)).toBe('Uncategorized');
+        expect(utils.extractBucketName(123)).toBe('Uncategorized');
+        expect(utils.extractBucketName('   ')).toBe('Uncategorized');
     });
 
     test('should return full name when no separator', () => {
-        expect(extractBucketName('Emergency Fund')).toBe('Emergency Fund');
+        expect(utils.extractBucketName('Emergency Fund')).toBe('Emergency Fund');
     });
 
     test('should return bucket prefix when separator exists', () => {
-        expect(extractBucketName('Retirement - Core Portfolio')).toBe('Retirement');
+        expect(utils.extractBucketName('Retirement - Core Portfolio')).toBe('Retirement');
     });
 
     test('should handle multiple separators', () => {
-        expect(extractBucketName('Bucket - Goal - Extra')).toBe('Bucket');
+        expect(utils.extractBucketName('Bucket - Goal - Extra')).toBe('Bucket');
     });
 });
 
@@ -1763,6 +1759,4 @@ describe('buildMergedInvestmentData', () => {
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.goals).toHaveLength(2); // Both goals present
     });
 });
-
-
 

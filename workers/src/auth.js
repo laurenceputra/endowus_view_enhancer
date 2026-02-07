@@ -330,3 +330,15 @@ export async function loginUser(userId, passwordHash, env) {
 
 	return { success: true, message: 'Login successful' };
 }
+
+export const credentials = {
+	registerUser,
+	loginUser,
+	validatePassword
+};
+
+export const tokens = {
+	issueTokens,
+	verifyAccessToken,
+	verifyRefreshToken
+};
