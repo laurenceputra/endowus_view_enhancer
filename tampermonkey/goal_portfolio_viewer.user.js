@@ -2952,6 +2952,18 @@
         logDebug('[Goal Portfolio Viewer] Sync configuration cleared');
     }
 
+    const testingHooks = typeof module !== 'undefined' && module.exports
+        ? {
+            parseJwtPayload,
+            getStoredTokenExpiry,
+            isTokenValid,
+            refreshAccessToken,
+            getAccessToken,
+            storeTokens,
+            clearTokens
+        }
+        : null;
+
     return {
         isEnabled,
         isConfigured,
@@ -2967,7 +2979,8 @@
         collectConfigData,
         applyConfigData,
         register,
-        login
+        login,
+        ...(testingHooks ? { __test: testingHooks } : {})
     };
 })();
 
