@@ -176,4 +176,145 @@ describe('SyncManager', () => {
         expect(storage.has(targetKey)).toBe(false);
         expect(storage.get(fixedKey)).toBe(true);
     });
+
+    describe('token helpers', () => {
+        const ACCESS_EXPIRY_KEY = 'sync_access_token_expiry';
+        const REFRESH_EXPIRY_KEY = 'sync_refresh_token_expiry';
+
+        function createJwt(payload) {
+            const base64 = Buffer.from(JSON.stringify(payload))
+                .toString('base64')
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/g, '');
+            return `header.${base64}.signature`;
+        }
+
+        test('parseJwtPayload handles valid and invalid tokens', () => {
+            const { SyncManager } = loadModule();
+            const { parseJwtPayload } = SyncManager.__test;
+            const payload = { exp: Math.floor(Date.now() / 1000) + 120, sub: 'user-1' };
+            const token = createJwt(payload);
+
+            expect(parseJwtPayload(token)).toEqual(payload);
+            expect(parseJwtPayload('header.invalid%%.signature')).toBeNull();
+            expect(parseJwtPayload('not-a-jwt')).toBeNull();
+            expect(parseJwtPayload('one.two')).toBeNull();
+        });
+
+        test('getStoredTokenExpiry returns stored expiry or parses exp', () => {
+            const { SyncManager } = loadModule();
+            const { getStoredTokenExpiry } = SyncManager.__test;
+            const storedExpiry = Date.now() + 300_000;
+            const token = createJwt({ exp: Math.floor(Date.now() / 1000) + 120 });
+            const noExpToken = createJwt({ sub: 'user-2' });
+
+            storage.set(ACCESS_EXPIRY_KEY, storedExpiry);
+            expect(getStoredTokenExpiry(ACCESS_EXPIRY_KEY, token)).toBe(storedExpiry);
+
+            storage.delete(ACCESS_EXPIRY_KEY);
+            expect(getStoredTokenExpiry(ACCESS_EXPIRY_KEY, token)).toBeGreaterThan(Date.now());
+            expect(getStoredTokenExpiry(ACCESS_EXPIRY_KEY, noExpToken)).toBeNull();
+        });
+
+        test('isTokenValid handles expired, near-expiry, and missing expiry', () => {
+            const { SyncManager } = loadModule();
+            const { isTokenValid } = SyncManager.__test;
+            const now = Date.now();
+            Date.now = jest.fn(() => now);
+
+            const expiredToken = createJwt({ exp: Math.floor((now - 5_000) / 1000) });
+            const nearExpiryToken = createJwt({ exp: Math.floor((now + 30_000) / 1000) });
+            const noExpToken = createJwt({ sub: 'user-3' });
+
+            expect(isTokenValid(expiredToken, ACCESS_EXPIRY_KEY)).toBe(false);
+            expect(isTokenValid(nearExpiryToken, ACCESS_EXPIRY_KEY)).toBe(false);
+            expect(isTokenValid(noExpToken, ACCESS_EXPIRY_KEY)).toBe(false);
+        });
+
+        test('refreshAccessToken clears tokens and surfaces error on failure', async () => {
+            const { SyncManager } = loadModule();
+            const { refreshAccessToken } = SyncManager.__test;
+
+            storage.set('sync_refresh_token', 'refresh-token');
+            storage.set('sync_access_token', 'access-token');
+            storage.set(ACCESS_EXPIRY_KEY, Date.now() + 120_000);
+            storage.set(REFRESH_EXPIRY_KEY, Date.now() + 240_000);
+
+            fetchMock.mockImplementationOnce(() => Promise.resolve({
+                ok: false,
+                status: 401,
+                json: () => Promise.resolve({ success: false, message: 'Session expired.' })
+            }));
+
+            await expect(refreshAccessToken()).rejects.toThrow('Session expired.');
+            expect(storage.has('sync_access_token')).toBe(false);
+            expect(storage.has('sync_refresh_token')).toBe(false);
+            expect(storage.has(ACCESS_EXPIRY_KEY)).toBe(false);
+            expect(storage.has(REFRESH_EXPIRY_KEY)).toBe(false);
+        });
+
+        test('refreshAccessToken stores new tokens on success', async () => {
+            const { SyncManager } = loadModule();
+            const { refreshAccessToken } = SyncManager.__test;
+            const now = Date.now();
+
+            storage.set('sync_refresh_token', 'refresh-token');
+
+            fetchMock.mockImplementationOnce(() => Promise.resolve({
+                ok: true,
+                status: 200,
+                json: () => Promise.resolve({
+                    success: true,
+                    tokens: {
+                        accessToken: 'new-access',
+                        refreshToken: 'new-refresh',
+                        accessExpiresAt: now + 60_000,
+                        refreshExpiresAt: now + 120_000
+                    }
+                })
+            }));
+
+            await expect(refreshAccessToken()).resolves.toBe('new-access');
+            expect(storage.get('sync_access_token')).toBe('new-access');
+            expect(storage.get('sync_refresh_token')).toBe('new-refresh');
+            expect(storage.get(ACCESS_EXPIRY_KEY)).toBe(now + 60_000);
+            expect(storage.get(REFRESH_EXPIRY_KEY)).toBe(now + 120_000);
+        });
+
+        test('getAccessToken refreshes expired access tokens and preserves valid ones', async () => {
+            const { SyncManager } = loadModule();
+            const { getAccessToken } = SyncManager.__test;
+            const now = Date.now();
+            Date.now = jest.fn(() => now);
+
+            storage.set('sync_access_token', 'valid-access');
+            storage.set(ACCESS_EXPIRY_KEY, now + 120_000);
+
+            await expect(getAccessToken()).resolves.toBe('valid-access');
+            expect(fetchMock).not.toHaveBeenCalled();
+
+            storage.set('sync_access_token', 'expired-access');
+            storage.set(ACCESS_EXPIRY_KEY, now - 1_000);
+            storage.set('sync_refresh_token', 'refresh-token');
+
+            fetchMock.mockImplementationOnce(() => Promise.resolve({
+                ok: true,
+                status: 200,
+                json: () => Promise.resolve({
+                    success: true,
+                    tokens: {
+                        accessToken: 'refreshed-access',
+                        refreshToken: 'refreshed-refresh',
+                        accessExpiresAt: now + 60_000,
+                        refreshExpiresAt: now + 120_000
+                    }
+                })
+            }));
+
+            await expect(getAccessToken()).resolves.toBe('refreshed-access');
+            expect(storage.get('sync_access_token')).toBe('refreshed-access');
+            expect(storage.get('sync_refresh_token')).toBe('refreshed-refresh');
+        });
+    });
 });
