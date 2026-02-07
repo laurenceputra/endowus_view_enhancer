@@ -298,12 +298,9 @@ All sync endpoints (POST/GET/DELETE /sync) require a valid **access token**:
 ```bash
 curl -X POST https://your-worker.workers.dev/sync \
   -H "Authorization: Bearer <accessToken>" \
-  -H "X-User-Id: user@example.com" \
   -H "Content-Type: application/json" \
   -d '{"userId":"user@example.com", ...}'
 ```
-
-Legacy password-hash auth is still accepted for older clients but is no longer recommended.
 
 ## 🛠️ Development
 
@@ -340,7 +337,6 @@ curl -X POST http://localhost:8787/auth/login \
 # Upload test with access token
 curl -X POST http://localhost:8787/sync \
   -H "Authorization: Bearer <accessToken>" \
-  -H "X-User-Id: test@example.com" \
   -H "Content-Type: application/json" \
   -d '{
     "userId": "test@example.com",
@@ -352,17 +348,14 @@ curl -X POST http://localhost:8787/sync \
 
 # Download test
 curl http://localhost:8787/sync/test@example.com \
-  -H "Authorization: Bearer <accessToken>" \
-  -H "X-User-Id: test@example.com"
+  -H "Authorization: Bearer <accessToken>"
 ```
 
 ### Run Tests
 
 ```bash
-# Run auth + token test suite
-node test-password-auth.js
-
-# Note: Ensure local dev server is running first (pnpm run dev)
+# Run unit test suite
+node --test test/*.test.js
 ```
 ```
 
@@ -395,7 +388,7 @@ GET /health
 Response (200):
 {
   "status": "ok",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "timestamp": 1234567890000
 }
 ```
@@ -406,7 +399,6 @@ POST /sync
 
 Headers:
   Authorization: Bearer <accessToken>
-  X-User-Id: <userId>
   Content-Type: application/json
 
 Body:
@@ -438,7 +430,6 @@ GET /sync/:userId
 
 Headers:
   Authorization: Bearer <accessToken>
-  X-User-Id: <userId>
 
 Response (200):
 {
@@ -464,7 +455,6 @@ DELETE /sync/:userId
 
 Headers:
   Authorization: Bearer <accessToken>
-  X-User-Id: <userId>
 
 Response (200):
 {

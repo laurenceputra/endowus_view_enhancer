@@ -48,12 +48,8 @@ const SYNC_STORAGE_KEYS = {
     accessTokenExpiry: 'sync_access_token_expiry',
     refreshTokenExpiry: 'sync_refresh_token_expiry',
     rememberKey: 'sync_remember_key',
-    rememberedMasterKey: 'sync_master_key',
-    legacyRememberPassword: 'sync_remember_password',
-    legacyRememberedPassword: 'sync_remembered_password'
+    rememberedMasterKey: 'sync_master_key'
 };
-
-const LEGACY_SYNC_PASSWORD_KEY = 'sync_password';
 
 const SYNC_DEFAULTS = {
     serverUrl: 'https://goal-portfolio-sync.laurenceputra.workers.dev',
@@ -286,7 +282,7 @@ SyncEncryption.encrypt("test", "password").then(encrypted => {
 ```javascript
 'Access-Control-Allow-Origin': '*'
 'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS'
-'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-User-Id'
+'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 ```
 
 ### Issue: Sync indicator not showing

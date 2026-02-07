@@ -176,7 +176,6 @@ npx wrangler secret put JWT_SECRET --env production
 # Test POST (upload config)
 curl -X POST https://your-worker.workers.dev/sync \
   -H "Authorization: Bearer <accessToken>" \
-  -H "X-User-Id: test-user-123" \
   -H "Content-Type: application/json" \
   -d '{
     "userId": "test-user-123",
@@ -191,16 +190,14 @@ curl -X POST https://your-worker.workers.dev/sync \
 
 # Test GET (download config)
 curl https://your-worker.workers.dev/sync/test-user-123 \
-  -H "Authorization: Bearer <accessToken>" \
-  -H "X-User-Id: test-user-123"
+  -H "Authorization: Bearer <accessToken>"
 
 # Expected response:
 # {"success":true,"data":{...}}
 
 # Test DELETE
 curl -X DELETE https://your-worker.workers.dev/sync/test-user-123 \
-  -H "Authorization: Bearer <accessToken>" \
-  -H "X-User-Id: test-user-123"
+  -H "Authorization: Bearer <accessToken>"
 
 # Expected response:
 # {"success":true,"message":"Config deleted"}
@@ -361,7 +358,7 @@ Update `src/index.js`:
 const CORS_HEADERS = {
     'Access-Control-Allow-Origin': 'https://app.sg.endowus.com',
     'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Password-Hash, X-User-Id'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 };
 ```
 

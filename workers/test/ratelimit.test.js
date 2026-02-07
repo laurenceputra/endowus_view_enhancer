@@ -37,7 +37,7 @@ function createRequest(method, headers = {}) {
 test('rateLimit allows first request and stores counter', async () => {
   const kv = createKvMock();
   const env = { SYNC_KV: kv };
-  const request = createRequest('POST', { 'X-User-Id': 'user-1' });
+  const request = createRequest('POST', { 'CF-Connecting-IP': '1.2.3.4' });
 
   const result = await rateLimit(request, env, '/sync');
 
@@ -50,11 +50,11 @@ test('rateLimit blocks when limit is exceeded', async () => {
   const env = { SYNC_KV: kv };
   const now = Date.now();
   kv.store.set(
-    'ratelimit:user-1:/sync:POST',
+    'ratelimit:1.2.3.4:/sync:POST',
     JSON.stringify({ count: 10, resetAt: now + 30_000 })
   );
 
-  const request = createRequest('POST', { 'X-User-Id': 'user-1' });
+  const request = createRequest('POST', { 'CF-Connecting-IP': '1.2.3.4' });
   const result = await rateLimit(request, env, '/sync');
 
   assert.equal(result.allowed, false);
@@ -79,15 +79,15 @@ test('rateLimit uses minimum KV TTL when remaining window is short', async () =>
   const env = { SYNC_KV: kv };
   const now = Date.now();
   kv.store.set(
-    'ratelimit:user-1:/sync:POST',
+    'ratelimit:1.2.3.4:/sync:POST',
     JSON.stringify({ count: 1, resetAt: now + 30_000 })
   );
 
-  const request = createRequest('POST', { 'X-User-Id': 'user-1' });
+  const request = createRequest('POST', { 'CF-Connecting-IP': '1.2.3.4' });
   const result = await rateLimit(request, env, '/sync');
 
   assert.equal(result.allowed, true);
-  const options = kv.optionsByKey.get('ratelimit:user-1:/sync:POST');
+  const options = kv.optionsByKey.get('ratelimit:1.2.3.4:/sync:POST');
   assert.ok(options);
   assert.equal(options.expirationTtl, 60);
 });

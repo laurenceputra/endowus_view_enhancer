@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
 
 import worker from '../src/index.js';
-import { issueTokens } from '../src/auth.js';
+import { tokens } from '../src/auth.js';
 
 if (!globalThis.crypto) {
   globalThis.crypto = webcrypto;
@@ -177,11 +177,11 @@ test('POST /auth/refresh handles missing, invalid, and valid tokens', async () =
 
   assert.equal(invalidParsed.status, 401);
 
-  const tokens = await issueTokens('refresh-user', env);
+  const issuedTokens = await tokens.issueTokens('refresh-user', env);
   const validRequest = new Request('https://worker.example/auth/refresh', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${tokens.refreshToken}`
+      Authorization: `Bearer ${issuedTokens.refreshToken}`
     }
   });
 
@@ -194,11 +194,11 @@ test('POST /auth/refresh handles missing, invalid, and valid tokens', async () =
 
 test('POST /sync rejects payloads larger than MAX_PAYLOAD_SIZE', async () => {
   const env = createEnv();
-  const tokens = await issueTokens('payload-user', env);
+  const issuedTokens = await tokens.issueTokens('payload-user', env);
   const request = new Request('https://worker.example/sync', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${tokens.accessToken}`,
+      Authorization: `Bearer ${issuedTokens.accessToken}`,
       'Content-Type': 'application/json',
       'Content-Length': String(10 * 1024 + 1)
     },
@@ -214,9 +214,9 @@ test('POST /sync rejects payloads larger than MAX_PAYLOAD_SIZE', async () => {
 
 test('GET/DELETE /sync/:userId blocks access for mismatched authenticated user', async () => {
   const env = createEnv();
-  const tokens = await issueTokens('owner-user', env);
+  const issuedTokens = await tokens.issueTokens('owner-user', env);
   const headers = {
-    Authorization: `Bearer ${tokens.accessToken}`
+    Authorization: `Bearer ${issuedTokens.accessToken}`
   };
 
   const getRequest = new Request('https://worker.example/sync/other-user', {
@@ -243,11 +243,11 @@ test('GET/DELETE /sync/:userId blocks access for mismatched authenticated user',
 
 test('unknown authenticated route returns 404', async () => {
   const env = createEnv();
-  const tokens = await issueTokens('route-user', env);
+  const issuedTokens = await tokens.issueTokens('route-user', env);
   const request = new Request('https://worker.example/unknown', {
     method: 'GET',
     headers: {
-      Authorization: `Bearer ${tokens.accessToken}`
+      Authorization: `Bearer ${issuedTokens.accessToken}`
     }
   });
 
@@ -260,7 +260,7 @@ test('unknown authenticated route returns 404', async () => {
 
 test('rate limit is enforced for authenticated requests', async () => {
   const env = createEnv();
-  const tokens = await issueTokens('limit-user', env);
+  const issuedTokens = await tokens.issueTokens('limit-user', env);
   const rateLimitKey = 'ratelimit:limit-user:/sync/:userId:GET';
   const resetAt = Date.now() + 60_000;
   await env.SYNC_KV.put(rateLimitKey, JSON.stringify({ count: 60, resetAt }));
@@ -268,7 +268,7 @@ test('rate limit is enforced for authenticated requests', async () => {
   const request = new Request('https://worker.example/sync/limit-user', {
     method: 'GET',
     headers: {
-      Authorization: `Bearer ${tokens.accessToken}`
+      Authorization: `Bearer ${issuedTokens.accessToken}`
     }
   });
 

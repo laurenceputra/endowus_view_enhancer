@@ -1,6 +1,6 @@
 {
   "name": "goal-portfolio-sync-workers",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Cloudflare Workers backend for Goal Portfolio Viewer sync",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
     "tail:production": "wrangler tail --env production",
     "kv:create": "wrangler kv:namespace create SYNC_KV",
     "kv:list": "wrangler kv:namespace list",
-    "test": "node test-password-auth.js",
+    "test": "node --test test/*.test.js",
     "test:unit": "node --test test/*.test.js",
     "test:unit:coverage": "c8 --reporter=json-summary --reporter=text node --test test/*.test.js"
   },

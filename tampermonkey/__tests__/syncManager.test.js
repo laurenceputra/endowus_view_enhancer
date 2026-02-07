@@ -149,9 +149,9 @@ describe('SyncManager', () => {
     });
 
     test('collectConfigData excludes targets for fixed goals', () => {
-        const { SyncManager, getGoalTargetKey, getGoalFixedKey } = loadModule();
-        const targetKey = getGoalTargetKey('goal-1');
-        const fixedKey = getGoalFixedKey('goal-1');
+        const { SyncManager, storageKeys } = loadModule();
+        const targetKey = storageKeys.goalTarget('goal-1');
+        const fixedKey = storageKeys.goalFixed('goal-1');
 
         storage.set(targetKey, 25);
         storage.set(fixedKey, true);
@@ -164,9 +164,9 @@ describe('SyncManager', () => {
     });
 
     test('applyConfigData skips targets when goal is fixed', () => {
-        const { SyncManager, getGoalTargetKey, getGoalFixedKey } = loadModule();
-        const targetKey = getGoalTargetKey('goal-1');
-        const fixedKey = getGoalFixedKey('goal-1');
+        const { SyncManager, storageKeys } = loadModule();
+        const targetKey = storageKeys.goalTarget('goal-1');
+        const fixedKey = storageKeys.goalFixed('goal-1');
 
         SyncManager.applyConfigData({
             goalTargets: { 'goal-1': 45 },

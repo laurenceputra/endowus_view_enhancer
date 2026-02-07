@@ -51,11 +51,10 @@ function getKvBinding(env) {
  */
 export async function rateLimit(request, env, pathname, identifierOverride = null) {
 	const method = request.method;
-	const userId = request.headers.get('X-User-Id');
 	const connectingIP = request.headers.get('CF-Connecting-IP');
 
-	// Use userId for password auth, or IP as fallback
-	const identifier = identifierOverride || userId || connectingIP || 'unknown';
+	// Prefer authenticated user identifier, fallback to IP for unauthenticated requests
+	const identifier = identifierOverride || connectingIP || 'unknown';
 
 	// Normalize pathname (replace dynamic segments)
 	const normalizedPath = pathname.startsWith('/sync/') && pathname !== '/sync'
