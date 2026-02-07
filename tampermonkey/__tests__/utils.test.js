@@ -49,27 +49,29 @@ const {
     parseJsonSafely
 } = require('../goal_portfolio_viewer.user.js');
 
-describe('getGoalTargetKey', () => {
-    test('should generate correct storage key format', () => {
-        expect(getGoalTargetKey('goal123')).toBe('goal_target_pct_goal123');
-    });
+describe('storage key helpers', () => {
+    test('should generate consistent storage keys', () => {
+        const cases = [
+            { name: 'goal target', actual: getGoalTargetKey('goal123'), expected: 'goal_target_pct_goal123' },
+            { name: 'goal target empty', actual: getGoalTargetKey(''), expected: 'goal_target_pct_' },
+            { name: 'goal target special', actual: getGoalTargetKey('goal-123-abc'), expected: 'goal_target_pct_goal-123-abc' },
+            { name: 'goal fixed', actual: getGoalFixedKey('goal123'), expected: 'goal_fixed_goal123' },
+            { name: 'goal fixed empty', actual: getGoalFixedKey(''), expected: 'goal_fixed_' },
+            {
+                name: 'projected investment empty',
+                actual: getProjectedInvestmentKey('', ''),
+                expected: '|'
+            },
+            {
+                name: 'performance cache',
+                actual: getPerformanceCacheKey('goal-123'),
+                expected: 'gpv_performance_goal-123'
+            }
+        ];
 
-    test('should handle empty string', () => {
-        expect(getGoalTargetKey('')).toBe('goal_target_pct_');
-    });
-
-    test('should handle special characters', () => {
-        expect(getGoalTargetKey('goal-123-abc')).toBe('goal_target_pct_goal-123-abc');
-    });
-});
-
-describe('getGoalFixedKey', () => {
-    test('should generate correct storage key format', () => {
-        expect(getGoalFixedKey('goal123')).toBe('goal_fixed_goal123');
-    });
-
-    test('should handle empty string', () => {
-        expect(getGoalFixedKey('')).toBe('goal_fixed_');
+        cases.forEach(({ name, actual, expected }) => {
+            expect(actual).toBe(expected);
+        });
     });
 });
 
@@ -132,10 +134,6 @@ describe('getProjectedInvestmentKey', () => {
     test('should generate correct key with pipe separator', () => {
         expect(getProjectedInvestmentKey('Retirement', 'GENERAL_WEALTH_ACCUMULATION'))
             .toBe('Retirement|GENERAL_WEALTH_ACCUMULATION');
-    });
-
-    test('should handle empty strings', () => {
-        expect(getProjectedInvestmentKey('', '')).toBe('|');
     });
 
     test('should preserve special characters', () => {
@@ -620,12 +618,6 @@ describe('extractAmount', () => {
     });
 });
 
-describe('getPerformanceCacheKey', () => {
-    test('should generate performance cache key', () => {
-        expect(getPerformanceCacheKey('goal-123')).toBe('gpv_performance_goal-123');
-    });
-});
-
 describe('isCacheFresh', () => {
     test('should return true when within max age', () => {
         const now = 1_000_000;
@@ -798,22 +790,19 @@ describe('normalizePerformanceResponse', () => {
 });
 
 describe('parseJsonSafely', () => {
-    test('should parse valid JSON', () => {
-        expect(parseJsonSafely('{"ok":true}')).toEqual({ ok: true });
-    });
+    test('should parse valid JSON and reject invalid inputs', () => {
+        const cases = [
+            { input: '{"ok":true}', expected: { ok: true } },
+            { input: '{invalid', expected: null },
+            { input: '', expected: null },
+            { input: '   ', expected: null },
+            { input: null, expected: null },
+            { input: undefined, expected: null }
+        ];
 
-    test('should return null for invalid JSON', () => {
-        expect(parseJsonSafely('{invalid')).toBeNull();
-    });
-
-    test('should return null for empty or whitespace input', () => {
-        expect(parseJsonSafely('')).toBeNull();
-        expect(parseJsonSafely('   ')).toBeNull();
-    });
-
-    test('should return null for null or undefined', () => {
-        expect(parseJsonSafely(null)).toBeNull();
-        expect(parseJsonSafely(undefined)).toBeNull();
+        cases.forEach(({ input, expected }) => {
+            expect(parseJsonSafely(input)).toEqual(expected);
+        });
     });
 });
 
@@ -1774,7 +1763,6 @@ describe('buildMergedInvestmentData', () => {
         expect(result.Retirement.GENERAL_WEALTH_ACCUMULATION.goals).toHaveLength(2); // Both goals present
     });
 });
-
 
 
 
