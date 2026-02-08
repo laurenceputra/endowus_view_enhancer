@@ -227,12 +227,9 @@ SyncEncryption.encrypt("test", "password").then(encrypted => {
 1. Click sync indicator
 2. Enable sync checkbox
 3. Enter:
--
-**Server URL**: Your Cloudflare Workers URL
--
-**User ID**: Your email or unique ID
--
-**Password**: Strong password (8+ chars)
+- **Server URL**: Your Cloudflare Workers URL
+- **User ID**: Your email or unique ID
+- **Password**: Strong password (8+ chars)
 4. Optional: Enable **"Remember encryption key on this device"** (trusted devices only)
 5. Click "Login" to obtain session tokens
 6. Click "Save Settings"
@@ -350,25 +347,17 @@ SyncManager.performSync({ direction: 'both' }).then(() => {
 
 ## Time Estimate
 
--
-**Integration**: 20-30 minutes
--
-**Testing**: 10-15 minutes
--
-**Configuration**: 5 minutes
--
-**Total**: ~45 minutes
+- **Integration**: 20-30 minutes
+- **Testing**: 10-15 minutes
+- **Configuration**: 5 minutes
+- **Total**: ~45 minutes
 
 ## Need Help?
 
--
-**Integration Guide**: See SYNC_INTEGRATION.md for detailed explanations
--
-**Architecture**: See SYNC_ARCHITECTURE.md for design decisions
--
-**API Documentation**: See workers/README.md for backend API
--
-**Issues**: Create a GitHub issue with logs and error messages
+- **Integration Guide**: See SYNC_INTEGRATION.md for detailed explanations
+- **Architecture**: See SYNC_ARCHITECTURE.md for design decisions
+- **API Documentation**: See workers/README.md for backend API
+- **Issues**: Create a GitHub issue with logs and error messages
 
 ---
 

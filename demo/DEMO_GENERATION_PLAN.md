@@ -19,8 +19,7 @@ The demo generation system creates realistic mock data including:
 
 The demo uses a client-side caching mechanism to avoid external API dependencies:
 
-1.
-**Data Storage**: Mock performance data is stored in browser storage with key format `gpv_performance_${goalId}`
+1. **Data Storage**: Mock performance data is stored in browser storage with key format `gpv_performance_${goalId}`
 2. **Storage Format**:
    ```javascript
    {
@@ -33,10 +32,8 @@ The demo uses a client-side caching mechanism to avoid external API dependencies
      }
    }
    ```
-3.
-**Cache Fallback**: When BFF endpoint is unavailable (blocked in demo), the userscript automatically falls back to cached data
-4.
-**Freshness Check**: Cache is bypassed on fetch failure to ensure demo works even with stale data
+3. **Cache Fallback**: When BFF endpoint is unavailable (blocked in demo), the userscript automatically falls back to cached data
+4. **Freshness Check**: Cache is bypassed on fetch failure to ensure demo works even with stale data
 
 ### How It Works
 
@@ -51,30 +48,24 @@ This ensures the demo works completely offline without any external dependencies
 ## Bucket Configurations
 
 ### House Purchase Bucket
--
-**Target Total**: ~$200,000 SGD
--
-**Time Horizon**: 1 year (12 months of data)
+- **Target Total**: ~$200,000 SGD
+- **Time Horizon**: 1 year (12 months of data)
 - **Target Allocation**:
   - 70% Core - Balanced ($140,000)
   - 10% Megatrends ($20,000)
   - 10% Tech ($20,000)
   - 10% China ($20,000)
--
-**Contribution Event**: 25% portfolio addition in final 3 months
+- **Contribution Event**: 25% portfolio addition in final 3 months
 
 ### Retirement Bucket
--
-**Target Total**: ~$60,000 SGD
--
-**Time Horizon**: 2 years (24 months of data)
+- **Target Total**: ~$60,000 SGD
+- **Time Horizon**: 2 years (24 months of data)
 - **Target Allocation**:
   - 55% Core - Aggressive ($33,000)
   - 15% Megatrends ($9,000)
   - 15% Tech ($9,000)
   - 15% China ($9,000)
--
-**Contribution Event**: 25% portfolio addition in final 3 months
+- **Contribution Event**: 25% portfolio addition in final 3 months
 
 ## Data Generation Parameters
 
@@ -84,44 +75,29 @@ This ensures the demo works completely offline without any external dependencies
 - Implementation: `random.uniform(0.92, 1.10)`
 
 ### Return Rates by Asset Type
--
-**Core - Balanced**: 5% to 12% annualized
--
-**Core - Aggressive**: 6% to 14% annualized
--
-**Megatrends**: 3% to 15% annualized
--
-**Tech**: -2% to 20% annualized (higher volatility)
--
-**China**: -8% to 18% annualized (highest volatility)
+- **Core - Balanced**: 5% to 12% annualized
+- **Core - Aggressive**: 6% to 14% annualized
+- **Megatrends**: 3% to 15% annualized
+- **Tech**: -2% to 20% annualized (higher volatility)
+- **China**: -8% to 18% annualized (highest volatility)
 
 ### Time-Series Generation
 
 #### Daily Data Points
--
-**House Purchase**: 365 days (1 year)
--
-**Retirement**: 730 days (2 years)
--
-**Frequency**: Daily closing balances
+- **House Purchase**: 365 days (1 year)
+- **Retirement**: 730 days (2 years)
+- **Frequency**: Daily closing balances
 
 #### Market Volatility Pattern
-1.
-**Baseline Trend**: Smooth growth based on target return rate
-2.
-**Daily Volatility**: ±0.5% to ±2% random fluctuations
-3.
-**Weekly Cycles**: Slight dips mid-week, recovery end-week
-4.
-**Monthly Volatility Events**: 2-3 larger swings (±3-5%) per year
-5.
-**Market Corrections**: 1-2 drawdowns of 5-10% that recover over weeks
+1. **Baseline Trend**: Smooth growth based on target return rate
+2. **Daily Volatility**: ±0.5% to ±2% random fluctuations
+3. **Weekly Cycles**: Slight dips mid-week, recovery end-week
+4. **Monthly Volatility Events**: 2-3 larger swings (±3-5%) per year
+5. **Market Corrections**: 1-2 drawdowns of 5-10% that recover over weeks
 
 #### Contribution Event (Final 3 Months)
--
-**Timing**: Random date within the final 90 days
--
-**Amount**: 25% of current portfolio value
+- **Timing**: Random date within the final 90 days
+- **Amount**: 25% of current portfolio value
 - **Implementation**:
   - Calculate current balance at contribution date
   - Add 25% to `cumulativeNetInvestmentAmount`
@@ -371,18 +347,12 @@ After generating new demo data, verify:
 ## Future Enhancements
 
 ### Potential Improvements
-1.
-**Configurable Parameters**: CLI args for bucket amounts, time horizons, volatility
-2.
-**Multiple Contributions**: Support multiple contribution events
-3.
-**Redemptions**: Support withdrawal events
-4.
-**Currency Support**: Generate data in multiple currencies
-5.
-**Asset Class Variations**: Different volatility profiles per asset class
-6.
-**Seasonal Patterns**: Model end-of-year tax-loss harvesting, rebalancing
+1. **Configurable Parameters**: CLI args for bucket amounts, time horizons, volatility
+2. **Multiple Contributions**: Support multiple contribution events
+3. **Redemptions**: Support withdrawal events
+4. **Currency Support**: Generate data in multiple currencies
+5. **Asset Class Variations**: Different volatility profiles per asset class
+6. **Seasonal Patterns**: Model end-of-year tax-loss harvesting, rebalancing
 
 ### Extensibility
 The generation system is designed to be extensible:

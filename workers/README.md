@@ -167,10 +167,8 @@ JWT secrets are managed via Wrangler (not GitHub Actions). Run: `npx wrangler se
 
 Main-branch merges can deploy automatically via GitHub Actions:
 
-1.
-**Workflow**: `.github/workflows/deploy-production.yml`
-2.
-**Trigger**: Push to `main` that touches `workers/**`
+1. **Workflow**: `.github/workflows/deploy-production.yml`
+2. **Trigger**: Push to `main` that touches `workers/**`
 3. **Secrets required**:
    - `CLOUDFLARE_API_TOKEN`
    - `CLOUDFLARE_ACCOUNT_ID`
@@ -203,12 +201,9 @@ curl https://goal-portfolio-sync.YOUR_SUBDOMAIN.workers.dev/health
 1. Open Goal Portfolio Viewer settings
 2. Click the "⚙️ Sync" button
 3. Enter:
--
-**Server URL**: `https://goal-portfolio-sync.YOUR_SUBDOMAIN.workers.dev`
--
-**User ID**: Your email or username
--
-**Password**: Create a strong password (min 8 characters)
+- **Server URL**: `https://goal-portfolio-sync.YOUR_SUBDOMAIN.workers.dev`
+- **User ID**: Your email or username
+- **Password**: Create a strong password (min 8 characters)
 4. Click "📝 Sign Up" to create your account
 5. Click "🔑 Login" to generate session tokens
 6. Enable sync checkbox and click "Save Settings"

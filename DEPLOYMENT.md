@@ -298,22 +298,15 @@ npx wrangler rollback --deployment-id DEPLOYMENT_ID --env production
 ## Cost Estimation
 
 ### Cloudflare Workers Free Tier
--
-**Requests**: 100,000/day
--
-**Duration**: 10ms CPU time per request
--
-**Storage**: 1 GB KV storage
+- **Requests**: 100,000/day
+- **Duration**: 10ms CPU time per request
+- **Storage**: 1 GB KV storage
 
 ### Estimated Usage (1000 Users)
--
-**Sync frequency**: Every 30 minutes
--
-**Requests/day**: 1000 users × 48 syncs/day = 48,000 requests
--
-**Storage**: 1000 users × 1 KB = 1 MB
--
-**Cost**: $0/month (within free tier)
+- **Sync frequency**: Every 30 minutes
+- **Requests/day**: 1000 users × 48 syncs/day = 48,000 requests
+- **Storage**: 1000 users × 1 KB = 1 MB
+- **Cost**: $0/month (within free tier)
 
 ### Paid Tier (if needed)
 - **$5/month** for 10M requests
@@ -384,8 +377,7 @@ const CORS_HEADERS = {
 Users can deploy their own backend:
 
 1. **Fork repository**
-2.
-**Clone fork**: `git clone https://github.com/your-username/goal-portfolio-viewer.git`
+2. **Clone fork**: `git clone https://github.com/your-username/goal-portfolio-viewer.git`
 3. **Follow Quick Deploy** above
 4. **Update UserScript** with your worker URL
 5. **Set your JWT secret**
@@ -406,12 +398,9 @@ Share your worker URL with your other devices only.
 
 ### Getting Help
 
--
-**Documentation**: [Cloudflare Workers Docs](https://developers.cloudflare.com/workers/)
--
-**Community**: [Cloudflare Discord](https://discord.gg/cloudflaredev)
--
-**Issues**: [GitHub Issues](https://github.com/laurenceputra/goal-portfolio-viewer/issues)
+- **Documentation**: [Cloudflare Workers Docs](https://developers.cloudflare.com/workers/)
+- **Community**: [Cloudflare Discord](https://discord.gg/cloudflaredev)
+- **Issues**: [GitHub Issues](https://github.com/laurenceputra/goal-portfolio-viewer/issues)
 
 ## Next Steps
 

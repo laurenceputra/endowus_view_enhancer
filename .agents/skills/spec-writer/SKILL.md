@@ -20,14 +20,10 @@ metadata:
 Write clear, executable specifications/plan documents that other contributors can follow without ambiguity.
 
 ## Defaults
--
-**Target file**: `.specifications/plan.md` unless the user specifies a different path.
--
-**Update behavior**: Overwrite the target file by default. Append only if the user explicitly asks to “add to” or “append to” the existing plan.
--
-**Template**: If `.specifications/plan.md` already exists, use its structure as the template and keep section ordering unless the user asks otherwise.
--
-**Repo scan before writing**: Read project instructions and relevant docs before drafting.
+- **Target file**: `.specifications/plan.md` unless the user specifies a different path.
+- **Update behavior**: Overwrite the target file by default. Append only if the user explicitly asks to “add to” or “append to” the existing plan.
+- **Template**: If `.specifications/plan.md` already exists, use its structure as the template and keep section ordering unless the user asks otherwise.
+- **Repo scan before writing**: Read project instructions and relevant docs before drafting.
 
 ## Pre‑write Checklist
 1. Read repository instructions first:

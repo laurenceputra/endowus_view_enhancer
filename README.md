@@ -123,8 +123,7 @@ We use a multi-agent workflow to maintain code quality and ensure robust develop
 ### Quick Start for Contributors
 
 1. **Fork and clone** the repository
-2.
-**Install dependencies**: `pnpm install`
+2. **Install dependencies**: `pnpm install`
 3. **Make changes** following the workflow below
 4. **Submit PR** with clear description
 

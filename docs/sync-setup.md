@@ -4,14 +4,10 @@ Keep your Goal Portfolio Viewer settings synchronized across all your devices wi
 
 ## 🔒 Privacy First
 
--
-**End-to-end encryption**: Your data is encrypted on your device before upload
--
-**Zero-knowledge server**: The server never sees your plaintext data
--
-**You control the keys**: Your password is used for encryption and is never stored locally
--
-**Self-hostable**: Run your own sync server if desired
+- **End-to-end encryption**: Your data is encrypted on your device before upload
+- **Zero-knowledge server**: The server never sees your plaintext data
+- **You control the keys**: Your password is used for encryption and is never stored locally
+- **Self-hostable**: Run your own sync server if desired
 
 ## 📋 What Gets Synced?
 
@@ -112,14 +108,12 @@ Conflicts occur when settings differ between devices. This happens when:
 ### 1. Keep This Device
 - Uses settings from your current device
 - Overwrites server with local settings
--
-**Use when**: This device has the most recent changes
+- **Use when**: This device has the most recent changes
 
 ### 2. Use Server
 - Downloads settings from server
 - Overwrites local settings
--
-**Use when**: Server has the most recent changes
+- **Use when**: Server has the most recent changes
 
 **Tip**: The dialog shows timestamps and device names to help you decide.
 
@@ -289,10 +283,8 @@ Goal names, amounts, and settings are never visible to the server.
 ### Q: How much does sync cost?
 
 **A**:
--
-**Official server**: Free (supported by donations)
--
-**Self-hosted**: ~$0-2/month on Cloudflare (free tier covers most users)
+- **Official server**: Free (supported by donations)
+- **Self-hosted**: ~$0-2/month on Cloudflare (free tier covers most users)
 
 ### Q: Can I sync between browsers (Chrome, Firefox, Safari)?
 
@@ -334,29 +326,20 @@ Goal names, amounts, and settings are never visible to the server.
 
 ## 🆘 Support
 
--
-**Issues**: [GitHub Issues](https://github.com/laurenceputra/goal-portfolio-viewer/issues)
--
-**Discussions**: [GitHub Discussions](https://github.com/laurenceputra/goal-portfolio-viewer/discussions)
--
-**Security**: [security@example.com](mailto:security@example.com)
+- **Issues**: [GitHub Issues](https://github.com/laurenceputra/goal-portfolio-viewer/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/laurenceputra/goal-portfolio-viewer/discussions)
+- **Security**: [security@example.com](mailto:security@example.com)
 
 ## 📚 Technical Details
 
 For developers and curious users:
 
--
-**Encryption**: AES-GCM 256-bit
--
-**Key Derivation**: PBKDF2 with 100,000 iterations
--
-**Protocol**: HTTPS + E2EE
--
-**Server**: Cloudflare Workers (serverless)
--
-**Storage**: Cloudflare KV (encrypted at rest)
--
-**Rate Limits**: 10 uploads/min, 60 downloads/min
+- **Encryption**: AES-GCM 256-bit
+- **Key Derivation**: PBKDF2 with 100,000 iterations
+- **Protocol**: HTTPS + E2EE
+- **Server**: Cloudflare Workers (serverless)
+- **Storage**: Cloudflare KV (encrypted at rest)
+- **Rate Limits**: 10 uploads/min, 60 downloads/min
 
 See [SYNC_ARCHITECTURE.md](../SYNC_ARCHITECTURE.md) for full technical details.
 

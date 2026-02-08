@@ -9,18 +9,12 @@ This document provides the complete technical architecture for adding optional, 
 
 ### Key Design Principles
 
-1.
-**Privacy First**: End-to-end AES-GCM 256-bit encryption, server never sees plaintext
-2.
-**Opt-In**: Completely optional feature, existing users unaffected
-3.
-**Graceful Degradation**: Full offline support, sync failures don't break functionality
-4.
-**Self-Hostable**: Open source backend, users can run their own instance
-5.
-**Zero Build**: UserScript remains single-file, vanilla JS
-6.
-**Minimal Footprint**: ~1KB config data, negligible bandwidth/storage
+1. **Privacy First**: End-to-end AES-GCM 256-bit encryption, server never sees plaintext
+2. **Opt-In**: Completely optional feature, existing users unaffected
+3. **Graceful Degradation**: Full offline support, sync failures don't break functionality
+4. **Self-Hostable**: Open source backend, users can run their own instance
+5. **Zero Build**: UserScript remains single-file, vanilla JS
+6. **Minimal Footprint**: ~1KB config data, negligible bandwidth/storage
 
 ---
 
@@ -331,19 +325,14 @@ Response (200 OK):
 
 ### Rate Limits
 
--
-**Upload**: 10 requests per minute per user/IP
--
-**Download**: 60 requests per minute per user/IP
--
-**Delete**: 5 requests per minute per user/IP
+- **Upload**: 10 requests per minute per user/IP
+- **Download**: 60 requests per minute per user/IP
+- **Delete**: 5 requests per minute per user/IP
 
 ### Data Size Limits
 
--
-**Maximum payload**: 10KB (plenty for ~1KB config)
--
-**KV value limit**: 25MB (not a concern)
+- **Maximum payload**: 10KB (plenty for ~1KB config)
+- **KV value limit**: 25MB (not a concern)
 
 ### Error Codes
 
@@ -613,8 +602,7 @@ base64(salt(16) + iv(12) + ciphertext + auth_tag(16))
 - Plaintext: ~500 bytes (10 goals with settings)
 - Encrypted: ~600 bytes (overhead: salt + iv + tag = 44 bytes)
 - Base64: ~800 bytes
--
-**Total payload**: ~1KB
+- **Total payload**: ~1KB
 
 ---
 
@@ -1160,22 +1148,14 @@ const SyncManager = (() => {
 
 ### Security Best Practices Implemented
 
-1.
-**Key Derivation**: PBKDF2 with 100k iterations (industry standard)
-2.
-**Random IV**: New IV for every encryption
-3.
-**Authenticated Encryption**: AES-GCM provides authenticity
-4.
-**Secure Random**: Web Crypto API (not Math.random)
-5.
-**No Key Storage**: Passphrase never stored; derived key only remembered when enabled
-6.
-**Rate Limiting**: Prevents brute force attacks on API
-7.
-**Token Rotation**: Refresh tokens to obtain new access tokens
-8.
-**Minimal Data**: Only sync critical settings, not cached data
+1. **Key Derivation**: PBKDF2 with 100k iterations (industry standard)
+2. **Random IV**: New IV for every encryption
+3. **Authenticated Encryption**: AES-GCM provides authenticity
+4. **Secure Random**: Web Crypto API (not Math.random)
+5. **No Key Storage**: Passphrase never stored; derived key only remembered when enabled
+6. **Rate Limiting**: Prevents brute force attacks on API
+7. **Token Rotation**: Refresh tokens to obtain new access tokens
+8. **Minimal Data**: Only sync critical settings, not cached data
 
 ### Privacy Analysis
 
@@ -1470,14 +1450,10 @@ const SyncManager = (() => {
 
 ### Resource Requirements
 
--
-**Staff Engineer**: Full-time for 6 weeks
--
-**QA Engineer**: 1 week (Phase 5)
--
-**Code Reviewer**: 2 days (reviews during development)
--
-**Product Manager**: 3 days (documentation + release)
+- **Staff Engineer**: Full-time for 6 weeks
+- **QA Engineer**: 1 week (Phase 5)
+- **Code Reviewer**: 2 days (reviews during development)
+- **Product Manager**: 3 days (documentation + release)
 
 ### Success Metrics
 

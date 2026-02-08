@@ -19,54 +19,33 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 ## Features
 
 ### 🎯 Core Functionality
--
-**Portfolio Bucket Organization**: Group your goals by buckets (e.g., "Retirement", "Education", "Emergency")
--
-**Real-time Data Interception**: Automatically captures portfolio data using monkey patching techniques
--
-**Comprehensive Analytics**: View ending balances, cumulative returns, and growth percentages
--
-**Multi-level Views**: Toggle between summary view and detailed bucket views
--
-**Performance Insights**: Per goal-type charts with responsive sizing (including dynamic height), recent return windows, and key metrics (including Total Return % with weighting context and Simple Return %)
+- **Portfolio Bucket Organization**: Group your goals by buckets (e.g., "Retirement", "Education", "Emergency")
+- **Real-time Data Interception**: Automatically captures portfolio data using monkey patching techniques
+- **Comprehensive Analytics**: View ending balances, cumulative returns, and growth percentages
+- **Multi-level Views**: Toggle between summary view and detailed bucket views
+- **Performance Insights**: Per goal-type charts with responsive sizing (including dynamic height), recent return windows, and key metrics (including Total Return % with weighting context and Simple Return %)
 
 ### 🎨 Modern UX Design
--
-**Beautiful Gradient UI**: Modern purple gradient theme with smooth animations
--
-**Responsive Design**: Adapts to different screen sizes
--
-**Interactive Elements**: Hover effects, smooth transitions, and intuitive controls
--
-**Clean Typography**: Uses system fonts for optimal readability
--
-**Color-coded Returns**: Positive returns in green, negative in red for quick insights
+- **Beautiful Gradient UI**: Modern purple gradient theme with smooth animations
+- **Responsive Design**: Adapts to different screen sizes
+- **Interactive Elements**: Hover effects, smooth transitions, and intuitive controls
+- **Clean Typography**: Uses system fonts for optimal readability
+- **Color-coded Returns**: Positive returns in green, negative in red for quick insights
 
 ### 🔧 Technical Features
--
-**API Interception**: Monkey patches both `fetch` and `XMLHttpRequest` to capture API responses
--
-**Non-blocking**: Runs seamlessly alongside the platform's native functionality
--
-**Efficient Data Processing**: Merges data from multiple API endpoints intelligently
--
-**Auto-updates**: Configured to check for script updates automatically
+- **API Interception**: Monkey patches both `fetch` and `XMLHttpRequest` to capture API responses
+- **Non-blocking**: Runs seamlessly alongside the platform's native functionality
+- **Efficient Data Processing**: Merges data from multiple API endpoints intelligently
+- **Auto-updates**: Configured to check for script updates automatically
 
 ### ☁️ Sync Feature (Optional)
--
-**Cross-device Sync**: Sync your goal configurations across multiple devices
--
-**End-to-End Encryption**: Client-side AES-GCM 256-bit encryption before data leaves your browser
--
-**Privacy-First**: Server never sees your plaintext data
--
-**Self-Hostable**: Run your own sync server using Cloudflare Workers
--
-**Conflict Resolution**: Visual interface for resolving sync conflicts
--
-**Auto-sync**: Automatic background synchronization (enabled by default after activation) with configurable interval
--
-**Zero-Knowledge**: You control all encryption keys
+- **Cross-device Sync**: Sync your goal configurations across multiple devices
+- **End-to-End Encryption**: Client-side AES-GCM 256-bit encryption before data leaves your browser
+- **Privacy-First**: Server never sees your plaintext data
+- **Self-Hostable**: Run your own sync server using Cloudflare Workers
+- **Conflict Resolution**: Visual interface for resolving sync conflicts
+- **Auto-sync**: Automatic background synchronization (enabled by default after activation) with configurable interval
+- **Zero-Knowledge**: You control all encryption keys
 
 ## Installation
 
@@ -98,12 +77,9 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 
 ### Basic Usage
 
-1.
-**Log into Endowus**: Navigate to your Endowus portfolio at https://app.sg.endowus.com/
-2.
-**Wait for Data**: Allow the page to fully load (the script will automatically intercept API calls)
-3.
-**Open Portfolio Viewer**: Click the "📊 Portfolio Viewer" button in the bottom-right corner
+1. **Log into Endowus**: Navigate to your Endowus portfolio at https://app.sg.endowus.com/
+2. **Wait for Data**: Allow the page to fully load (the script will automatically intercept API calls)
+3. **Open Portfolio Viewer**: Click the "📊 Portfolio Viewer" button in the bottom-right corner
 4. **Explore Your Portfolio**:
    - View the summary to see all buckets at a glance
    - Select individual buckets from the dropdown to see detailed breakdowns
@@ -143,16 +119,11 @@ The script will automatically group all goals starting with the same bucket name
 ### Data Displayed
 
 For each bucket/goal, you'll see:
--
-**Ending Balance**: Your current balance for the goal/bucket
--
-**Cumulative Return**: Total profit or loss
--
-**Growth %**: Percentage return on investment (cumulative return ÷ total invested)
--
-**Goal Breakdown**: Individual goals with their specific metrics
--
-**% of Goal Type**: What percentage each goal represents within its type
+- **Ending Balance**: Your current balance for the goal/bucket
+- **Cumulative Return**: Total profit or loss
+- **Growth %**: Percentage return on investment (cumulative return ÷ total invested)
+- **Goal Breakdown**: Individual goals with their specific metrics
+- **% of Goal Type**: What percentage each goal represents within its type
 
 ### Sync Setup (Optional)
 
@@ -191,41 +162,29 @@ For detailed sync setup instructions, see `QUICK_START.md`.
 
 The script uses monkey patching to intercept API responses from the Endowus platform:
 
-1.
-**Fetch API Patching**: Wraps the native `fetch` function to capture responses
-2.
-**XMLHttpRequest Patching**: Intercepts XHR requests for compatibility
-3.
-**Data Capture**: Automatically stores data from three key endpoints:
+1. **Fetch API Patching**: Wraps the native `fetch` function to capture responses
+2. **XMLHttpRequest Patching**: Intercepts XHR requests for compatibility
+3. **Data Capture**: Automatically stores data from three key endpoints:
    - `/v1/goals/performance` - Performance metrics
    - `/v2/goals/investible` - Investment details
    - `/v1/goals` - Goal summaries
 
 ### Data Processing
 
-1.
-**Merging**: Combines data from all three endpoints based on goal IDs
-2.
-**Bucket Extraction**: Parses goal names to determine bucket grouping
-3.
-**Aggregation**: Calculates ending balances, returns, and percentages for each bucket
-4.
-**Rendering**: Displays data in an organized, visually appealing format
+1. **Merging**: Combines data from all three endpoints based on goal IDs
+2. **Bucket Extraction**: Parses goal names to determine bucket grouping
+3. **Aggregation**: Calculates ending balances, returns, and percentages for each bucket
+4. **Rendering**: Displays data in an organized, visually appealing format
 
 **Note:** The investible API field `totalInvestmentAmount` is misnamed and represents ending balance. The script maps it internally to avoid confusing it with principal invested.
 
 ### Modern UI Components
 
--
-**Gradient Headers**: Eye-catching purple gradients for visual hierarchy
--
-**Card-based Layout**: Clean cards for bucket information
--
-**Interactive Tables**: Sortable, hoverable table rows
--
-**Smooth Animations**: Fade-in effects and smooth transitions
--
-**Responsive Controls**: Dropdown selector for easy navigation
+- **Gradient Headers**: Eye-catching purple gradients for visual hierarchy
+- **Card-based Layout**: Clean cards for bucket information
+- **Interactive Tables**: Sortable, hoverable table rows
+- **Smooth Animations**: Fade-in effects and smooth transitions
+- **Responsive Controls**: Dropdown selector for easy navigation
 
 ## Troubleshooting
 
@@ -293,16 +252,11 @@ To modify the script for your needs:
 
 ## Privacy & Security
 
--
-**Local Processing**: All data processing happens in your browser
--
-**No External Calls**: The script doesn't send data to any external servers
--
-**Read-only**: Script only reads API responses, doesn't modify requests
--
-**No Credentials**: Script doesn't access or store login credentials
--
-**Open Source**: Source code is fully transparent and auditable
+- **Local Processing**: All data processing happens in your browser
+- **No External Calls**: The script doesn't send data to any external servers
+- **Read-only**: Script only reads API responses, doesn't modify requests
+- **No Credentials**: Script doesn't access or store login credentials
+- **Open Source**: Source code is fully transparent and auditable
 
 ## Updates
 
