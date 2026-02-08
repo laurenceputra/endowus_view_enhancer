@@ -8,7 +8,8 @@ This is a streamlined guide for integrating the sync functionality. For detailed
 
 ## Step 1: Update UserScript Header (30 seconds)
 
-**File**: `goal_portfolio_viewer.user.js` **Line**: ~11 (in the @grant section)
+**File**: `goal_portfolio_viewer.user.js`
+**Line**: ~11 (in the @grant section)
 
 **Add this line:**
 ```javascript
@@ -26,7 +27,8 @@ This is a streamlined guide for integrating the sync functionality. For detailed
 
 ## Step 2: Add Sync Constants (1 minute)
 
-**File**: `goal_portfolio_viewer.user.js` **Location**: After line 58 (after `const CLASS_NAMES = {...}`)
+**File**: `goal_portfolio_viewer.user.js`
+**Location**: After line 58 (after `const CLASS_NAMES = {...}`)
 
 **Add this code:**
 ```javascript
@@ -64,7 +66,8 @@ const SYNC_STATUS = {
 
 ## Step 3: Add Encryption & Sync Manager (5 minutes)
 
-**File**: `goal_portfolio_viewer.user.js` **Location**: After line 1656 (after the Storage Management section ends)
+**File**: `goal_portfolio_viewer.user.js`
+**Location**: After line 1656 (after the Storage Management section ends)
 
 **Add these sections from `sync_implementation.js`:**
 
@@ -80,7 +83,8 @@ sed -n '/^    const SyncEncryption/,/^    \/\/ Export for testing/p' tampermonke
 
 ## Step 4: Add Sync UI Functions (10 minutes)
 
-**File**: `goal_portfolio_viewer.user.js` **Location**: In the UI section (after line 2054)
+**File**: `goal_portfolio_viewer.user.js`
+**Location**: In the UI section (after line 2054)
 
 **Add these functions from `sync_ui.js`:**
 
@@ -97,7 +101,8 @@ grep -A 99999 "// CHUNK 4: SYNC SETTINGS UI" tampermonkey/sync_ui.js | grep -B 9
 
 ## Step 5: Add Sync Styles (2 minutes)
 
-**File**: `goal_portfolio_viewer.user.js` **Location**: In the `injectStyles()` function (around line 3137)
+**File**: `goal_portfolio_viewer.user.js`
+**Location**: In the `injectStyles()` function (around line 3137)
 
 **Find the existing style injection:**
 ```javascript
@@ -129,7 +134,8 @@ function injectStyles() {
 
 ## Step 6: Add Sync Initialization (2 minutes)
 
-**File**: `goal_portfolio_viewer.user.js` **Location**: In the initialization section (around line 4234, where DOM is ready)
+**File**: `goal_portfolio_viewer.user.js`
+**Location**: In the initialization section (around line 4234, where DOM is ready)
 
 **Add this code:**
 ```javascript
@@ -159,7 +165,8 @@ if (SyncManager.isEnabled() && SyncManager.isConfigured()) {
 
 ## Step 7: Add Sync Button to Main UI (1 minute) - OPTIONAL
 
-**File**: `goal_portfolio_viewer.user.js` **Location**: Where you create the main modal or menu
+**File**: `goal_portfolio_viewer.user.js`
+**Location**: Where you create the main modal or menu
 
 **Option A: Add to existing menu**
 ```javascript

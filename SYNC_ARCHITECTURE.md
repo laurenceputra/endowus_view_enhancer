@@ -1,5 +1,8 @@
 # Sync Service Architecture
-**Version**: 1.0 **Status**: Design Phase **Author**: Staff Engineer **Date**: December 2024
+**Version**: 1.0
+**Status**: Design Phase
+**Author**: Staff Engineer
+**Date**: December 2024
 
 ---
 
@@ -352,7 +355,11 @@ Response (200 OK):
 
 ### Encryption Strategy: AES-GCM with PBKDF2 Key Derivation
 
-**Algorithm**: AES-GCM (Galois/Counter Mode) **Key Size**: 256 bits **IV Size**: 96 bits (12 bytes) - recommended for GCM **Tag Size**: 128 bits (16 bytes) - authentication tag **Key Derivation**: PBKDF2 with SHA-256
+**Algorithm**: AES-GCM (Galois/Counter Mode)
+**Key Size**: 256 bits
+**IV Size**: 96 bits (12 bytes) - recommended for GCM
+**Tag Size**: 128 bits (16 bytes) - authentication tag
+**Key Derivation**: PBKDF2 with SHA-256
 
 ### Data Flow
 
@@ -1218,26 +1225,32 @@ const SyncManager = (() => {
 ### Tradeoffs Made
 
 #### ✅ Chose: Client-Side Encryption
-**Benefit**: Privacy-first, server can't read data **Cost**: Cannot recover forgotten passphrase, no server-side features (search, analytics)
+**Benefit**: Privacy-first, server can't read data
+**Cost**: Cannot recover forgotten passphrase, no server-side features (search, analytics)
 
 #### ✅ Chose: Cloudflare Workers
-**Benefit**: Free tier, global edge network, simple deployment **Cost**: Vendor lock-in (mitigated by simple API, easy to port)
+**Benefit**: Free tier, global edge network, simple deployment
+**Cost**: Vendor lock-in (mitigated by simple API, easy to port)
 
 #### ✅ Chose: Opt-In Sync
-**Benefit**: No disruption to existing users **Cost**: Lower adoption rate, dual code paths (sync + no-sync)
+**Benefit**: No disruption to existing users
+**Cost**: Lower adoption rate, dual code paths (sync + no-sync)
 
 #### ✅ Chose: Single-File UserScript
-**Benefit**: Easy installation, no build process **Cost**: Larger file size, harder to maintain as it grows
+**Benefit**: Easy installation, no build process
+**Cost**: Larger file size, harder to maintain as it grows
 
 #### ✅ Chose: Manual Conflict Resolution
-**Benefit**: User control, no data loss **Cost**: Extra UI complexity, requires user decision
+**Benefit**: User control, no data loss
+**Cost**: Extra UI complexity, requires user decision
 
 ---
 
 ## Implementation Plan
 
 ### Phase 0: Planning & Design (1 week)
-**Owner**: Staff Engineer **Deliverables**:
+**Owner**: Staff Engineer
+**Deliverables**:
 - [x] Technical architecture document (this doc)
 - [ ] Security review by Code Reviewer
 - [ ] API design review
@@ -1249,7 +1262,8 @@ const SyncManager = (() => {
 - API contract finalized
 
 ### Phase 1: Backend Implementation (1 week)
-**Owner**: Staff Engineer **Tasks**:
+**Owner**: Staff Engineer
+**Tasks**:
 1. Setup Cloudflare Workers project structure
 2. Implement API routes (POST/GET/DELETE /sync)
 3. Add authentication middleware (JWT access/refresh tokens)
@@ -1272,7 +1286,8 @@ const SyncManager = (() => {
 - Documentation complete
 
 ### Phase 2: Encryption Module (3 days)
-**Owner**: Staff Engineer **Tasks**:
+**Owner**: Staff Engineer
+**Tasks**:
 1. Implement Web Crypto API wrapper
 2. Add PBKDF2 key derivation
 3. Add AES-GCM encryption/decryption
@@ -1290,7 +1305,8 @@ const SyncManager = (() => {
 - Security review passed
 
 ### Phase 3: Sync Manager (1 week)
-**Owner**: Staff Engineer **Tasks**:
+**Owner**: Staff Engineer
+**Tasks**:
 1. Implement `SyncManager` module
 2. Add data collection logic
 3. Add upload/download logic
@@ -1311,7 +1327,8 @@ const SyncManager = (() => {
 - Tests passing
 
 ### Phase 4: UI Implementation (1 week)
-**Owner**: Staff Engineer **Tasks**:
+**Owner**: Staff Engineer
+**Tasks**:
 1. Add Settings modal with Sync tab
 2. Add sync setup wizard
 3. Add passphrase input with strength meter
@@ -1334,7 +1351,8 @@ const SyncManager = (() => {
 - Accessibility review passed
 
 ### Phase 5: Testing & QA (1 week)
-**Owner**: QA Engineer **Tasks**:
+**Owner**: QA Engineer
+**Tasks**:
 1. End-to-end testing (happy path)
 2. Error scenario testing (network failures, etc.)
 3. Conflict testing (multiple devices)
@@ -1373,7 +1391,8 @@ const SyncManager = (() => {
 - Security audit clean
 
 ### Phase 6: Documentation (3 days)
-**Owner**: Staff Engineer + Product Manager **Tasks**:
+**Owner**: Staff Engineer + Product Manager
+**Tasks**:
 1. Write user guide (setup, usage)
 2. Write self-hosting guide
 3. Update README.md
@@ -1395,7 +1414,8 @@ const SyncManager = (() => {
 - Changelog published
 
 ### Phase 7: Release (1 day)
-**Owner**: Staff Engineer **Tasks**:
+**Owner**: Staff Engineer
+**Tasks**:
 1. Bump version (2.7.7 → 2.8.0)
 2. Create release branch
 3. Final testing on production API
@@ -1465,19 +1485,29 @@ const SyncManager = (() => {
 ### A. Alternative Architectures Considered
 
 #### Option 1: WebDAV Sync
-**Pros**: Users control storage (Dropbox, etc.) **Cons**: Complex setup, auth flow complicated **Verdict**: Too much friction for users
+**Pros**: Users control storage (Dropbox, etc.)
+**Cons**: Complex setup, auth flow complicated
+**Verdict**: Too much friction for users
 
 #### Option 2: Firebase/Supabase
-**Pros**: Managed backend, real-time sync **Cons**: Vendor lock-in, costs scale, privacy concerns **Verdict**: Against privacy-first principle
+**Pros**: Managed backend, real-time sync
+**Cons**: Vendor lock-in, costs scale, privacy concerns
+**Verdict**: Against privacy-first principle
 
 #### Option 3: Browser Sync APIs (Chrome Sync, Firefox Sync)
-**Pros**: Native, automatic **Cons**: Browser-specific, limited storage, no cross-browser **Verdict**: Too limited
+**Pros**: Native, automatic
+**Cons**: Browser-specific, limited storage, no cross-browser
+**Verdict**: Too limited
 
 #### Option 4: IPFS/Blockchain
-**Pros**: Decentralized, no central server **Cons**: Complex, slow, overkill for simple config **Verdict**: Too complex for users
+**Pros**: Decentralized, no central server
+**Cons**: Complex, slow, overkill for simple config
+**Verdict**: Too complex for users
 
 #### Option 5: Peer-to-Peer (WebRTC)
-**Pros**: No server needed, true P2P **Cons**: Requires discovery service, complex NAT traversal **Verdict**: Too complex to implement
+**Pros**: No server needed, true P2P
+**Cons**: Requires discovery service, complex NAT traversal
+**Verdict**: Too complex to implement
 
 **Chosen**: Cloudflare Workers - Best balance of simplicity, privacy, and self-hosting
 
@@ -1506,16 +1536,24 @@ const SyncManager = (() => {
 ### D. Conflict Resolution Strategies
 
 #### Last-Write-Wins (LWW)
-**How**: Use timestamp to pick winner **Pros**: Simple, automatic **Cons**: Can lose recent changes
+**How**: Use timestamp to pick winner
+**Pros**: Simple, automatic
+**Cons**: Can lose recent changes
 
 #### Operational Transform (OT)
-**How**: Apply operations in order **Pros**: No data loss **Cons**: Complex, requires operation log
+**How**: Apply operations in order
+**Pros**: No data loss
+**Cons**: Complex, requires operation log
 
 #### Conflict-Free Replicated Data Types (CRDT)
-**How**: Mathematically proven convergence **Pros**: No conflicts ever **Cons**: Complex, larger payloads
+**How**: Mathematically proven convergence
+**Pros**: No conflicts ever
+**Cons**: Complex, larger payloads
 
 #### Manual Resolution (Chosen)
-**How**: User picks winning version **Pros**: User control, transparent **Cons**: Requires user action
+**How**: User picks winning version
+**Pros**: User control, transparent
+**Cons**: Requires user action
 
 ### E. Sample Wrangler Configuration
 
@@ -1627,4 +1665,7 @@ This architecture provides a robust, privacy-first sync solution that:
 
 ---
 
-**Document Version**: 1.0 **Last Updated**: December 2024 **Reviewed By**: Pending **Approved By**: Pending
+**Document Version**: 1.0
+**Last Updated**: December 2024
+**Reviewed By**: Pending
+**Approved By**: Pending

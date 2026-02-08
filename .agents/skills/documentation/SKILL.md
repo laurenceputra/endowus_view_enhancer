@@ -24,6 +24,7 @@ Create concise, user-friendly documentation and templates for developers and end
 4. Review for clarity and completeness.
 5. Follow `.editorconfig` rules for documentation files.
 6. Keep prose sentences on a single line, but insert new lines for structure (headings, list items, tables, block quotes, code fences, and paragraph breaks).
+7. Split multi-item label lines into separate lines (e.g., "**Type**:", "**Purpose**:" blocks or "**PM → SE**:" handoff entries should each be on their own line).
 
 ## Output Format
 - Documentation draft

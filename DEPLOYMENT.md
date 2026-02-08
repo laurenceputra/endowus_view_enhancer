@@ -413,4 +413,6 @@ After deployment:
 
 ---
 
-**Status**: ✅ Ready for deployment **Estimated Time**: 5-10 minutes for staging, 15 minutes for production **Cost**: $0/month for <100k requests/day
+**Status**: ✅ Ready for deployment
+**Estimated Time**: 5-10 minutes for staging, 15 minutes for production
+**Cost**: $0/month for <100k requests/day

@@ -786,11 +786,17 @@ PLANNING → DESIGN → RISK → IMPLEMENT → QA → REVIEW → MERGE
 
 ### Handoff Protocols
 
-**PM → SE**: Problem statement, acceptance criteria, constraints **SE → DA**: Proposed solution, assumptions, known risks, tradeoffs **DA → SE**: Risk assessment, blocking risks, required mitigations **SE → QA**: Implementation summary, test hooks, edge cases **QA → CR**: Test results, bugs fixed, verification checklist
+**PM → SE**: Problem statement, acceptance criteria, constraints
+**SE → DA**: Proposed solution, assumptions, known risks, tradeoffs
+**DA → SE**: Risk assessment, blocking risks, required mitigations
+**SE → QA**: Implementation summary, test hooks, edge cases
+**QA → CR**: Test results, bugs fixed, verification checklist
 
 ### Conflict Resolution
 
-**PM vs SE (Scope)**: PM states value, SE states cost/risk, DA surfaces tradeoffs → Decision: Split or accept larger PR **SE vs QA (Coverage)**: QA states requirements, SE states feasibility, DA assesses risk → Decision: Balance coverage with effort **QA vs CR (Standards)**: CR states concern, QA explains rationale, DA assesses risk → Decision: Add tests or accept
+**PM vs SE (Scope)**: PM states value, SE states cost/risk, DA surfaces tradeoffs → Decision: Split or accept larger PR
+**SE vs QA (Coverage)**: QA states requirements, SE states feasibility, DA assesses risk → Decision: Balance coverage with effort
+**QA vs CR (Standards)**: CR states concern, QA explains rationale, DA assesses risk → Decision: Add tests or accept
 
 **Escalation**: DA mediates → SE technical call → PM product call → Document and move forward
 

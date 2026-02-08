@@ -344,4 +344,5 @@ See [SYNC_ARCHITECTURE.md](../SYNC_ARCHITECTURE.md) for full technical details.
 
 ---
 
-**Last Updated**: December 2024 **Version**: 1.0
+**Last Updated**: December 2024
+**Version**: 1.0
