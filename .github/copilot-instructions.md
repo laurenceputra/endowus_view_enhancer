@@ -14,7 +14,10 @@ applies_to:
 
 ## Project Overview
 
-**Type**: Browser Extension (Tampermonkey Userscript) **Purpose**: Enhance the Endowus (Singapore) investment platform with custom portfolio visualization **Architecture**: Single-file JavaScript with API interception **Key Feature**: Organize investment goals into custom "buckets" for better portfolio management
+**Type**: Browser Extension (Tampermonkey Userscript)
+**Purpose**: Enhance the Endowus (Singapore) investment platform with custom portfolio visualization
+**Architecture**: Single-file JavaScript with API interception
+**Key Feature**: Organize investment goals into custom "buckets" for better portfolio management
 
 ### Core Technologies
 - **Runtime**: Browser (Tampermonkey/Greasemonkey/Violentmonkey)
