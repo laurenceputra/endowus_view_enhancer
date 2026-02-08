@@ -89,7 +89,12 @@ For complete control over your data, you can run your own sync server.
 
 ### Sync Indicator
 
-| Icon | Meaning | |------|---------| | ✅ | Synced successfully | | 🔄 | Syncing in progress... | | ⚠️ | Sync error (check console) | | 🔒 | Sync disabled |
+| Icon | Meaning |
+|------|---------|
+| ✅ | Synced successfully |
+| 🔄 | Syncing in progress... |
+| ⚠️ | Sync error (check console) |
+| 🔒 | Sync disabled |
 
 ## ⚠️ Handling Conflicts
 

@@ -1,10 +1,19 @@
---- name: code-review description: Expert code reviewer with deep knowledge of software engineering best practices, design patterns, and code quality standards. Use this skill when reviewing code changes, pull requests, or conducting code quality assessments. license: MIT tags:
+---
+name: code-review
+description: Expert code reviewer with deep knowledge of software engineering best practices, design patterns, and code quality standards. Use this skill when reviewing code changes, pull requests, or conducting code quality assessments.
+license: MIT
+tags:
   - code-review
   - quality
-  - best-practices allowed-tools:
+  - best-practices
+allowed-tools:
   - bash
   - git
-  - markdown metadata: author: laurenceputra version: 1.0.0 ---
+  - markdown
+metadata:
+  author: laurenceputra
+  version: 1.0.0
+---
 
 # Code Review
 

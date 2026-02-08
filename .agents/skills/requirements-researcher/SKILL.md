@@ -1,10 +1,19 @@
---- name: requirements-researcher description: "Feasibility and requirements clarification for software/infra/product work; use when asked what is possible, to assess constraints/tradeoffs, or to clarify user flows and turn ambiguous requests into actionable questions before handing off to spec-writer." license: MIT tags:
+---
+name: requirements-researcher
+description: "Feasibility and requirements clarification for software/infra/product work; use when asked what is possible, to assess constraints/tradeoffs, or to clarify user flows and turn ambiguous requests into actionable questions before handing off to spec-writer."
+license: MIT
+tags:
   - requirements
   - discovery
-  - product allowed-tools:
+  - product
+allowed-tools:
   - bash
   - git
-  - markdown metadata: author: laurenceputra version: 1.0.0 ---
+  - markdown
+metadata:
+  author: laurenceputra
+  version: 1.0.0
+---
 
 # Requirements Researcher
 

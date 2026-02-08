@@ -1,10 +1,19 @@
---- name: refactoring-expert description: Software refactoring expert with deep knowledge of code improvement techniques, design patterns, and clean code principles. Use this skill when improving code structure, eliminating code smells, or applying design patterns. license: MIT tags:
+---
+name: refactoring-expert
+description: Software refactoring expert with deep knowledge of code improvement techniques, design patterns, and clean code principles. Use this skill when improving code structure, eliminating code smells, or applying design patterns.
+license: MIT
+tags:
   - refactoring
   - design-patterns
-  - clean-code allowed-tools:
+  - clean-code
+allowed-tools:
   - bash
   - git
-  - markdown metadata: author: laurenceputra version: 1.0.0 ---
+  - markdown
+metadata:
+  author: laurenceputra
+  version: 1.0.0
+---
 
 # Refactoring Expert
 

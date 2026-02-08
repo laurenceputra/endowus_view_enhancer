@@ -1,10 +1,19 @@
---- name: spec-writer description: "Write or update specification/plan documents (e.g., .specifications/plan.md) with explicit tasks, file targets, acceptance criteria, verification, and commit steps; use when asked to write/update specs, plans, or requirements." license: MIT tags:
+---
+name: spec-writer
+description: "Write or update specification/plan documents (e.g., .specifications/plan.md) with explicit tasks, file targets, acceptance criteria, verification, and commit steps; use when asked to write/update specs, plans, or requirements."
+license: MIT
+tags:
   - planning
   - documentation
-  - specs allowed-tools:
+  - specs
+allowed-tools:
   - bash
   - git
-  - markdown metadata: author: laurenceputra version: 1.0.0 ---
+  - markdown
+metadata:
+  author: laurenceputra
+  version: 1.0.0
+---
 
 # Spec Writer
 

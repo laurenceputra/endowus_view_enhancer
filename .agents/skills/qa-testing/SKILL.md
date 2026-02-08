@@ -1,10 +1,19 @@
---- name: qa-testing description: QA engineer with expertise in software testing methodologies, test design, and quality assurance practices. Use this skill when planning tests, writing test cases, or improving test coverage and quality. license: MIT tags:
+---
+name: qa-testing
+description: QA engineer with expertise in software testing methodologies, test design, and quality assurance practices. Use this skill when planning tests, writing test cases, or improving test coverage and quality.
+license: MIT
+tags:
   - testing
   - qa
-  - quality allowed-tools:
+  - quality
+allowed-tools:
   - bash
   - git
-  - markdown metadata: author: laurenceputra version: 1.0.0 ---
+  - markdown
+metadata:
+  author: laurenceputra
+  version: 1.0.0
+---
 
 # QA Testing
 

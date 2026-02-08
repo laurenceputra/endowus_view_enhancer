@@ -1,6 +1,8 @@
 # Test Plan Templates
 
-## Test Matrix | Scenario | Type (unit/integration/e2e) | Expected | Result | Notes | | --- | --- | --- | --- | --- |
+## Test Matrix
+| Scenario | Type (unit/integration/e2e) | Expected | Result | Notes |
+| --- | --- | --- | --- | --- |
 
 ## Coverage Checklist
 - Happy path

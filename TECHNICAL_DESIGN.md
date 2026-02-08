@@ -36,8 +36,6 @@ tampermonkey/
 
 The sync feature is opt-in and encrypts configuration data client-side before upload. Authentication is handled with JWT access/refresh tokens issued after password login (legacy password-hash headers are no longer supported). After login or sign up, sync saves settings and enables encryption by default, storing a **derived encryption key** on the current device unless the user disables the remember-key option. After activation, auto-sync runs by default with a configurable interval and buffered sync-on-change to avoid excessive requests; if a sync is already running, change-triggered sync retries after a short delay. Fixed goals only sync their fixed state (target percentages are ignored), and conflict resolution is presented inside the sync settings overlay.
 
-Preview deployments of the sync backend bind the preview Worker to the KV namespace specified by `SYNC_KV_PREVIEW_ID` (falling back to `SYNC_KV_ID`) to keep preview data isolated without per-PR namespace creation.
-
 ---
 
 ## API Interception
@@ -140,7 +138,16 @@ Time-series normalization and fallback return calculations intentionally use `Nu
 
 The performance metrics table is built from the per-goal performance response fields below. When multiple goals are combined, percentage metrics are weighted by each goal’s net investment amount.
 
-| Table Label | Primary Response Field(s) | Notes | | --- | --- | --- | | Total Return % | `totalCumulativeReturnPercent` | Weighted by `netInvestmentAmount` across goals, with UI helper text explaining the weighting. | | Simple Return % | `simpleRateOfReturnPercent` → `simpleReturnPercent` | Weighted by `netInvestmentAmount` across goals for a companion view. | | TWR % | `timeWeightedReturnPercent` → `twrPercent` | Weighted by `gainOrLossTable.netInvestment.allTimeValue.amount` across goals. | | Annualised IRR | `returnsTable.annualisedIrr.allTimeValue` | Weighted by `gainOrLossTable.netInvestment.allTimeValue.amount` across goals. | | Gain / Loss | `totalCumulativeReturnAmount` | Summed across goals. | | Net Fees | `gainOrLossTable.accessFeeCharged.allTimeValue.amount` − `gainOrLossTable.trailerFeeRebates.allTimeValue.amount` | Summed across goals. | | Net Investment | `gainOrLossTable.netInvestment.allTimeValue.amount` → `netInvestmentAmount` → `netInvestment` | Summed; falls back to earliest time-series amount when missing. | | Ending Balance | `totalInvestmentValue` + `pendingProcessingAmount` → `endingBalanceAmount` → `totalBalanceAmount` → `marketValueAmount` | Summed; uses performance totals (including pending processing) when available, then falls back to latest time-series amount when missing. |
+| Table Label | Primary Response Field(s) | Notes |
+| --- | --- | --- |
+| Total Return % | `totalCumulativeReturnPercent` | Weighted by `netInvestmentAmount` across goals, with UI helper text explaining the weighting. |
+| Simple Return % | `simpleRateOfReturnPercent` → `simpleReturnPercent` | Weighted by `netInvestmentAmount` across goals for a companion view. |
+| TWR % | `timeWeightedReturnPercent` → `twrPercent` | Weighted by `gainOrLossTable.netInvestment.allTimeValue.amount` across goals. |
+| Annualised IRR | `returnsTable.annualisedIrr.allTimeValue` | Weighted by `gainOrLossTable.netInvestment.allTimeValue.amount` across goals. |
+| Gain / Loss | `totalCumulativeReturnAmount` | Summed across goals. |
+| Net Fees | `gainOrLossTable.accessFeeCharged.allTimeValue.amount` − `gainOrLossTable.trailerFeeRebates.allTimeValue.amount` | Summed across goals. |
+| Net Investment | `gainOrLossTable.netInvestment.allTimeValue.amount` → `netInvestmentAmount` → `netInvestment` | Summed; falls back to earliest time-series amount when missing. |
+| Ending Balance | `totalInvestmentValue` + `pendingProcessingAmount` → `endingBalanceAmount` → `totalBalanceAmount` → `marketValueAmount` | Summed; uses performance totals (including pending processing) when available, then falls back to latest time-series amount when missing. |
 
 ---
 
@@ -277,7 +284,8 @@ Performance requests are executed sequentially with a configurable delay to avoi
 - **Cache**: Tampermonkey storage keyed by `gpv_performance_<goalId>`.
 - **TTL**: 7 days; cached responses are reused if still fresh and purged once stale.
 - **Refresh policy**: the UI exposes a “Clear cache & refresh” action once cached data is at least 24 hours old.
-- **Cache freshness**: Performance cache entries are always checked for freshness, and fetch failures return null to avoid showing stale financial data to users. ### Money Formatting
+- **Cache freshness**: Performance cache entries are always checked for freshness, and fetch failures return null to avoid showing stale financial data to users.
+### Money Formatting
 
 All monetary values are formatted consistently:
 

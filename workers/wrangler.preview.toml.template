@@ -6,7 +6,7 @@ preview_urls = true
 
 [[kv_namespaces]]
 binding = "SYNC_KV_PREVIEW"
-id = "__KV_PREVIEW_ID__"
+id = "__KV_ID__"
 preview_id = "__KV_PREVIEW_ID__"
 
 [vars]

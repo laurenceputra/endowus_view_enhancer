@@ -155,11 +155,11 @@ Add the required repository secrets in: **GitHub → Settings → Secrets and va
 Required secrets:
 - `CLOUDFLARE_API_TOKEN` (Workers Scripts: Edit, KV Storage: Edit, Account Settings: Read)
 - `CLOUDFLARE_ACCOUNT_ID`
-- `SYNC_KV_ID` (required KV namespace ID for previews; used as fallback)
-- `SYNC_KV_PREVIEW_ID` (preview namespace ID; used for preview writes when set)
+- `SYNC_KV_ID` (required KV namespace ID for previews)
+- `SYNC_KV_PREVIEW_ID` (preview namespace ID; defaults to `SYNC_KV_ID` if omitted)
 - `CLOUDFLARE_WORKERS_SUBDOMAIN` (used to build the preview URL in PR comments)
 
-Previews use the KV namespace from `SYNC_KV_PREVIEW_ID` when provided (falling back to `SYNC_KV_ID`) to avoid per-PR KV creation while still allowing isolated preview storage.
+Previews use a shared KV namespace via `SYNC_KV_ID` to avoid per-PR KV creation.
 
 JWT secrets are managed via Wrangler (not GitHub Actions). Run: `npx wrangler secret put JWT_SECRET --env production` or set per preview worker name as needed.
 
@@ -217,7 +217,8 @@ The backend issues JWT access + refresh tokens after password-based login.
 
 ### Authentication Endpoints
 
-#### POST /auth/register Register a new user account.
+#### POST /auth/register
+Register a new user account.
 
 **Request:**
 ```json
@@ -235,7 +236,8 @@ The backend issues JWT access + refresh tokens after password-based login.
 }
 ```
 
-#### POST /auth/login Verify user credentials.
+#### POST /auth/login
+Verify user credentials.
 
 **Request:**
 ```json
@@ -259,7 +261,8 @@ The backend issues JWT access + refresh tokens after password-based login.
 }
 ```
 
-#### POST /auth/refresh Exchange a refresh token for new tokens.
+#### POST /auth/refresh
+Exchange a refresh token for new tokens.
 
 **Request:**
 ```bash
@@ -350,9 +353,11 @@ node --test test/*.test.js
 ### View Logs
 
 ```bash
-# Tail production logs npx wrangler tail
+# Tail production logs
+npx wrangler tail
 
-# Filter for errors only npx wrangler tail --status error
+# Filter for errors only
+npx wrangler tail --status error
 ```
 
 ## 📚 API Reference
@@ -486,11 +491,14 @@ Set in `wrangler.toml`:
 Stored securely, not in code:
 
 ```bash
-# Set JWT secret npx wrangler secret put JWT_SECRET
+# Set JWT secret
+npx wrangler secret put JWT_SECRET
 
-# Update JWT secret npx wrangler secret put JWT_SECRET --env production
+# Update JWT secret
+npx wrangler secret put JWT_SECRET --env production
 
-# List secrets (doesn't show values) npx wrangler secret list
+# List secrets (doesn't show values)
+npx wrangler secret list
 ```
 
 Use unique secrets per environment:
@@ -511,18 +519,22 @@ routes = [ { pattern = "sync.yourdomain.com/*", zone_name = "yourdomain.com" } ]
 
 ### View Metrics
 ```bash
-# Open dashboard npx wrangler dashboard
+# Open dashboard
+npx wrangler dashboard
 
 # Or visit: https://dash.cloudflare.com → Workers → Your Worker → Metrics
 ```
 
 ### Tail Logs
 ```bash
-# Real-time logs npx wrangler tail
+# Real-time logs
+npx wrangler tail
 
-# Filter by status code npx wrangler tail --status error npx wrangler tail --status ok
+# Filter by status code
+npx wrangler tail --status error npx wrangler tail --status ok
 
-# Filter by method npx wrangler tail --method POST
+# Filter by method
+npx wrangler tail --method POST
 ```
 
 ### Alerts

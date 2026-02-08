@@ -1,8 +1,12 @@
---- name: product-manager description: Product Manager agent for feature prioritization, requirements definition, and user-focused decision making applies_to:
+---
+name: product-manager
+description: Product Manager agent for feature prioritization, requirements definition, and user-focused decision making
+applies_to:
   - copilot-chat
   - copilot-cli
   - copilot-code-review
-  - copilot-workspace ---
+  - copilot-workspace
+---
 
 # Product Manager Agent
 

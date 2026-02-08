@@ -261,24 +261,31 @@ SyncEncryption.encrypt("test", "password").then(encrypted => {
 
 ## Troubleshooting
 
-### Issue: GM_listValues is not defined **Solution**: Make sure you added `// @grant GM_listValues` in step 1
+### Issue: GM_listValues is not defined
+**Solution**: Make sure you added `// @grant GM_listValues` in step 1
 
-### Issue: Web Crypto API not supported **Solution**: Use a modern browser (Chrome 37+, Firefox 34+, Safari 11+)
+### Issue: Web Crypto API not supported
+**Solution**: Use a modern browser (Chrome 37+, Firefox 34+, Safari 11+)
 
-### Issue: CORS error when connecting to backend **Solution**: Check Cloudflare Workers CORS headers:
+### Issue: CORS error when connecting to backend
+**Solution**: Check Cloudflare Workers CORS headers:
 ```javascript
 'Access-Control-Allow-Origin': '*'
 'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS'
 'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 ```
 
-### Issue: Sync indicator not showing **Solution**: Check console for errors, verify `createSyncIndicatorHTML()` is defined
+### Issue: Sync indicator not showing
+**Solution**: Check console for errors, verify `createSyncIndicatorHTML()` is defined
 
-### Issue: Settings panel won't open **Solution**: Check console for errors, verify `showSyncSettings()` is defined
+### Issue: Settings panel won't open
+**Solution**: Check console for errors, verify `showSyncSettings()` is defined
 
-### Issue: Decryption failed **Solution**: Check your password is correct, or clear sync config and reconfigure
+### Issue: Decryption failed
+**Solution**: Check your password is correct, or clear sync config and reconfigure
 
-### Issue: Auto-sync not working **Solution**: Check sync is enabled and configured:
+### Issue: Auto-sync not working
+**Solution**: Check sync is enabled and configured:
 ```javascript
 console.log(SyncManager.getStatus());
 ```

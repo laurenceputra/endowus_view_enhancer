@@ -11,4 +11,6 @@
 - Auth boundaries
 - External services
 
-## Risks & Mitigations | Risk | Impact | Mitigation | Residual | Owner | | --- | --- | --- | --- | --- |
+## Risks & Mitigations
+| Risk | Impact | Mitigation | Residual | Owner |
+| --- | --- | --- | --- | --- |

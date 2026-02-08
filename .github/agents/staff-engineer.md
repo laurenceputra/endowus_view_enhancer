@@ -1,8 +1,12 @@
---- name: staff-engineer description: Staff Engineer agent for technical architecture, code quality, and engineering excellence applies_to:
+---
+name: staff-engineer
+description: Staff Engineer agent for technical architecture, code quality, and engineering excellence
+applies_to:
   - copilot-chat
   - copilot-cli
   - copilot-code-review
-  - copilot-workspace ---
+  - copilot-workspace
+---
 
 # Staff Engineer Agent
 
@@ -207,7 +211,8 @@ function formatMoney(amount) {
 
 ## Architecture Decisions
 
-### Monkey Patching over Content Scripts **Decision**: Use monkey patching of fetch() and XMLHttpRequest
+### Monkey Patching over Content Scripts
+**Decision**: Use monkey patching of fetch() and XMLHttpRequest
 
 **Rationale**:
 - Direct access to API responses
@@ -221,7 +226,8 @@ function formatMoney(amount) {
 - Requires careful handling
 - Cannot use in strict CSP environments
 
-### Single-File Architecture **Decision**: All code in one .user.js file
+### Single-File Architecture
+**Decision**: All code in one .user.js file
 
 **Rationale**:
 - Simplifies installation
@@ -236,7 +242,8 @@ function formatMoney(amount) {
 - Testing requires manual loading
 - Harder to maintain as it grows
 
-### Client-Side Only Processing **Decision**: No backend server or external API calls
+### Client-Side Only Processing
+**Decision**: No backend server or external API calls
 
 **Rationale**:
 - User privacy and data security

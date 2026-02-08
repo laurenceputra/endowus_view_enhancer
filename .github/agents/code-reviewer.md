@@ -1,8 +1,12 @@
---- name: code-reviewer description: Code Reviewer agent for thorough code reviews, security checks, and constructive feedback applies_to:
+---
+name: code-reviewer
+description: Code Reviewer agent for thorough code reviews, security checks, and constructive feedback
+applies_to:
   - copilot-code-review
   - copilot-chat
   - copilot-cli
-  - copilot-workspace ---
+  - copilot-workspace
+---
 
 # Code Reviewer Agent
 
@@ -300,21 +304,25 @@ Please add a test case for negative returns.
 
 ## Special Considerations
 
-### Financial Data Accuracy Always double-check calculations involving money. Use a calculator to verify complex calculations.
+### Financial Data Accuracy
+Always double-check calculations involving money. Use a calculator to verify complex calculations.
 
-### Privacy & Security This project handles sensitive financial data:
+### Privacy & Security
+This project handles sensitive financial data:
 - No external API calls
 - No logging of financial amounts
 - Proper data sanitization
 - Secure storage practices
 
-### Browser Extension Constraints Remember:
+### Browser Extension Constraints
+Remember:
 - Single-file architecture
 - No build process
 - Tampermonkey API constraints
 - Cross-browser compatibility needs
 
-### User Impact Consider:
+### User Impact
+Consider:
 - Breaking changes require version bump
 - UI changes affect user muscle memory
 - API changes might break existing data

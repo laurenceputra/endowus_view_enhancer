@@ -1,8 +1,12 @@
---- name: qa-engineer description: QA Engineer agent for quality assurance, testing strategies, and bug identification applies_to:
+---
+name: qa-engineer
+description: QA Engineer agent for quality assurance, testing strategies, and bug identification
+applies_to:
   - copilot-chat
   - copilot-cli
   - copilot-code-review
-  - copilot-workspace ---
+  - copilot-workspace
+---
 
 # QA Engineer Agent
 
@@ -123,7 +127,8 @@ Edge __.__
 
 ## Bug Reporting
 
-### Title Format `[Component] Brief description`
+### Title Format
+`[Component] Brief description`
 
 **Examples**:
 - `[API] Performance data not intercepted on Firefox`

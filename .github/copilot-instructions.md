@@ -1,8 +1,12 @@
---- title: Goal Portfolio Viewer Development Guide description: Comprehensive instructions for GitHub Copilot when working on the Goal Portfolio Viewer Tampermonkey userscript applies_to:
+---
+title: Goal Portfolio Viewer Development Guide
+description: Comprehensive instructions for GitHub Copilot when working on the Goal Portfolio Viewer Tampermonkey userscript
+applies_to:
   - copilot-chat
   - copilot-cli
   - copilot-workspace
-  - copilot-code-review ---
+  - copilot-code-review
+---
 
 # Goal Portfolio Viewer - Development Guide
 
@@ -40,7 +44,13 @@ Use this compact workflow for all changes. Keep detailed role guidance in `.gith
 
 ### Change Type → Required Steps
 
-| Change Type | Required Steps | | --- | --- | | Pure logic | Jest tests with edge cases + lint; update docs if behavior changes | | UI/visual | Jest (if logic touched) + lint + screenshot + smoke check | | Behavior change | Jest + lint + update TECHNICAL_DESIGN.md and README references | | Performance | Jest + lint + perf check and reasoning about impact | | Documentation-only | Lint not required unless code changes; no tests required unless logic changed |
+| Change Type | Required Steps |
+| --- | --- |
+| Pure logic | Jest tests with edge cases + lint; update docs if behavior changes |
+| UI/visual | Jest (if logic touched) + lint + screenshot + smoke check |
+| Behavior change | Jest + lint + update TECHNICAL_DESIGN.md and README references |
+| Performance | Jest + lint + perf check and reasoning about impact |
+| Documentation-only | Lint not required unless code changes; no tests required unless logic changed |
 
 ### Trigger Rules for Merged Responsibilities
 - **Security/Privacy**: Required for API interception changes, storage changes, or data handling logic.
@@ -59,9 +69,18 @@ Use this compact workflow for all changes. Keep detailed role guidance in `.gith
 - **UX/Accessibility** → Product Manager + QA Engineer
 - **Release/Docs** → Staff Engineer + Code Reviewer
 
-### Skill Alignment (Required) When a workflow phase starts, align on the relevant skills and record them in your working notes (see `.codex/skills/*`):
+### Skill Alignment (Required)
+When a workflow phase starts, align on the relevant skills and record them in your working notes (see `.codex/skills/*`):
 
-| Phase | Primary Skills | | --- | --- | | Planning (PM) | `documentation`, `security-risk` | | Design (SE) | `refactoring-expert`, `performance-optimization` | | Risk (DA) | `security-risk` | | Implementation (SE) | `debugging-assistant`, `refactoring-expert` | | QA | `qa-testing`, `ux-accessibility`, `network-resilience` | | Review | `code-review`, `security-risk` | | Release/Docs | `release-management`, `documentation` |
+| Phase | Primary Skills |
+| --- | --- |
+| Planning (PM) | `documentation`, `security-risk` |
+| Design (SE) | `refactoring-expert`, `performance-optimization` |
+| Risk (DA) | `security-risk` |
+| Implementation (SE) | `debugging-assistant`, `refactoring-expert` |
+| QA | `qa-testing`, `ux-accessibility`, `network-resilience` |
+| Review | `code-review`, `security-risk` |
+| Release/Docs | `release-management`, `documentation` |
 
 **Precedence**: Workflow gates override skill guidance if they conflict.
 
@@ -76,13 +95,15 @@ Use this compact workflow for all changes. Keep detailed role guidance in `.gith
 4. **QA**: Define test depth, edge cases, and verification steps.
 5. **Code Reviewer**: Apply review gates before final approval.
 
-### Stage Alignment Gates (Required) Only move to the next stage when all required agents are aligned.
+### Stage Alignment Gates (Required)
+Only move to the next stage when all required agents are aligned.
 - **Alignment artifact**: 1-3 bullets per stage capturing agreement.
 - **Blocking rule**: Any blocking concern stops progression until resolved.
 - **Loopback rule**: If QA or Code Review fails, return to Stage 3 (Staff Engineer implementation), then re-run QA and Code Review.
 - **Iteration rule**: When any agent surfaces a blocking issue, re-enter the prior stage and iterate within the same agent group until the blocking issue is resolved and re-validated.
 
-### Workflow Templates Capture the required artifacts and gate alignment bullets in your working notes or PR description as needed.
+### Workflow Templates
+Capture the required artifacts and gate alignment bullets in your working notes or PR description as needed.
 
 #### Stage Gates
 1. **Product Gate**: Product owns scope; Staff Engineer and QA confirm acceptance criteria are testable.
@@ -127,7 +148,13 @@ for (var i = 0; i < apiData.performance.length; i++) {
 
 ### Naming Conventions
 
-| Type | Convention | Example | |------|-----------|---------| | Functions | camelCase with verb | `extractBucket()`, `renderSummaryView()` | | Constants | UPPER_SNAKE_CASE | `API_ENDPOINTS`, `DEBUG` | | Variables | camelCase | `apiData`, `bucketName`, `totalInvestment` | | CSS Classes | kebab-case with `gpv-` prefix | `gpv-trigger-btn`, `gpv-container` | | Event Handlers | `on` + Event | `onButtonClick()`, `onModalClose()` |
+| Type | Convention | Example |
+|------|-----------|---------|
+| Functions | camelCase with verb | `extractBucket()`, `renderSummaryView()` |
+| Constants | UPPER_SNAKE_CASE | `API_ENDPOINTS`, `DEBUG` |
+| Variables | camelCase | `apiData`, `bucketName`, `totalInvestment` |
+| CSS Classes | kebab-case with `gpv-` prefix | `gpv-trigger-btn`, `gpv-container` |
+| Event Handlers | `on` + Event | `onButtonClick()`, `onModalClose()` |
 
 ### File Structure Pattern
 
@@ -210,7 +237,11 @@ function validateGoalData(goal) {
 
 ### Critical Endpoints
 
-| Endpoint | Data Provided | Usage | |----------|--------------|-------| | `/v1/goals/performance` | Returns, growth %, current value | Performance metrics | | `/v2/goals/investible` | Investment amounts, goal types | Investment details | | `/v1/goals` | Goal names, IDs, descriptions | Goal metadata |
+| Endpoint | Data Provided | Usage |
+|----------|--------------|-------|
+| `/v1/goals/performance` | Returns, growth %, current value | Performance metrics |
+| `/v2/goals/investible` | Investment amounts, goal types | Investment details |
+| `/v1/goals` | Goal names, IDs, descriptions | Goal metadata |
 
 ### Interception Pattern
 
@@ -621,10 +652,12 @@ if (DEBUG) {
 - **Inline comments**: Complex algorithms, financial calculations
 - **Commit messages**: Follow conventional commits
 
-### Markdown Formatting (No Hard Wraps)
+### Markdown Line-Break Rules (No Hard Wrap)
 
-- Do not hard-wrap Markdown lines; keep sentences on a single line and rely on editors to soft-wrap for display.
-- Follow the repository `.editorconfig` settings when editing documentation files.
+- Keep prose sentences on a single line; do not hard-wrap within a paragraph.
+- Insert line breaks only for structure: headings, list items, tables, block quotes, code fences, and paragraph breaks.
+- Preserve table rows as single lines and do not split long URLs or inline code across lines.
+- Follow `.editorconfig` when editing documentation files.
 
 ### Commit Message Format
 
@@ -760,7 +793,13 @@ PLANNING → DESIGN → RISK → IMPLEMENT → QA → REVIEW → MERGE
 
 ### Agent Capabilities
 
-| Agent | Requirements | Design | Implementation | Testing | Review | Risk | |-------|--------------|--------|----------------|---------|--------|------| | Product Manager | ✅ Owner | 🤝 Input | ❌ | 🤝 Input | 🤝 Input | 🤝 | | Staff Engineer | 🤝 Input | ✅ Owner | ✅ Owner | 🤝 Support | 🤝 Input | 🤝 | | QA Engineer | 🤝 Input | 🤝 Input | ❌ | ✅ Owner | 🤝 Input | 🤝 | | Code Reviewer | ❌ | � Input | ❌ | 🤝 Verify | ✅ Owner | 🤝 | | Devil's Advocate | 🤝 Challenge | 🤝 Challenge | ❌ | 🤝 Challenge | ❌ | ✅ Owner |
+| Agent | Requirements | Design | Implementation | Testing | Review | Risk |
+|-------|--------------|--------|----------------|---------|--------|------|
+| Product Manager | ✅ Owner | 🤝 Input | ❌ | 🤝 Input | 🤝 Input | 🤝 |
+| Staff Engineer | 🤝 Input | ✅ Owner | ✅ Owner | 🤝 Support | 🤝 Input | 🤝 |
+| QA Engineer | 🤝 Input | 🤝 Input | ❌ | ✅ Owner | 🤝 Input | 🤝 |
+| Code Reviewer | ❌ | � Input | ❌ | 🤝 Verify | ✅ Owner | 🤝 |
+| Devil's Advocate | 🤝 Challenge | 🤝 Challenge | ❌ | 🤝 Challenge | ❌ | ✅ Owner |
 
 **Legend**: ✅ Owner | 🤝 Input/Support | ❌ Not involved
 
