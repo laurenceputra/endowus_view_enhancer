@@ -23,7 +23,8 @@
 
 Investing today often means buying individual funds or managed funds across multiple goals. Most platforms still do not provide an easy way to visualize each of these purchases or track allocation across all of them, whether you follow core-satellite or a broader asset allocation framework. This userscript helps you spot imbalances early and organize everything around your real-life goals.
 
-> **Platform Support**: Currently works with Endowus (Singapore). This userscript enhances your portfolio visualization experience by organizing goals into custom buckets.
+>
+**Platform Support**: Currently works with Endowus (Singapore). This userscript enhances your portfolio visualization experience by organizing goals into custom buckets.
 
 ---
 
@@ -82,11 +83,16 @@ Bring your core-satellite strategy to life with a view that aligns with how you 
 Sync your portfolio configuration across multiple devices with end-to-end encryption.
 
 **Key Features**:
-- 🔒 **Zero-Knowledge**: All encryption happens on your device
-- 🌐 **Self-Hostable**: Run your own backend on Cloudflare Workers
-- 🔄 **Automatic Sync**: Enabled by default after activation with configurable interval, change-based batching, and retry while a sync is in progress
-- 🎯 **Conflict Resolution**: Clear UI for handling sync conflicts
-- ⚡ **Fast**: ~5ms encryption, global CDN distribution
+- 🔒
+**Zero-Knowledge**: All encryption happens on your device
+- 🌐
+**Self-Hostable**: Run your own backend on Cloudflare Workers
+- 🔄
+**Automatic Sync**: Enabled by default after activation with configurable interval, change-based batching, and retry while a sync is in progress
+- 🎯
+**Conflict Resolution**: Clear UI for handling sync conflicts
+- ⚡
+**Fast**: ~5ms encryption, global CDN distribution
 
 **Privacy & Opt-In**:
 - ✅ Sync is completely optional.
@@ -117,7 +123,8 @@ We use a multi-agent workflow to maintain code quality and ensure robust develop
 ### Quick Start for Contributors
 
 1. **Fork and clone** the repository
-2. **Install dependencies**: `pnpm install`
+2.
+**Install dependencies**: `pnpm install`
 3. **Make changes** following the workflow below
 4. **Submit PR** with clear description
 

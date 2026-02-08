@@ -10,27 +10,34 @@ applies_to:
 
 # Goal Portfolio Viewer - Development Guide
 
-> **Filename standard**: This guidance follows GitHub's recommended `copilot-instructions.md` filename.
+>
+**Filename standard**: This guidance follows GitHub's recommended `copilot-instructions.md` filename.
 
 ## Project Overview
 
-**Type**: Browser Extension (Tampermonkey Userscript)
-**Purpose**: Enhance the Endowus (Singapore) investment platform with custom portfolio visualization
-**Architecture**: Single-file JavaScript with API interception
-**Key Feature**: Organize investment goals into custom "buckets" for better portfolio management
+**Type**: Browser Extension (Tampermonkey Userscript) **Purpose**: Enhance the Endowus (Singapore) investment platform with custom portfolio visualization **Architecture**: Single-file JavaScript with API interception **Key Feature**: Organize investment goals into custom "buckets" for better portfolio management
 
 ### Core Technologies
-- **Runtime**: Browser (Tampermonkey/Greasemonkey/Violentmonkey)
-- **Language**: Vanilla JavaScript (ES6+)
-- **API Interception**: Monkey patching of fetch() and XMLHttpRequest
-- **UI**: Injected CSS via `injectStyles()` with a modern gradient design system
-- **Data Flow**: Intercept → Process → Aggregate → Visualize
+-
+**Runtime**: Browser (Tampermonkey/Greasemonkey/Violentmonkey)
+-
+**Language**: Vanilla JavaScript (ES6+)
+-
+**API Interception**: Monkey patching of fetch() and XMLHttpRequest
+-
+**UI**: Injected CSS via `injectStyles()` with a modern gradient design system
+-
+**Data Flow**: Intercept → Process → Aggregate → Visualize
 
 ### Critical Context
-- **Privacy-First**: ALL processing happens client-side. Never send data externally.
-- **Financial Data**: Handles sensitive investment information requiring accuracy and security
-- **Single-File**: Entire application in one `.user.js` file for easy distribution
-- **No Dependencies (Userscript Only)**: Pure vanilla JS for the userscript - no build process, no external libraries
+-
+**Privacy-First**: ALL processing happens client-side. Never send data externally.
+-
+**Financial Data**: Handles sensitive investment information requiring accuracy and security
+-
+**Single-File**: Entire application in one `.user.js` file for easy distribution
+-
+**No Dependencies (Userscript Only)**: Pure vanilla JS for the userscript - no build process, no external libraries
 
 ---
 
@@ -39,11 +46,16 @@ applies_to:
 Use this compact workflow for all changes. Keep detailed role guidance in `.github/agents/*.md` and avoid duplicating it here.
 
 ### Required Artifacts
-- **Change Brief**: Problem, goal, and acceptance criteria (include change type and required steps).
-- **Risks & Tradeoffs**: Short note, especially for data accuracy, privacy, or API interception changes.
-- **Test Plan**: Jest coverage and any manual checks needed.
-- **Verification**: Commands run and outcomes.
-- **Verification Matrix**: Map each acceptance criterion to a test or manual check.
+-
+**Change Brief**: Problem, goal, and acceptance criteria (include change type and required steps).
+-
+**Risks & Tradeoffs**: Short note, especially for data accuracy, privacy, or API interception changes.
+-
+**Test Plan**: Jest coverage and any manual checks needed.
+-
+**Verification**: Commands run and outcomes.
+-
+**Verification Matrix**: Map each acceptance criterion to a test or manual check.
 
 ### Change Type → Required Steps
 
@@ -56,16 +68,24 @@ Use this compact workflow for all changes. Keep detailed role guidance in `.gith
 | Documentation-only | Lint not required unless code changes; no tests required unless logic changed |
 
 ### Trigger Rules for Merged Responsibilities
-- **Security/Privacy**: Required for API interception changes, storage changes, or data handling logic.
-- **UX/Accessibility**: Required for UI/visual changes and any new user interactions.
-- **Release/Docs**: Required for behavior changes, version bumps, and user-facing updates.
+-
+**Security/Privacy**: Required for API interception changes, storage changes, or data handling logic.
+-
+**UX/Accessibility**: Required for UI/visual changes and any new user interactions.
+-
+**Release/Docs**: Required for behavior changes, version bumps, and user-facing updates.
 
 ### Role Guides (Single Source of Detail)
-- **Product**: `.github/agents/product-manager.md` (requirements framing)
-- **Architecture/Risks**: `.github/agents/staff-engineer.md`
-- **QA/Test Depth**: `.github/agents/qa-engineer.md`
-- **Review Gates**: `.github/agents/code-reviewer.md`
-- **Devil's Advocate**: `.github/agents/devils-advocate.md` (blind spots)
+-
+**Product**: `.github/agents/product-manager.md` (requirements framing)
+-
+**Architecture/Risks**: `.github/agents/staff-engineer.md`
+-
+**QA/Test Depth**: `.github/agents/qa-engineer.md`
+-
+**Review Gates**: `.github/agents/code-reviewer.md`
+-
+**Devil's Advocate**: `.github/agents/devils-advocate.md` (blind spots)
 
 ### Role Extensions (Merged Responsibilities)
 - **Security/Privacy** → Staff Engineer + Code Reviewer
@@ -92,28 +112,42 @@ When a workflow phase starts, align on the relevant skills and record them in yo
 **Using skills outside the workflow**: You may invoke any relevant skill even when you are not actively progressing through workflow phases (for example, ad-hoc analysis, documentation updates, or pre-work discovery). When you do, note the skill usage and rationale in your working notes or PR description.
 
 ### Agent Interaction Model (Required)
-1. **Product**: Frame the problem, user impact, and acceptance criteria.
-2. **Staff Engineer**: Confirm architecture fit, call out risks/tradeoffs, and own implementation.
-3. **Devil's Advocate**: Surface blind spots, assumptions, and risk gaps.
-4. **QA**: Define test depth, edge cases, and verification steps.
-5. **Code Reviewer**: Apply review gates before final approval.
+1.
+**Product**: Frame the problem, user impact, and acceptance criteria.
+2.
+**Staff Engineer**: Confirm architecture fit, call out risks/tradeoffs, and own implementation.
+3.
+**Devil's Advocate**: Surface blind spots, assumptions, and risk gaps.
+4.
+**QA**: Define test depth, edge cases, and verification steps.
+5.
+**Code Reviewer**: Apply review gates before final approval.
 
 ### Stage Alignment Gates (Required)
 Only move to the next stage when all required agents are aligned.
-- **Alignment artifact**: 1-3 bullets per stage capturing agreement.
-- **Blocking rule**: Any blocking concern stops progression until resolved.
-- **Loopback rule**: If QA or Code Review fails, return to Stage 3 (Staff Engineer implementation), then re-run QA and Code Review.
-- **Iteration rule**: When any agent surfaces a blocking issue, re-enter the prior stage and iterate within the same agent group until the blocking issue is resolved and re-validated.
+-
+**Alignment artifact**: 1-3 bullets per stage capturing agreement.
+-
+**Blocking rule**: Any blocking concern stops progression until resolved.
+-
+**Loopback rule**: If QA or Code Review fails, return to Stage 3 (Staff Engineer implementation), then re-run QA and Code Review.
+-
+**Iteration rule**: When any agent surfaces a blocking issue, re-enter the prior stage and iterate within the same agent group until the blocking issue is resolved and re-validated.
 
 ### Workflow Templates
 Capture the required artifacts and gate alignment bullets in your working notes or PR description as needed.
 
 #### Stage Gates
-1. **Product Gate**: Product owns scope; Staff Engineer and QA confirm acceptance criteria are testable.
-2. **Staff Engineer Gate**: Risks/tradeoffs documented; Product and QA agree on scope impact.
-3. **Devil's Advocate Gate**: Risks/assumptions addressed or explicitly accepted.
-4. **QA Gate**: Test plan covers change type requirements; Staff Engineer agrees to fix gaps.
-5. **Code Review Gate**: Reviewer approves or blocks; QA must re-verify after any changes.
+1.
+**Product Gate**: Product owns scope; Staff Engineer and QA confirm acceptance criteria are testable.
+2.
+**Staff Engineer Gate**: Risks/tradeoffs documented; Product and QA agree on scope impact.
+3.
+**Devil's Advocate Gate**: Risks/assumptions addressed or explicitly accepted.
+4.
+**QA Gate**: Test plan covers change type requirements; Staff Engineer agrees to fix gaps.
+5.
+**Code Review Gate**: Reviewer approves or blocks; QA must re-verify after any changes.
 
 ### Versioning & Docs
 - If behavior changes, update TECHNICAL_DESIGN.md and any related README references.
@@ -177,7 +211,8 @@ The userscript follows this structure (order matters):
 
 ### Critical Rules (NEVER violate these)
 
-1. **No External API Calls**: Data must stay in browser
+1.
+**No External API Calls**: Data must stay in browser
    ```javascript
    // ❌ NEVER do this
    fetch('https://external-api.com/log', { body: userData });
@@ -189,7 +224,8 @@ The userscript follows this structure (order matters):
    };
    ```
 
-2. **XSS Prevention**: Always sanitize user input
+2.
+**XSS Prevention**: Always sanitize user input
    ```javascript
    // ❌ Vulnerable to XSS
    element.innerHTML = `<div>${goalName}</div>`;
@@ -200,9 +236,11 @@ The userscript follows this structure (order matters):
    element.appendChild(div);
    ```
 
-3. **No eval()**: Never use `eval()` or `Function()` constructor
+3.
+**No eval()**: Never use `eval()` or `Function()` constructor
 
-4. **Sensitive Data Logging**: Never log financial data in production
+4.
+**Sensitive Data Logging**: Never log financial data in production
    ```javascript
    const DEBUG = false; // Must be false for releases
    
@@ -558,7 +596,8 @@ modalContainer.addEventListener('click', (event) => {
 
 ### Modifying Bucket Logic
 
-⚠️ **Warning**: Changes affect all existing users!
+⚠️
+**Warning**: Changes affect all existing users!
 
 1. Document old behavior
 2. Ensure backward compatibility
@@ -617,11 +656,16 @@ if (DEBUG) {
 
 ### Common Issues
 
-1. **API not intercepted**: Check `@run-at document-start` in metadata
-2. **Data not merging**: Verify all 3 endpoints have been called
-3. **UI not updating**: Check for JavaScript errors in console
-4. **Calculations wrong**: Verify input data, check for division by zero
-5. **Button not appearing**: Check CSS conflicts with platform styles
+1.
+**API not intercepted**: Check `@run-at document-start` in metadata
+2.
+**Data not merging**: Verify all 3 endpoints have been called
+3.
+**UI not updating**: Check for JavaScript errors in console
+4.
+**Calculations wrong**: Verify input data, check for division by zero
+5.
+**Button not appearing**: Check CSS conflicts with platform styles
 
 ---
 
@@ -650,10 +694,14 @@ if (DEBUG) {
 
 ### When to Update Docs
 
-- **README.md**: User-facing features, installation, usage
-- **TECHNICAL_DESIGN.md**: Architecture, API details, developer guide
-- **Inline comments**: Complex algorithms, financial calculations
-- **Commit messages**: Follow conventional commits
+-
+**README.md**: User-facing features, installation, usage
+-
+**TECHNICAL_DESIGN.md**: Architecture, API details, developer guide
+-
+**Inline comments**: Complex algorithms, financial calculations
+-
+**Commit messages**: Follow conventional commits
 
 ### Markdown Line-Break Rules (No Hard Wrap)
 
@@ -722,10 +770,14 @@ Fixes #38
 
 ## Resources
 
-- **Tampermonkey API**: https://www.tampermonkey.net/documentation.php
-- **Userscript Best Practices**: https://wiki.greasespot.net/Code_Patterns
-- **MDN Web Docs**: https://developer.mozilla.org/en-US/docs/Web/API
-- **OWASP XSS Prevention**: https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html
+-
+**Tampermonkey API**: https://www.tampermonkey.net/documentation.php
+-
+**Userscript Best Practices**: https://wiki.greasespot.net/Code_Patterns
+-
+**MDN Web Docs**: https://developer.mozilla.org/en-US/docs/Web/API
+-
+**OWASP XSS Prevention**: https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html
 
 ---
 
@@ -775,12 +827,18 @@ PLANNING → DESIGN → RISK → IMPLEMENT → QA → REVIEW → MERGE
 ```
 
 **Phase Gates**:
-1. **Planning**: PM defines requirements → Gate: Testable acceptance criteria
-2. **Design**: SE proposes solution → Gate: Risks/tradeoffs documented
-3. **Risk**: DA challenges assumptions → Gate: Mitigations accepted
-4. **Implementation**: SE codes → Gate: Tests pass
-5. **QA**: QA verifies → Gate: Acceptance criteria met
-6. **Review**: CR approves → Gate: No blocking issues
+1.
+**Planning**: PM defines requirements → Gate: Testable acceptance criteria
+2.
+**Design**: SE proposes solution → Gate: Risks/tradeoffs documented
+3.
+**Risk**: DA challenges assumptions → Gate: Mitigations accepted
+4.
+**Implementation**: SE codes → Gate: Tests pass
+5.
+**QA**: QA verifies → Gate: Acceptance criteria met
+6.
+**Review**: CR approves → Gate: No blocking issues
 
 **Loopback**: Failed gate returns to appropriate phase for rework.
 
@@ -822,16 +880,25 @@ PLANNING → DESIGN → RISK → IMPLEMENT → QA → REVIEW → MERGE
 - Code review → Code Reviewer
 
 **Common scenarios**:
-- **Bug fix**: PM clarify → SE fix → QA verify → CR review
-- **Feature**: PM define → SE design → DA challenge → SE implement → QA test → CR review
-- **Uncertain approach**: SE evaluate options → DA assess risks → PM decide value
+-
+**Bug fix**: PM clarify → SE fix → QA verify → CR review
+-
+**Feature**: PM define → SE design → DA challenge → SE implement → QA test → CR review
+-
+**Uncertain approach**: SE evaluate options → DA assess risks → PM decide value
 
 **Definition of Done per phase**:
-- **Planning→Design**: Testable criteria
-- **Design→Risk**: Risks identified
-- **Risk→Implement**: Mitigations planned
-- **Implement→QA**: Tests pass
-- **QA→Review**: Criteria met
-- **Review→Merge**: No blockers
+-
+**Planning→Design**: Testable criteria
+-
+**Design→Risk**: Risks identified
+-
+**Risk→Implement**: Mitigations planned
+-
+**Implement→QA**: Tests pass
+-
+**QA→Review**: Criteria met
+-
+**Review→Merge**: No blockers
 
 ---

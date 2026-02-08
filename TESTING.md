@@ -258,8 +258,10 @@ When updating the userscript:
 
 ### Test Coverage Goals
 
-- **Pure Logic Functions**: 100% coverage for exported functions
-- **Overall File**: Lower percentage is expected (includes browser-only code)
+-
+**Pure Logic Functions**: 100% coverage for exported functions
+-
+**Overall File**: Lower percentage is expected (includes browser-only code)
 
 Current coverage for tested functions: 100% statements, 94.73% branches, 100% functions
 

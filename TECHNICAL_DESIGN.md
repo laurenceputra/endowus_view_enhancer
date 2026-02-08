@@ -107,7 +107,8 @@ XMLHttpRequest.prototype.send = function(...args) {
 
 #### Interception Safety Notes
 
-- Fetch interception is **non-blocking**: the script returns the original response immediately and processes clones asynchronously.
+- Fetch interception is
+**non-blocking**: the script returns the original response immediately and processes clones asynchronously.
 - XHR responses are parsed defensively; invalid JSON is ignored without breaking the page flow.
 - Captured auth headers are **merged** into prior values so partial captures (e.g., missing `authorization`) do not erase previously known headers.
 
@@ -115,7 +116,8 @@ XMLHttpRequest.prototype.send = function(...args) {
 
 The enhanced performance view retrieves time-series data per goal from the BFF endpoint:
 
-- **Endpoint**: `https://bff.prod.silver.endowus.com/v1/performance`
+-
+**Endpoint**: `https://bff.prod.silver.endowus.com/v1/performance`
 - **Query params**:
   - `displayCcy=SGD`
   - `goalId=<uuid>`
@@ -127,8 +129,10 @@ The enhanced performance view retrieves time-series data per goal from the BFF e
   - `performanceDates.*`
   - `totalCumulativeReturnPercent`
   - `totalCumulativeReturnAmount`
-- **Origin relationship**: `app.sg.endowus.com` sends same-site requests to `bff.prod.silver.endowus.com`
-- **Required headers**: `authorization` (bearer token), `client-id`, `device-id`
+-
+**Origin relationship**: `app.sg.endowus.com` sends same-site requests to `bff.prod.silver.endowus.com`
+-
+**Required headers**: `authorization` (bearer token), `client-id`, `device-id`
 
 These headers are captured from in-app fetch requests and reused for the sequential performance fetch queue. If captured headers are missing, the script falls back to the `webapp-sg-access-token` and `webapp-deviceId` cookies and any locally stored `client-id` to build the performance request headers.
 
@@ -280,11 +284,16 @@ These values are mapped by `mapReturnsTableToWindowReturns()` and aggregated by 
 
 Performance requests are executed sequentially with a configurable delay to avoid rate limiting.
 
-- **Queue**: runs `fetch` per goal ID with a delay between calls.
-- **Cache**: Tampermonkey storage keyed by `gpv_performance_<goalId>`.
-- **TTL**: 7 days; cached responses are reused if still fresh and purged once stale.
-- **Refresh policy**: the UI exposes a “Clear cache & refresh” action once cached data is at least 24 hours old.
-- **Cache freshness**: Performance cache entries are always checked for freshness, and fetch failures return null to avoid showing stale financial data to users.
+-
+**Queue**: runs `fetch` per goal ID with a delay between calls.
+-
+**Cache**: Tampermonkey storage keyed by `gpv_performance_<goalId>`.
+-
+**TTL**: 7 days; cached responses are reused if still fresh and purged once stale.
+-
+**Refresh policy**: the UI exposes a “Clear cache & refresh” action once cached data is at least 24 hours old.
+-
+**Cache freshness**: Performance cache entries are always checked for freshness, and fetch failures return null to avoid showing stale financial data to users.
 ### Money Formatting
 
 All monetary values are formatted consistently:
@@ -446,9 +455,12 @@ The `bucketViewModel` contains:
 
 When shipping a release, update every version touchpoint to keep them aligned:
 
-1. **Userscript metadata**: `tampermonkey/goal_portfolio_viewer.user.js` → `// @version`
-2. **Package metadata**: `package.json` → `"version"`
-3. **Changelog**: `tampermonkey/README.md` → add a new entry under `## Changelog`
+1.
+**Userscript metadata**: `tampermonkey/goal_portfolio_viewer.user.js` → `// @version`
+2.
+**Package metadata**: `package.json` → `"version"`
+3.
+**Changelog**: `tampermonkey/README.md` → add a new entry under `## Changelog`
 
 If any of these are missed, Tampermonkey auto-updates or release notes can drift from the actual code.
 
