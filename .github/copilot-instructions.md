@@ -38,6 +38,14 @@ applies_to:
 
 Use this compact workflow for all changes. Keep detailed role guidance in `.github/agents/*.md` and avoid duplicating it here.
 
+### Pre-Execution Spec Gate (Hard Requirement)
+- Do not proceed to implementation or execute changes until all of the following are true:
+  - A spec has been created.
+  - There are no remaining spec gaps.
+  - A human has reviewed and approved the plan.
+- The spec must be created using the `spec-writer` skill.
+- Default spec location is `.specifications/plan.md` unless a different path is explicitly requested.
+
 ### Required Artifacts
 - **Change Brief**: Problem, goal, and acceptance criteria (include change type and required steps).
 - **Risks & Tradeoffs**: Short note, especially for data accuracy, privacy, or API interception changes.

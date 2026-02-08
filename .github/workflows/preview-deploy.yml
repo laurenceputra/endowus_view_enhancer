@@ -85,7 +85,9 @@ jobs:
             exit 1
           fi
 
-          KV_ID="${SYNC_KV_ID}"
+          # `wrangler versions upload` binds KV using `id` (not `preview_id`),
+          # so previews must set `id` to the preview namespace when available.
+          KV_ID="${SYNC_KV_PREVIEW_ID:-${SYNC_KV_ID}}"
           KV_PREVIEW_ID="${SYNC_KV_PREVIEW_ID:-${SYNC_KV_ID}}"
           CONFIG_PATH="${PWD}/wrangler.preview.toml"
 
