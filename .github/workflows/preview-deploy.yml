@@ -19,7 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
+      (!github.event.pull_request.draft &&
+      github.event.pull_request.head.repo.full_name == github.repository)
     concurrency:
       group: preview-${{ github.event.pull_request.number || github.ref_name }}
       cancel-in-progress: true
