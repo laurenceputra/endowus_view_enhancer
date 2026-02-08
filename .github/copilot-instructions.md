@@ -655,6 +655,11 @@ if (DEBUG) {
 - **Inline comments**: Complex algorithms, financial calculations
 - **Commit messages**: Follow conventional commits
 
+### Markdown Formatting (No Hard Wraps)
+
+- Do not hard-wrap Markdown lines; keep sentences on a single line and rely on editors to soft-wrap for display.
+- Follow the repository `.editorconfig` settings when editing documentation files.
+
 ### Commit Message Format
 
 ```
