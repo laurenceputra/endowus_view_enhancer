@@ -19,15 +19,10 @@
 - [ ] Financial calculations handle zero/negative values
 - [ ] Privacy/security requirements honored
 
-## Output Template
-### Summary
-Brief overview and general assessment.
+## Output Template ### Summary Brief overview and general assessment.
 
-### Critical Issues
-List blocking issues with locations and suggested fixes.
+### Critical Issues List blocking issues with locations and suggested fixes.
 
-### Suggestions
-Optional improvements and alternatives.
+### Suggestions Optional improvements and alternatives.
 
-### Testing
-List tests run or required.
+### Testing List tests run or required.

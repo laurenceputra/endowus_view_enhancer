@@ -1,12 +1,8 @@
----
-title: Goal Portfolio Viewer Development Guide
-description: Comprehensive instructions for GitHub Copilot when working on the Goal Portfolio Viewer Tampermonkey userscript
-applies_to:
+--- title: Goal Portfolio Viewer Development Guide description: Comprehensive instructions for GitHub Copilot when working on the Goal Portfolio Viewer Tampermonkey userscript applies_to:
   - copilot-chat
   - copilot-cli
   - copilot-workspace
-  - copilot-code-review
----
+  - copilot-code-review ---
 
 # Goal Portfolio Viewer - Development Guide
 
@@ -14,10 +10,7 @@ applies_to:
 
 ## Project Overview
 
-**Type**: Browser Extension (Tampermonkey Userscript)  
-**Purpose**: Enhance the Endowus (Singapore) investment platform with custom portfolio visualization  
-**Architecture**: Single-file JavaScript with API interception  
-**Key Feature**: Organize investment goals into custom "buckets" for better portfolio management
+**Type**: Browser Extension (Tampermonkey Userscript) **Purpose**: Enhance the Endowus (Singapore) investment platform with custom portfolio visualization **Architecture**: Single-file JavaScript with API interception **Key Feature**: Organize investment goals into custom "buckets" for better portfolio management
 
 ### Core Technologies
 - **Runtime**: Browser (Tampermonkey/Greasemonkey/Violentmonkey)
@@ -47,13 +40,7 @@ Use this compact workflow for all changes. Keep detailed role guidance in `.gith
 
 ### Change Type → Required Steps
 
-| Change Type | Required Steps |
-| --- | --- |
-| Pure logic | Jest tests with edge cases + lint; update docs if behavior changes |
-| UI/visual | Jest (if logic touched) + lint + screenshot + smoke check |
-| Behavior change | Jest + lint + update TECHNICAL_DESIGN.md and README references |
-| Performance | Jest + lint + perf check and reasoning about impact |
-| Documentation-only | Lint not required unless code changes; no tests required unless logic changed |
+| Change Type | Required Steps | | --- | --- | | Pure logic | Jest tests with edge cases + lint; update docs if behavior changes | | UI/visual | Jest (if logic touched) + lint + screenshot + smoke check | | Behavior change | Jest + lint + update TECHNICAL_DESIGN.md and README references | | Performance | Jest + lint + perf check and reasoning about impact | | Documentation-only | Lint not required unless code changes; no tests required unless logic changed |
 
 ### Trigger Rules for Merged Responsibilities
 - **Security/Privacy**: Required for API interception changes, storage changes, or data handling logic.
@@ -72,18 +59,9 @@ Use this compact workflow for all changes. Keep detailed role guidance in `.gith
 - **UX/Accessibility** → Product Manager + QA Engineer
 - **Release/Docs** → Staff Engineer + Code Reviewer
 
-### Skill Alignment (Required)
-When a workflow phase starts, align on the relevant skills and record them in your working notes (see `.codex/skills/*`):
+### Skill Alignment (Required) When a workflow phase starts, align on the relevant skills and record them in your working notes (see `.codex/skills/*`):
 
-| Phase | Primary Skills |
-| --- | --- |
-| Planning (PM) | `documentation`, `security-risk` |
-| Design (SE) | `refactoring-expert`, `performance-optimization` |
-| Risk (DA) | `security-risk` |
-| Implementation (SE) | `debugging-assistant`, `refactoring-expert` |
-| QA | `qa-testing`, `ux-accessibility`, `network-resilience` |
-| Review | `code-review`, `security-risk` |
-| Release/Docs | `release-management`, `documentation` |
+| Phase | Primary Skills | | --- | --- | | Planning (PM) | `documentation`, `security-risk` | | Design (SE) | `refactoring-expert`, `performance-optimization` | | Risk (DA) | `security-risk` | | Implementation (SE) | `debugging-assistant`, `refactoring-expert` | | QA | `qa-testing`, `ux-accessibility`, `network-resilience` | | Review | `code-review`, `security-risk` | | Release/Docs | `release-management`, `documentation` |
 
 **Precedence**: Workflow gates override skill guidance if they conflict.
 
@@ -98,15 +76,13 @@ When a workflow phase starts, align on the relevant skills and record them in yo
 4. **QA**: Define test depth, edge cases, and verification steps.
 5. **Code Reviewer**: Apply review gates before final approval.
 
-### Stage Alignment Gates (Required)
-Only move to the next stage when all required agents are aligned.
+### Stage Alignment Gates (Required) Only move to the next stage when all required agents are aligned.
 - **Alignment artifact**: 1-3 bullets per stage capturing agreement.
 - **Blocking rule**: Any blocking concern stops progression until resolved.
 - **Loopback rule**: If QA or Code Review fails, return to Stage 3 (Staff Engineer implementation), then re-run QA and Code Review.
 - **Iteration rule**: When any agent surfaces a blocking issue, re-enter the prior stage and iterate within the same agent group until the blocking issue is resolved and re-validated.
 
-### Workflow Templates
-Capture the required artifacts and gate alignment bullets in your working notes or PR description as needed.
+### Workflow Templates Capture the required artifacts and gate alignment bullets in your working notes or PR description as needed.
 
 #### Stage Gates
 1. **Product Gate**: Product owns scope; Staff Engineer and QA confirm acceptance criteria are testable.
@@ -151,13 +127,7 @@ for (var i = 0; i < apiData.performance.length; i++) {
 
 ### Naming Conventions
 
-| Type | Convention | Example |
-|------|-----------|---------|
-| Functions | camelCase with verb | `extractBucket()`, `renderSummaryView()` |
-| Constants | UPPER_SNAKE_CASE | `API_ENDPOINTS`, `DEBUG` |
-| Variables | camelCase | `apiData`, `bucketName`, `totalInvestment` |
-| CSS Classes | kebab-case with `gpv-` prefix | `gpv-trigger-btn`, `gpv-container` |
-| Event Handlers | `on` + Event | `onButtonClick()`, `onModalClose()` |
+| Type | Convention | Example | |------|-----------|---------| | Functions | camelCase with verb | `extractBucket()`, `renderSummaryView()` | | Constants | UPPER_SNAKE_CASE | `API_ENDPOINTS`, `DEBUG` | | Variables | camelCase | `apiData`, `bucketName`, `totalInvestment` | | CSS Classes | kebab-case with `gpv-` prefix | `gpv-trigger-btn`, `gpv-container` | | Event Handlers | `on` + Event | `onButtonClick()`, `onModalClose()` |
 
 ### File Structure Pattern
 
@@ -240,11 +210,7 @@ function validateGoalData(goal) {
 
 ### Critical Endpoints
 
-| Endpoint | Data Provided | Usage |
-|----------|--------------|-------|
-| `/v1/goals/performance` | Returns, growth %, current value | Performance metrics |
-| `/v2/goals/investible` | Investment amounts, goal types | Investment details |
-| `/v1/goals` | Goal names, IDs, descriptions | Goal metadata |
+| Endpoint | Data Provided | Usage | |----------|--------------|-------| | `/v1/goals/performance` | Returns, growth %, current value | Performance metrics | | `/v2/goals/investible` | Investment amounts, goal types | Investment details | | `/v1/goals` | Goal names, IDs, descriptions | Goal metadata |
 
 ### Interception Pattern
 
@@ -774,7 +740,7 @@ PLANNING → DESIGN → RISK → IMPLEMENT → QA → REVIEW → MERGE
 
 **Phase Gates**:
 1. **Planning**: PM defines requirements → Gate: Testable acceptance criteria
-2. **Design**: SE proposes solution → Gate: Risks/tradeoffs documented  
+2. **Design**: SE proposes solution → Gate: Risks/tradeoffs documented
 3. **Risk**: DA challenges assumptions → Gate: Mitigations accepted
 4. **Implementation**: SE codes → Gate: Tests pass
 5. **QA**: QA verifies → Gate: Acceptance criteria met
@@ -784,29 +750,17 @@ PLANNING → DESIGN → RISK → IMPLEMENT → QA → REVIEW → MERGE
 
 ### Handoff Protocols
 
-**PM → SE**: Problem statement, acceptance criteria, constraints  
-**SE → DA**: Proposed solution, assumptions, known risks, tradeoffs  
-**DA → SE**: Risk assessment, blocking risks, required mitigations  
-**SE → QA**: Implementation summary, test hooks, edge cases  
-**QA → CR**: Test results, bugs fixed, verification checklist  
+**PM → SE**: Problem statement, acceptance criteria, constraints **SE → DA**: Proposed solution, assumptions, known risks, tradeoffs **DA → SE**: Risk assessment, blocking risks, required mitigations **SE → QA**: Implementation summary, test hooks, edge cases **QA → CR**: Test results, bugs fixed, verification checklist
 
 ### Conflict Resolution
 
-**PM vs SE (Scope)**: PM states value, SE states cost/risk, DA surfaces tradeoffs → Decision: Split or accept larger PR  
-**SE vs QA (Coverage)**: QA states requirements, SE states feasibility, DA assesses risk → Decision: Balance coverage with effort  
-**QA vs CR (Standards)**: CR states concern, QA explains rationale, DA assesses risk → Decision: Add tests or accept  
+**PM vs SE (Scope)**: PM states value, SE states cost/risk, DA surfaces tradeoffs → Decision: Split or accept larger PR **SE vs QA (Coverage)**: QA states requirements, SE states feasibility, DA assesses risk → Decision: Balance coverage with effort **QA vs CR (Standards)**: CR states concern, QA explains rationale, DA assesses risk → Decision: Add tests or accept
 
 **Escalation**: DA mediates → SE technical call → PM product call → Document and move forward
 
 ### Agent Capabilities
 
-| Agent | Requirements | Design | Implementation | Testing | Review | Risk |
-|-------|--------------|--------|----------------|---------|--------|------|
-| Product Manager | ✅ Owner | 🤝 Input | ❌ | 🤝 Input | 🤝 Input | 🤝 |
-| Staff Engineer | 🤝 Input | ✅ Owner | ✅ Owner | 🤝 Support | 🤝 Input | 🤝 |
-| QA Engineer | 🤝 Input | 🤝 Input | ❌ | ✅ Owner | 🤝 Input | 🤝 |
-| Code Reviewer | ❌ | � Input | ❌ | 🤝 Verify | ✅ Owner | 🤝 |
-| Devil's Advocate | 🤝 Challenge | 🤝 Challenge | ❌ | 🤝 Challenge | ❌ | ✅ Owner |
+| Agent | Requirements | Design | Implementation | Testing | Review | Risk | |-------|--------------|--------|----------------|---------|--------|------| | Product Manager | ✅ Owner | 🤝 Input | ❌ | 🤝 Input | 🤝 Input | 🤝 | | Staff Engineer | 🤝 Input | ✅ Owner | ✅ Owner | 🤝 Support | 🤝 Input | 🤝 | | QA Engineer | 🤝 Input | 🤝 Input | ❌ | ✅ Owner | 🤝 Input | 🤝 | | Code Reviewer | ❌ | � Input | ❌ | 🤝 Verify | ✅ Owner | 🤝 | | Devil's Advocate | 🤝 Challenge | 🤝 Challenge | ❌ | 🤝 Challenge | ❌ | ✅ Owner |
 
 **Legend**: ✅ Owner | 🤝 Input/Support | ❌ Not involved
 

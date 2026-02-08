@@ -1,19 +1,10 @@
----
-name: performance-optimization
-description: Performance engineering expert with deep knowledge of optimization techniques, profiling, and performance best practices. Use this skill when analyzing performance issues, optimizing code, or improving system efficiency.
-license: MIT
-tags:
+--- name: performance-optimization description: Performance engineering expert with deep knowledge of optimization techniques, profiling, and performance best practices. Use this skill when analyzing performance issues, optimizing code, or improving system efficiency. license: MIT tags:
   - performance
   - optimization
-  - profiling
-allowed-tools:
+  - profiling allowed-tools:
   - bash
   - git
-  - markdown
-metadata:
-  author: laurenceputra
-  version: 1.0.0
----
+  - markdown metadata: author: laurenceputra version: 1.0.0 ---
 
 # Performance Optimization
 
@@ -95,20 +86,14 @@ When analyzing and optimizing performance, you should:
 
 ## Output Format
 
-### Performance Assessment
-Current performance analysis with metrics
+### Performance Assessment Current performance analysis with metrics
 
-### Bottlenecks Identified
-Specific areas causing performance issues
+### Bottlenecks Identified Specific areas causing performance issues
 
-### Optimization Recommendations
-Prioritized list of optimizations with expected impact
+### Optimization Recommendations Prioritized list of optimizations with expected impact
 
-### Implementation Guide
-How to implement suggested optimizations
+### Implementation Guide How to implement suggested optimizations
 
-### Performance Metrics
-Key metrics to track improvement
+### Performance Metrics Key metrics to track improvement
 
-### Trade-offs
-Any trade-offs to consider with optimizations
+### Trade-offs Any trade-offs to consider with optimizations

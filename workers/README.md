@@ -130,32 +130,27 @@ pnpm run deploy:staging
 # or: npx wrangler deploy --env staging
 ```
 
-Your test build will be available at:
-`https://goal-portfolio-sync-staging.YOUR_SUBDOMAIN.workers.dev`
+Your test build will be available at: `https://goal-portfolio-sync-staging.YOUR_SUBDOMAIN.workers.dev`
 
 ### 6c. Branch Previews (GitHub Actions)
 
-For per‑PR preview URLs that follow Cloudflare’s preview alias pattern:
-`<alias>-goal-portfolio-sync.<your-subdomain>.workers.dev`, use the preview workflow.
+For per‑PR preview URLs that follow Cloudflare’s preview alias pattern: `<alias>-goal-portfolio-sync.<your-subdomain>.workers.dev`, use the preview workflow.
 
 1. **Template file** (already in repo):
    - `workers/wrangler.preview.toml.template` (placeholders are filled in CI)
 
 2. **Workflow**:
-   - `.github/workflows/preview-deploy.yml` uploads a **preview version** using
-     `wrangler versions upload --preview-alias <alias>`.
+   - `.github/workflows/preview-deploy.yml` uploads a **preview version** using `wrangler versions upload --preview-alias <alias>`.
    - The alias is derived from the PR number or branch name and is length‑safe.
    - The preview URL is posted to the PR.
 
 **Note:** Preview versions require the base worker to exist. Run one normal deploy (e.g., `pnpm run deploy`) before the first preview if the script has never been created in your account.
 
-After a PR is opened or updated, the workflow posts the preview URL in the PR comments.
-Preview versions are managed by Cloudflare and clean up automatically, so no additional cleanup jobs are required.
+After a PR is opened or updated, the workflow posts the preview URL in the PR comments. Preview versions are managed by Cloudflare and clean up automatically, so no additional cleanup jobs are required.
 
 ### 6c.1 CI Secrets Setup (GitHub Actions)
 
-Add the required repository secrets in:
-**GitHub → Settings → Secrets and variables → Actions → New repository secret**.
+Add the required repository secrets in: **GitHub → Settings → Secrets and variables → Actions → New repository secret**.
 
 Required secrets:
 - `CLOUDFLARE_API_TOKEN` (Workers Scripts: Edit, KV Storage: Edit, Account Settings: Read)
@@ -166,8 +161,7 @@ Required secrets:
 
 Previews use the KV namespace from `SYNC_KV_PREVIEW_ID` when provided (falling back to `SYNC_KV_ID`) to avoid per-PR KV creation while still allowing isolated preview storage.
 
-JWT secrets are managed via Wrangler (not GitHub Actions). Run:
-`npx wrangler secret put JWT_SECRET --env production` or set per preview worker name as needed.
+JWT secrets are managed via Wrangler (not GitHub Actions). Run: `npx wrangler secret put JWT_SECRET --env production` or set per preview worker name as needed.
 
 ### 6d. Production Deploy on Main
 
@@ -181,13 +175,11 @@ Main-branch merges can deploy automatically via GitHub Actions:
    - `SYNC_KV_ID`
    - `SYNC_KV_PREVIEW_ID` (optional; defaults to `SYNC_KV_ID`)
 
-CI renders `workers/wrangler.production.toml.template` with secrets and deploys
-using the rendered config.
+CI renders `workers/wrangler.production.toml.template` with secrets and deploys using the rendered config.
 
 Local deploys still use `workers/wrangler.toml` and `--env production`.
 
-JWT secrets are managed via Wrangler (not GitHub Actions). Run:
-`npx wrangler secret put JWT_SECRET --env production` as part of initial setup.
+JWT secrets are managed via Wrangler (not GitHub Actions). Run: `npx wrangler secret put JWT_SECRET --env production` as part of initial setup.
 
 ### 7. Test Deployment
 
@@ -217,8 +209,7 @@ curl https://goal-portfolio-sync.YOUR_SUBDOMAIN.workers.dev/health
 6. Enable sync checkbox and click "Save Settings"
 7. Click "Sync Now" to upload your first configuration
 
-Done! Your settings will now sync across all devices using the same credentials.
-Your password is never stored locally; use a browser password manager to autofill each session.
+Done! Your settings will now sync across all devices using the same credentials. Your password is never stored locally; use a browser password manager to autofill each session.
 
 ## 🔐 Authentication API
 
@@ -226,8 +217,7 @@ The backend issues JWT access + refresh tokens after password-based login.
 
 ### Authentication Endpoints
 
-#### POST /auth/register
-Register a new user account.
+#### POST /auth/register Register a new user account.
 
 **Request:**
 ```json
@@ -245,8 +235,7 @@ Register a new user account.
 }
 ```
 
-#### POST /auth/login
-Verify user credentials.
+#### POST /auth/login Verify user credentials.
 
 **Request:**
 ```json
@@ -270,8 +259,7 @@ Verify user credentials.
 }
 ```
 
-#### POST /auth/refresh
-Exchange a refresh token for new tokens.
+#### POST /auth/refresh Exchange a refresh token for new tokens.
 
 **Request:**
 ```bash
@@ -362,11 +350,9 @@ node --test test/*.test.js
 ### View Logs
 
 ```bash
-# Tail production logs
-npx wrangler tail
+# Tail production logs npx wrangler tail
 
-# Filter for errors only
-npx wrangler tail --status error
+# Filter for errors only npx wrangler tail --status error
 ```
 
 ## 📚 API Reference
@@ -385,81 +371,40 @@ All endpoints (except `/health`) require a valid access token in the `Authorizat
 ```
 GET /health
 
-Response (200):
-{
-  "status": "ok",
-  "version": "1.1.0",
-  "timestamp": 1234567890000
-}
+Response (200): { "status": "ok", "version": "1.1.0", "timestamp": 1234567890000 }
 ```
 
 #### Upload Config
 ```
 POST /sync
 
-Headers:
-  Authorization: Bearer <accessToken>
-  Content-Type: application/json
+Headers: Authorization: Bearer <accessToken> Content-Type: application/json
 
-Body:
-{
-  "userId": "string (uuid)",
-  "deviceId": "string (uuid)",
-  "encryptedData": "string (base64)",
-  "timestamp": number,
-  "version": number
-}
+Body: { "userId": "string (uuid)", "deviceId": "string (uuid)", "encryptedData": "string (base64)", "timestamp": number, "version": number }
 
-Response (200):
-{
-  "success": true,
-  "timestamp": 1234567890000
-}
+Response (200): { "success": true, "timestamp": 1234567890000 }
 
-Response (409 Conflict):
-{
-  "success": false,
-  "error": "CONFLICT",
-  "serverData": { ... }
-}
+Response (409 Conflict): { "success": false, "error": "CONFLICT", "serverData": { ... } }
 ```
 
 #### Download Config
 ```
 GET /sync/:userId
 
-Headers:
-  Authorization: Bearer <accessToken>
+Headers: Authorization: Bearer <accessToken>
 
-Response (200):
-{
-  "success": true,
-  "data": {
-    "encryptedData": "string (base64)",
-    "deviceId": "string",
-    "timestamp": number,
-    "version": number
-  }
-}
+Response (200): { "success": true, "data": { "encryptedData": "string (base64)", "deviceId": "string", "timestamp": number, "version": number } }
 
-Response (404):
-{
-  "success": false,
-  "error": "NOT_FOUND"
-}
+Response (404): { "success": false, "error": "NOT_FOUND" }
 ```
 
 #### Delete Config
 ```
 DELETE /sync/:userId
 
-Headers:
-  Authorization: Bearer <accessToken>
+Headers: Authorization: Bearer <accessToken>
 
-Response (200):
-{
-  "success": true
-}
+Response (200): { "success": true }
 ```
 
 ### Rate Limits
@@ -531,19 +476,9 @@ A $10/month budget supports 10,000+ active users.
 Set in `wrangler.toml`:
 
 ```toml
-[env.production]
-vars = { 
-  ENVIRONMENT = "production",
-  CORS_ORIGINS = "https://app.sg.endowus.com",
-  SYNC_KV_BINDING = "SYNC_KV_PROD"
-}
+[env.production] vars = { ENVIRONMENT = "production", CORS_ORIGINS = "https://app.sg.endowus.com", SYNC_KV_BINDING = "SYNC_KV_PROD" }
 
-[env.staging]
-vars = { 
-  ENVIRONMENT = "staging",
-  CORS_ORIGINS = "https://app.sg.endowus.com",
-  SYNC_KV_BINDING = "SYNC_KV_STAGING"
-}
+[env.staging] vars = { ENVIRONMENT = "staging", CORS_ORIGINS = "https://app.sg.endowus.com", SYNC_KV_BINDING = "SYNC_KV_STAGING" }
 ```
 
 ### Secrets
@@ -551,21 +486,17 @@ vars = {
 Stored securely, not in code:
 
 ```bash
-# Set JWT secret
-npx wrangler secret put JWT_SECRET
+# Set JWT secret npx wrangler secret put JWT_SECRET
 
-# Update JWT secret
-npx wrangler secret put JWT_SECRET --env production
+# Update JWT secret npx wrangler secret put JWT_SECRET --env production
 
-# List secrets (doesn't show values)
-npx wrangler secret list
+# List secrets (doesn't show values) npx wrangler secret list
 ```
 
 Use unique secrets per environment:
 
 ```bash
-npx wrangler secret put JWT_SECRET --env staging
-npx wrangler secret put JWT_SECRET --env production
+npx wrangler secret put JWT_SECRET --env staging npx wrangler secret put JWT_SECRET --env production
 ```
 
 ### Custom Domain
@@ -573,32 +504,25 @@ npx wrangler secret put JWT_SECRET --env production
 Add a custom domain in Cloudflare dashboard or `wrangler.toml`:
 
 ```toml
-routes = [
-  { pattern = "sync.yourdomain.com/*", zone_name = "yourdomain.com" }
-]
+routes = [ { pattern = "sync.yourdomain.com/*", zone_name = "yourdomain.com" } ]
 ```
 
 ## 📊 Monitoring
 
 ### View Metrics
 ```bash
-# Open dashboard
-npx wrangler dashboard
+# Open dashboard npx wrangler dashboard
 
 # Or visit: https://dash.cloudflare.com → Workers → Your Worker → Metrics
 ```
 
 ### Tail Logs
 ```bash
-# Real-time logs
-npx wrangler tail
+# Real-time logs npx wrangler tail
 
-# Filter by status code
-npx wrangler tail --status error
-npx wrangler tail --status ok
+# Filter by status code npx wrangler tail --status error npx wrangler tail --status ok
 
-# Filter by method
-npx wrangler tail --method POST
+# Filter by method npx wrangler tail --method POST
 ```
 
 ### Alerts

@@ -2,25 +2,15 @@
 
 ## Example Screenshots
 
-### Overview
-![Goal Portfolio Viewer - Summary View](docs/screenshot-summary.png)
-*Summary view showing House Purchase and Retirement buckets with ending balance, returns, and growth*
+### Overview ![Goal Portfolio Viewer - Summary View](docs/screenshot-summary.png) *Summary view showing House Purchase and Retirement buckets with ending balance, returns, and growth*
 
-### House Purchase Bucket - Performance Graph
-![House Purchase - Performance Graph](docs/house-purchase-performance.png)
-*Performance graph showing Total Return % (weighted) with Simple Return %, window returns (1M/6M/YTD/1Y/3Y), TWR %, Annualised IRR, Net Fees, Net Investment, and complete metrics*
+### House Purchase Bucket - Performance Graph ![House Purchase - Performance Graph](docs/house-purchase-performance.png) *Performance graph showing Total Return % (weighted) with Simple Return %, window returns (1M/6M/YTD/1Y/3Y), TWR %, Annualised IRR, Net Fees, Net Investment, and complete metrics*
 
-### House Purchase Bucket - Goals Table
-![House Purchase - Goals Table](docs/house-purchase-goals.png)
-*Individual goals with target percentages (10%, 70%), diff calculations showing rebalancing needs, cumulative returns, and return percentages*
+### House Purchase Bucket - Goals Table ![House Purchase - Goals Table](docs/house-purchase-goals.png) *Individual goals with target percentages (10%, 70%), diff calculations showing rebalancing needs, cumulative returns, and return percentages*
 
-### Retirement Bucket - Performance Graph
-![Retirement - Performance Graph](docs/retirement-performance.png)
-*Retirement bucket showing Total Return % (weighted) with Simple Return %, along with TWR %, IRR, and complete performance metrics*
+### Retirement Bucket - Performance Graph ![Retirement - Performance Graph](docs/retirement-performance.png) *Retirement bucket showing Total Return % (weighted) with Simple Return %, along with TWR %, IRR, and complete performance metrics*
 
-### Retirement Bucket - Goals Table
-![Retirement - Goals Table](docs/retirement-goals.png)
-*Retirement goals with target allocations (15%, 55%) and diff calculations demonstrating portfolio rebalancing needs*
+### Retirement Bucket - Goals Table ![Retirement - Goals Table](docs/retirement-goals.png) *Retirement goals with target allocations (15%, 55%) and diff calculations demonstrating portfolio rebalancing needs*
 
 ---
 
@@ -130,13 +120,7 @@ We use a multi-agent workflow to maintain code quality and ensure robust develop
 
 Our project uses specialized AI agents for different aspects of development:
 
-| Agent | Role | When to Use |
-|-------|------|-------------|
-| 🎯 **Product Manager** | Requirements & scope | Defining features, clarifying requirements |
-| 🔧 **Staff Engineer** | Design & implementation | Architecture decisions, code changes |
-| 🧪 **QA Engineer** | Testing & quality | Test plans, quality verification |
-| 👁️ **Code Reviewer** | Final review | Pre-merge quality gates |
-| 😈 **Devil's Advocate** | Risk assessment | Challenging assumptions, finding blind spots |
+| Agent | Role | When to Use | |-------|------|-------------| | 🎯 **Product Manager** | Requirements & scope | Defining features, clarifying requirements | | 🔧 **Staff Engineer** | Design & implementation | Architecture decisions, code changes | | 🧪 **QA Engineer** | Testing & quality | Test plans, quality verification | | 👁️ **Code Reviewer** | Final review | Pre-merge quality gates | | 😈 **Devil's Advocate** | Risk assessment | Challenging assumptions, finding blind spots |
 
 **Workflow Phases:**
 1. **Planning** → Define requirements (Product Manager)

@@ -156,8 +156,7 @@ npx wrangler secret put JWT_SECRET --env production
 ```
 
 ### Preview Deploys (Preview KV Namespace)
-- Previews use `wrangler versions upload --preview-alias <alias>` and follow:
-  `<alias>-goal-portfolio-sync.<your-subdomain>.workers.dev`
+- Previews use `wrangler versions upload --preview-alias <alias>` and follow: `<alias>-goal-portfolio-sync.<your-subdomain>.workers.dev`
 - Previews use the KV namespace from `SYNC_KV_PREVIEW_ID` when provided (falling back to `SYNC_KV_ID`) so you can isolate preview data without per-PR KV creation.
 - Set `CLOUDFLARE_WORKERS_SUBDOMAIN` to include the subdomain in PR comments.
 - Preview versions are managed by Cloudflare and clean up automatically, so no additional cleanup jobs are required.
@@ -389,17 +388,13 @@ Share your worker URL with your other devices only.
 
 ### Common Issues
 
-**Q: Worker deployed but getting 404**  
-A: Check the URL matches wrangler.toml route configuration.
+**Q: Worker deployed but getting 404** A: Check the URL matches wrangler.toml route configuration.
 
-**Q: "Exceeded daily request quota"**  
-A: You hit the 100k/day limit. Upgrade to paid plan or optimize sync frequency.
+**Q: "Exceeded daily request quota"** A: You hit the 100k/day limit. Upgrade to paid plan or optimize sync frequency.
 
-**Q: KV namespace not found**  
-A: Verify namespace ID in wrangler.toml matches `wrangler kv:namespace list` output.
+**Q: KV namespace not found** A: Verify namespace ID in wrangler.toml matches `wrangler kv:namespace list` output.
 
-**Q: Can't delete old workers**  
-A: Use Cloudflare dashboard → Workers & Pages → Delete.
+**Q: Can't delete old workers** A: Use Cloudflare dashboard → Workers & Pages → Delete.
 
 ### Getting Help
 
@@ -418,6 +413,4 @@ After deployment:
 
 ---
 
-**Status**: ✅ Ready for deployment  
-**Estimated Time**: 5-10 minutes for staging, 15 minutes for production  
-**Cost**: $0/month for <100k requests/day
+**Status**: ✅ Ready for deployment **Estimated Time**: 5-10 minutes for staging, 15 minutes for production **Cost**: $0/month for <100k requests/day

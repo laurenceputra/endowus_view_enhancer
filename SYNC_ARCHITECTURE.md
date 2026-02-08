@@ -1,8 +1,4 @@
-# Sync Service Architecture
-**Version**: 1.0  
-**Status**: Design Phase  
-**Author**: Staff Engineer  
-**Date**: December 2024
+# Sync Service Architecture **Version**: 1.0 **Status**: Design Phase **Author**: Staff Engineer **Date**: December 2024
 
 ---
 
@@ -188,17 +184,13 @@ goal-portfolio-viewer/
 
 ### Key New Files
 
-#### `/workers/src/index.js`
-Main Workers entry point with API routes
+#### `/workers/src/index.js` Main Workers entry point with API routes
 
-#### `/workers/wrangler.toml`
-Workers configuration for deployment
+#### `/workers/wrangler.toml` Workers configuration for deployment
 
-#### `/workers/README.md`
-Self-hosting guide for users
+#### `/workers/README.md` Self-hosting guide for users
 
-#### `/docs/sync-setup.md`
-End-user setup instructions
+#### `/docs/sync-setup.md` End-user setup instructions
 
 ---
 
@@ -209,8 +201,7 @@ End-user setup instructions
 https://sync.your-domain.workers.dev
 ```
 
-### Authentication
-Access tokens are issued via password login. Send `Authorization: Bearer <accessToken>`.
+### Authentication Access tokens are issued via password login. Send `Authorization: Bearer <accessToken>`.
 
 ### Endpoints
 
@@ -339,15 +330,7 @@ Response (200 OK):
 
 ### Error Codes
 
-| Code | Meaning | Action |
-|------|---------|--------|
-| 400 | Bad Request | Invalid payload format |
-| 401 | Unauthorized | Invalid credentials |
-| 404 | Not Found | No config stored for user |
-| 409 | Conflict | Server has newer data |
-| 413 | Payload Too Large | Data exceeds 10KB |
-| 429 | Rate Limit | Retry after delay |
-| 500 | Internal Error | Retry with backoff |
+| Code | Meaning | Action | |------|---------|--------| | 400 | Bad Request | Invalid payload format | | 401 | Unauthorized | Invalid credentials | | 404 | Not Found | No config stored for user | | 409 | Conflict | Server has newer data | | 413 | Payload Too Large | Data exceeds 10KB | | 429 | Rate Limit | Retry after delay | | 500 | Internal Error | Retry with backoff |
 
 ---
 
@@ -355,11 +338,7 @@ Response (200 OK):
 
 ### Encryption Strategy: AES-GCM with PBKDF2 Key Derivation
 
-**Algorithm**: AES-GCM (Galois/Counter Mode)  
-**Key Size**: 256 bits  
-**IV Size**: 96 bits (12 bytes) - recommended for GCM  
-**Tag Size**: 128 bits (16 bytes) - authentication tag  
-**Key Derivation**: PBKDF2 with SHA-256
+**Algorithm**: AES-GCM (Galois/Counter Mode) **Key Size**: 256 bits **IV Size**: 96 bits (12 bytes) - recommended for GCM **Tag Size**: 128 bits (16 bytes) - authentication tag **Key Derivation**: PBKDF2 with SHA-256
 
 ### Data Flow
 
@@ -385,12 +364,7 @@ Response (200 OK):
 
 ### Security Properties
 
-✅ **Authenticated Encryption**: GCM provides both confidentiality and authenticity  
-✅ **Random IV**: New IV for every encryption prevents pattern analysis  
-✅ **Key Stretching**: PBKDF2 makes brute-force attacks expensive  
-✅ **Salt**: Per-user salt prevents rainbow table attacks  
-✅ **No Key Storage**: Key derived on-demand from passphrase  
-✅ **Server Blind**: Server never sees plaintext or encryption key
+✅ **Authenticated Encryption**: GCM provides both confidentiality and authenticity ✅ **Random IV**: New IV for every encryption prevents pattern analysis ✅ **Key Stretching**: PBKDF2 makes brute-force attacks expensive ✅ **Salt**: Per-user salt prevents rainbow table attacks ✅ **No Key Storage**: Key derived on-demand from passphrase ✅ **Server Blind**: Server never sees plaintext or encryption key
 
 ### Implementation (UserScript)
 
@@ -548,19 +522,7 @@ const SyncEncryption = (() => {
 
 UserScript will add these new storage keys:
 
-| Key | Purpose | Example |
-|-----|---------|---------|
-| `sync_enabled` | Whether sync is enabled | `true` / `false` |
-| `sync_server_url` | Custom server URL | `https://sync.example.com` |
-| `sync_access_token` | JWT access token | `eyJhbGci...` |
-| `sync_refresh_token` | JWT refresh token | `eyJhbGci...` |
-| `sync_access_token_expiry` | Access token expiry timestamp | `1710000000000` |
-| `sync_refresh_token_expiry` | Refresh token expiry timestamp | `1712592000000` |
-| `sync_user_id` | User identifier | `uuid-v4` or `sha256(email)` |
-| `sync_device_id` | Device identifier | `uuid-v4` |
-| `sync_last_sync` | Last sync timestamp | `1234567890000` |
-| `sync_master_key` | Remembered master key (encrypted) | `base64(...)` |
-| `sync_remember_key` | Remember-key toggle | `true` |
+| Key | Purpose | Example | |-----|---------|---------| | `sync_enabled` | Whether sync is enabled | `true` / `false` | | `sync_server_url` | Custom server URL | `https://sync.example.com` | | `sync_access_token` | JWT access token | `eyJhbGci...` | | `sync_refresh_token` | JWT refresh token | `eyJhbGci...` | | `sync_access_token_expiry` | Access token expiry timestamp | `1710000000000` | | `sync_refresh_token_expiry` | Refresh token expiry timestamp | `1712592000000` | | `sync_user_id` | User identifier | `uuid-v4` or `sha256(email)` | | `sync_device_id` | Device identifier | `uuid-v4` | | `sync_last_sync` | Last sync timestamp | `1234567890000` | | `sync_master_key` | Remembered master key (encrypted) | `base64(...)` | | `sync_remember_key` | Remember-key toggle | `true` |
 
 **Note**: The actual encryption passphrase is NEVER stored. Only the derived key may be remembered when explicitly enabled.
 
@@ -1135,20 +1097,11 @@ const SyncManager = (() => {
 
 #### What We Protect Against
 
-✅ **Server Compromise**: Server cannot read config data (encrypted)  
-✅ **Network Eavesdropping**: HTTPS + encrypted payload  
-✅ **Malicious Server Operator**: Cannot decrypt data without passphrase  
-✅ **Data Breach**: Leaked database contains only encrypted blobs  
-✅ **Replay Attacks**: Timestamp + device ID validation  
-✅ **MITM Attacks**: HTTPS + authentication  
+✅ **Server Compromise**: Server cannot read config data (encrypted) ✅ **Network Eavesdropping**: HTTPS + encrypted payload ✅ **Malicious Server Operator**: Cannot decrypt data without passphrase ✅ **Data Breach**: Leaked database contains only encrypted blobs ✅ **Replay Attacks**: Timestamp + device ID validation ✅ **MITM Attacks**: HTTPS + authentication
 
 #### What We Don't Protect Against
 
-❌ **Compromised Client**: If UserScript is modified, all bets are off  
-❌ **Weak Passphrase**: Users can choose weak passphrases (we mitigate with strength meter)  
-❌ **Passphrase Theft**: If user's passphrase is stolen, data can be decrypted  
-❌ **Browser Compromise**: Malicious browser extensions could steal data  
-❌ **Quantum Computers**: AES-256 is quantum-resistant, but PBKDF2 is not
+❌ **Compromised Client**: If UserScript is modified, all bets are off ❌ **Weak Passphrase**: Users can choose weak passphrases (we mitigate with strength meter) ❌ **Passphrase Theft**: If user's passphrase is stolen, data can be decrypted ❌ **Browser Compromise**: Malicious browser extensions could steal data ❌ **Quantum Computers**: AES-256 is quantum-resistant, but PBKDF2 is not
 
 ### Security Best Practices Implemented
 
@@ -1163,14 +1116,7 @@ const SyncManager = (() => {
 
 ### Privacy Analysis
 
-| Data Type | Stored Where | Encrypted | Visible to Server |
-|-----------|--------------|-----------|-------------------|
-| Goal settings | KV Store | ✅ Yes | ❌ No |
-| Device ID | KV Store | ❌ No (metadata) | ✅ Yes |
-| User ID | KV Store | ❌ No (key) | ✅ Yes |
-| Timestamp | KV Store | ❌ No (metadata) | ✅ Yes |
-| Access/Refresh Tokens | UserScript | ❌ No | ✅ Yes (auth) |
-| Passphrase | UserScript (memory only) | N/A | ❌ Never transmitted |
+| Data Type | Stored Where | Encrypted | Visible to Server | |-----------|--------------|-----------|-------------------| | Goal settings | KV Store | ✅ Yes | ❌ No | | Device ID | KV Store | ❌ No (metadata) | ✅ Yes | | User ID | KV Store | ❌ No (key) | ✅ Yes | | Timestamp | KV Store | ❌ No (metadata) | ✅ Yes | | Access/Refresh Tokens | UserScript | ❌ No | ✅ Yes (auth) | | Passphrase | UserScript (memory only) | N/A | ❌ Never transmitted |
 
 **Server Visibility**:
 - Cannot see goal names, amounts, or settings
@@ -1208,63 +1154,33 @@ const SyncManager = (() => {
 
 ### Technical Risks
 
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
-| UserScript size bloat | High | High | Minify code, lazy load sync module |
-| Passphrase forgotten | High | Medium | Cannot recover, document clearly |
-| Sync conflicts | Medium | Low | Good conflict resolution UI |
-| API rate limits hit | Medium | Low | Smart retry with backoff |
-| Cloudflare KV limits | Low | Low | 1GB free, monitor usage |
-| Encryption performance | Low | Low | Web Crypto API is fast |
+| Risk | Impact | Probability | Mitigation | |------|--------|-------------|------------| | UserScript size bloat | High | High | Minify code, lazy load sync module | | Passphrase forgotten | High | Medium | Cannot recover, document clearly | | Sync conflicts | Medium | Low | Good conflict resolution UI | | API rate limits hit | Medium | Low | Smart retry with backoff | | Cloudflare KV limits | Low | Low | 1GB free, monitor usage | | Encryption performance | Low | Low | Web Crypto API is fast |
 
 ### User Experience Risks
 
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
-| Confusing setup | High | Medium | Wizard-style onboarding |
-| Passphrase complexity | Medium | High | Strength meter + suggestions |
-| Sync conflicts scary | Medium | Low | Clear, friendly UI |
-| Server downtime | Medium | Low | Graceful degradation, offline mode |
-| Perceived insecurity | High | Low | Transparent security docs |
+| Risk | Impact | Probability | Mitigation | |------|--------|-------------|------------| | Confusing setup | High | Medium | Wizard-style onboarding | | Passphrase complexity | Medium | High | Strength meter + suggestions | | Sync conflicts scary | Medium | Low | Clear, friendly UI | | Server downtime | Medium | Low | Graceful degradation, offline mode | | Perceived insecurity | High | Low | Transparent security docs |
 
 ### Maintenance Risks
 
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
-| Workers API changes | High | Low | Pin to stable API, monitor changelog |
-| Web Crypto API deprecation | High | Very Low | Standard API, unlikely to change |
-| Increased support burden | Medium | Medium | Good documentation, FAQ |
-| Self-hosting complexity | Low | Medium | One-click deploy script |
+| Risk | Impact | Probability | Mitigation | |------|--------|-------------|------------| | Workers API changes | High | Low | Pin to stable API, monitor changelog | | Web Crypto API deprecation | High | Very Low | Standard API, unlikely to change | | Increased support burden | Medium | Medium | Good documentation, FAQ | | Self-hosting complexity | Low | Medium | One-click deploy script |
 
 ### Tradeoffs Made
 
-#### ✅ Chose: Client-Side Encryption
-**Benefit**: Privacy-first, server can't read data  
-**Cost**: Cannot recover forgotten passphrase, no server-side features (search, analytics)
+#### ✅ Chose: Client-Side Encryption **Benefit**: Privacy-first, server can't read data **Cost**: Cannot recover forgotten passphrase, no server-side features (search, analytics)
 
-#### ✅ Chose: Cloudflare Workers
-**Benefit**: Free tier, global edge network, simple deployment  
-**Cost**: Vendor lock-in (mitigated by simple API, easy to port)
+#### ✅ Chose: Cloudflare Workers **Benefit**: Free tier, global edge network, simple deployment **Cost**: Vendor lock-in (mitigated by simple API, easy to port)
 
-#### ✅ Chose: Opt-In Sync
-**Benefit**: No disruption to existing users  
-**Cost**: Lower adoption rate, dual code paths (sync + no-sync)
+#### ✅ Chose: Opt-In Sync **Benefit**: No disruption to existing users **Cost**: Lower adoption rate, dual code paths (sync + no-sync)
 
-#### ✅ Chose: Single-File UserScript
-**Benefit**: Easy installation, no build process  
-**Cost**: Larger file size, harder to maintain as it grows
+#### ✅ Chose: Single-File UserScript **Benefit**: Easy installation, no build process **Cost**: Larger file size, harder to maintain as it grows
 
-#### ✅ Chose: Manual Conflict Resolution
-**Benefit**: User control, no data loss  
-**Cost**: Extra UI complexity, requires user decision
+#### ✅ Chose: Manual Conflict Resolution **Benefit**: User control, no data loss **Cost**: Extra UI complexity, requires user decision
 
 ---
 
 ## Implementation Plan
 
-### Phase 0: Planning & Design (1 week)
-**Owner**: Staff Engineer  
-**Deliverables**:
+### Phase 0: Planning & Design (1 week) **Owner**: Staff Engineer **Deliverables**:
 - [x] Technical architecture document (this doc)
 - [ ] Security review by Code Reviewer
 - [ ] API design review
@@ -1275,9 +1191,7 @@ const SyncManager = (() => {
 - Security review passed
 - API contract finalized
 
-### Phase 1: Backend Implementation (1 week)
-**Owner**: Staff Engineer  
-**Tasks**:
+### Phase 1: Backend Implementation (1 week) **Owner**: Staff Engineer **Tasks**:
 1. Setup Cloudflare Workers project structure
 2. Implement API routes (POST/GET/DELETE /sync)
 3. Add authentication middleware (JWT access/refresh tokens)
@@ -1299,9 +1213,7 @@ const SyncManager = (() => {
 - Rate limiting works
 - Documentation complete
 
-### Phase 2: Encryption Module (3 days)
-**Owner**: Staff Engineer  
-**Tasks**:
+### Phase 2: Encryption Module (3 days) **Owner**: Staff Engineer **Tasks**:
 1. Implement Web Crypto API wrapper
 2. Add PBKDF2 key derivation
 3. Add AES-GCM encryption/decryption
@@ -1318,9 +1230,7 @@ const SyncManager = (() => {
 - Tests pass (including NIST test vectors)
 - Security review passed
 
-### Phase 3: Sync Manager (1 week)
-**Owner**: Staff Engineer  
-**Tasks**:
+### Phase 3: Sync Manager (1 week) **Owner**: Staff Engineer **Tasks**:
 1. Implement `SyncManager` module
 2. Add data collection logic
 3. Add upload/download logic
@@ -1340,9 +1250,7 @@ const SyncManager = (() => {
 - Conflicts handled correctly
 - Tests passing
 
-### Phase 4: UI Implementation (1 week)
-**Owner**: Staff Engineer  
-**Tasks**:
+### Phase 4: UI Implementation (1 week) **Owner**: Staff Engineer **Tasks**:
 1. Add Settings modal with Sync tab
 2. Add sync setup wizard
 3. Add passphrase input with strength meter
@@ -1364,9 +1272,7 @@ const SyncManager = (() => {
 - Conflicts can be resolved
 - Accessibility review passed
 
-### Phase 5: Testing & QA (1 week)
-**Owner**: QA Engineer  
-**Tasks**:
+### Phase 5: Testing & QA (1 week) **Owner**: QA Engineer **Tasks**:
 1. End-to-end testing (happy path)
 2. Error scenario testing (network failures, etc.)
 3. Conflict testing (multiple devices)
@@ -1404,9 +1310,7 @@ const SyncManager = (() => {
 - Performance acceptable (<1s sync time)
 - Security audit clean
 
-### Phase 6: Documentation (3 days)
-**Owner**: Staff Engineer + Product Manager  
-**Tasks**:
+### Phase 6: Documentation (3 days) **Owner**: Staff Engineer + Product Manager **Tasks**:
 1. Write user guide (setup, usage)
 2. Write self-hosting guide
 3. Update README.md
@@ -1427,9 +1331,7 @@ const SyncManager = (() => {
 - Self-hosting guide tested
 - Changelog published
 
-### Phase 7: Release (1 day)
-**Owner**: Staff Engineer  
-**Tasks**:
+### Phase 7: Release (1 day) **Owner**: Staff Engineer **Tasks**:
 1. Bump version (2.7.7 → 2.8.0)
 2. Create release branch
 3. Final testing on production API
@@ -1453,17 +1355,7 @@ const SyncManager = (() => {
 
 ### Timeline Summary
 
-| Phase | Duration | Dependencies |
-|-------|----------|--------------|
-| Phase 0: Planning | 1 week | None |
-| Phase 1: Backend | 1 week | Phase 0 |
-| Phase 2: Encryption | 3 days | Phase 0 |
-| Phase 3: Sync Manager | 1 week | Phase 1, 2 |
-| Phase 4: UI | 1 week | Phase 3 |
-| Phase 5: Testing | 1 week | Phase 4 |
-| Phase 6: Documentation | 3 days | Phase 5 |
-| Phase 7: Release | 1 day | Phase 6 |
-| **Total** | **~6 weeks** | |
+| Phase | Duration | Dependencies | |-------|----------|--------------| | Phase 0: Planning | 1 week | None | | Phase 1: Backend | 1 week | Phase 0 | | Phase 2: Encryption | 3 days | Phase 0 | | Phase 3: Sync Manager | 1 week | Phase 1, 2 | | Phase 4: UI | 1 week | Phase 3 | | Phase 5: Testing | 1 week | Phase 4 | | Phase 6: Documentation | 3 days | Phase 5 | | Phase 7: Release | 1 day | Phase 6 | | **Total** | **~6 weeks** | |
 
 ### Resource Requirements
 
@@ -1498,76 +1390,39 @@ const SyncManager = (() => {
 
 ### A. Alternative Architectures Considered
 
-#### Option 1: WebDAV Sync
-**Pros**: Users control storage (Dropbox, etc.)  
-**Cons**: Complex setup, auth flow complicated  
-**Verdict**: Too much friction for users
+#### Option 1: WebDAV Sync **Pros**: Users control storage (Dropbox, etc.) **Cons**: Complex setup, auth flow complicated **Verdict**: Too much friction for users
 
-#### Option 2: Firebase/Supabase
-**Pros**: Managed backend, real-time sync  
-**Cons**: Vendor lock-in, costs scale, privacy concerns  
-**Verdict**: Against privacy-first principle
+#### Option 2: Firebase/Supabase **Pros**: Managed backend, real-time sync **Cons**: Vendor lock-in, costs scale, privacy concerns **Verdict**: Against privacy-first principle
 
-#### Option 3: Browser Sync APIs (Chrome Sync, Firefox Sync)
-**Pros**: Native, automatic  
-**Cons**: Browser-specific, limited storage, no cross-browser  
-**Verdict**: Too limited
+#### Option 3: Browser Sync APIs (Chrome Sync, Firefox Sync) **Pros**: Native, automatic **Cons**: Browser-specific, limited storage, no cross-browser **Verdict**: Too limited
 
-#### Option 4: IPFS/Blockchain
-**Pros**: Decentralized, no central server  
-**Cons**: Complex, slow, overkill for simple config  
-**Verdict**: Too complex for users
+#### Option 4: IPFS/Blockchain **Pros**: Decentralized, no central server **Cons**: Complex, slow, overkill for simple config **Verdict**: Too complex for users
 
-#### Option 5: Peer-to-Peer (WebRTC)
-**Pros**: No server needed, true P2P  
-**Cons**: Requires discovery service, complex NAT traversal  
-**Verdict**: Too complex to implement
+#### Option 5: Peer-to-Peer (WebRTC) **Pros**: No server needed, true P2P **Cons**: Requires discovery service, complex NAT traversal **Verdict**: Too complex to implement
 
 **Chosen**: Cloudflare Workers - Best balance of simplicity, privacy, and self-hosting
 
 ### B. Encryption Algorithm Comparison
 
-| Algorithm | Key Size | IV Size | Auth | Speed | Security |
-|-----------|----------|---------|------|-------|----------|
-| AES-GCM | 256-bit | 96-bit | Yes | Fast | Excellent |
-| AES-CBC | 256-bit | 128-bit | No | Fast | Good (needs HMAC) |
-| ChaCha20-Poly1305 | 256-bit | 96-bit | Yes | Very Fast | Excellent |
-| AES-CTR + HMAC | 256-bit | 128-bit | Yes | Fast | Excellent |
+| Algorithm | Key Size | IV Size | Auth | Speed | Security | |-----------|----------|---------|------|-------|----------| | AES-GCM | 256-bit | 96-bit | Yes | Fast | Excellent | | AES-CBC | 256-bit | 128-bit | No | Fast | Good (needs HMAC) | | ChaCha20-Poly1305 | 256-bit | 96-bit | Yes | Very Fast | Excellent | | AES-CTR + HMAC | 256-bit | 128-bit | Yes | Fast | Excellent |
 
 **Chosen**: AES-GCM - Native browser support, authenticated, standard
 
 ### C. Key Derivation Function Comparison
 
-| KDF | Iterations | Memory | Parallel | Resistance |
-|-----|------------|--------|----------|------------|
-| PBKDF2 | 100k | Low | Easy | Good |
-| bcrypt | Work factor 10 | Medium | Hard | Better |
-| scrypt | N=16384 | High | Hard | Best |
-| Argon2 | Configurable | High | Hard | Best |
+| KDF | Iterations | Memory | Parallel | Resistance | |-----|------------|--------|----------|------------| | PBKDF2 | 100k | Low | Easy | Good | | bcrypt | Work factor 10 | Medium | Hard | Better | | scrypt | N=16384 | High | Hard | Best | | Argon2 | Configurable | High | Hard | Best |
 
 **Chosen**: PBKDF2 - Native browser support, sufficient for our use case
 
 ### D. Conflict Resolution Strategies
 
-#### Last-Write-Wins (LWW)
-**How**: Use timestamp to pick winner  
-**Pros**: Simple, automatic  
-**Cons**: Can lose recent changes
+#### Last-Write-Wins (LWW) **How**: Use timestamp to pick winner **Pros**: Simple, automatic **Cons**: Can lose recent changes
 
-#### Operational Transform (OT)
-**How**: Apply operations in order  
-**Pros**: No data loss  
-**Cons**: Complex, requires operation log
+#### Operational Transform (OT) **How**: Apply operations in order **Pros**: No data loss **Cons**: Complex, requires operation log
 
-#### Conflict-Free Replicated Data Types (CRDT)
-**How**: Mathematically proven convergence  
-**Pros**: No conflicts ever  
-**Cons**: Complex, larger payloads
+#### Conflict-Free Replicated Data Types (CRDT) **How**: Mathematically proven convergence **Pros**: No conflicts ever **Cons**: Complex, larger payloads
 
-#### Manual Resolution (Chosen)
-**How**: User picks winning version  
-**Pros**: User control, transparent  
-**Cons**: Requires user action
+#### Manual Resolution (Chosen) **How**: User picks winning version **Pros**: User control, transparent **Cons**: Requires user action
 
 ### E. Sample Wrangler Configuration
 
@@ -1667,12 +1522,7 @@ const { tokens } = await response.json();
 
 This architecture provides a robust, privacy-first sync solution that:
 
-✅ Maintains privacy with end-to-end encryption  
-✅ Supports self-hosting for full user control  
-✅ Costs nearly nothing to run (~$2/month for 1000 users)  
-✅ Degrades gracefully when offline  
-✅ Integrates cleanly with existing UserScript  
-✅ Scales to thousands of users on free tier  
+✅ Maintains privacy with end-to-end encryption ✅ Supports self-hosting for full user control ✅ Costs nearly nothing to run (~$2/month for 1000 users) ✅ Degrades gracefully when offline ✅ Integrates cleanly with existing UserScript ✅ Scales to thousands of users on free tier
 
 **Recommendation**: Proceed with implementation following the phased plan outlined above.
 
@@ -1684,7 +1534,4 @@ This architecture provides a robust, privacy-first sync solution that:
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: December 2024  
-**Reviewed By**: Pending  
-**Approved By**: Pending
+**Document Version**: 1.0 **Last Updated**: December 2024 **Reviewed By**: Pending **Approved By**: Pending

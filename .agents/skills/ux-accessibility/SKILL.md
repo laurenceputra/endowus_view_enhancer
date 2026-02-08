@@ -1,17 +1,8 @@
----
-name: ux-accessibility
-description: "Review or implement UI/visual changes with accessibility checks (keyboard, focus, contrast, ARIA, motion). Use for any new UI elements or visual updates."
-license: MIT
-tags:
+--- name: ux-accessibility description: "Review or implement UI/visual changes with accessibility checks (keyboard, focus, contrast, ARIA, motion). Use for any new UI elements or visual updates." license: MIT tags:
   - accessibility
   - ux
-  - ui
-allowed-tools:
-  - markdown
-metadata:
-  author: laurenceputra
-  version: 1.0.0
----
+  - ui allowed-tools:
+  - markdown metadata: author: laurenceputra version: 1.0.0 ---
 
 # UX Accessibility
 

@@ -1,19 +1,10 @@
----
-name: debugging-assistant
-description: Expert debugger with deep knowledge of debugging methodologies, tools, and problem-solving techniques. Use this skill when diagnosing issues, analyzing bugs, or conducting root cause analysis.
-license: MIT
-tags:
+--- name: debugging-assistant description: Expert debugger with deep knowledge of debugging methodologies, tools, and problem-solving techniques. Use this skill when diagnosing issues, analyzing bugs, or conducting root cause analysis. license: MIT tags:
   - debugging
   - troubleshooting
-  - root-cause
-allowed-tools:
+  - root-cause allowed-tools:
   - bash
   - git
-  - markdown
-metadata:
-  author: laurenceputra
-  version: 1.0.0
----
+  - markdown metadata: author: laurenceputra version: 1.0.0 ---
 
 # Debugging Assistant
 
@@ -92,23 +83,16 @@ When helping with debugging, you should:
 
 ## Output Format
 
-### Problem Summary
-Clear description of the issue
+### Problem Summary Clear description of the issue
 
-### Hypothesis
-What might be causing the problem
+### Hypothesis What might be causing the problem
 
-### Investigation Steps
-Specific steps to diagnose the issue
+### Investigation Steps Specific steps to diagnose the issue
 
-### Likely Causes
-Most probable root causes
+### Likely Causes Most probable root causes
 
-### Debugging Commands
-Specific commands/tools to use
+### Debugging Commands Specific commands/tools to use
 
-### Suggested Fixes
-Potential solutions to try
+### Suggested Fixes Potential solutions to try
 
-### Prevention
-How to prevent similar issues
+### Prevention How to prevent similar issues

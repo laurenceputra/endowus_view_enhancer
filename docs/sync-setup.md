@@ -89,12 +89,7 @@ For complete control over your data, you can run your own sync server.
 
 ### Sync Indicator
 
-| Icon | Meaning |
-|------|---------|
-| ✅ | Synced successfully |
-| 🔄 | Syncing in progress... |
-| ⚠️ | Sync error (check console) |
-| 🔒 | Sync disabled |
+| Icon | Meaning | |------|---------| | ✅ | Synced successfully | | 🔄 | Syncing in progress... | | ⚠️ | Sync error (check console) | | 🔒 | Sync disabled |
 
 ## ⚠️ Handling Conflicts
 
@@ -162,7 +157,7 @@ Conflicts occur when settings differ between devices. This happens when:
 ⚠️ **Cannot recover** - encryption is designed to be unbreakable
 
 **Options**:
-1. **If you have another synced device**: 
+1. **If you have another synced device**:
    - Check if password is saved in password manager
    - Copy settings manually from working device
 2. **If completely lost**:
@@ -281,7 +276,7 @@ Goal names, amounts, and settings are never visible to the server.
 
 ### Q: How much does sync cost?
 
-**A**: 
+**A**:
 - **Official server**: Free (supported by donations)
 - **Self-hosted**: ~$0-2/month on Cloudflare (free tier covers most users)
 
@@ -295,7 +290,7 @@ Goal names, amounts, and settings are never visible to the server.
 
 ### Q: How often does it sync?
 
-**A**: 
+**A**:
 - Automatically every 5 minutes (configurable)
 - Automatically after you change settings (batched within ~15 seconds)
 - On-demand via "Sync Now" button
@@ -344,5 +339,4 @@ See [SYNC_ARCHITECTURE.md](../SYNC_ARCHITECTURE.md) for full technical details.
 
 ---
 
-**Last Updated**: December 2024  
-**Version**: 1.0
+**Last Updated**: December 2024 **Version**: 1.0

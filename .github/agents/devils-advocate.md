@@ -1,12 +1,8 @@
----
-name: devils-advocate
-description: Devil's Advocate agent for surfacing blind spots, assumptions, and hidden risks
-applies_to:
+--- name: devils-advocate description: Devil's Advocate agent for surfacing blind spots, assumptions, and hidden risks applies_to:
   - copilot-chat
   - copilot-cli
   - copilot-workspace
-  - copilot-code-review
----
+  - copilot-code-review ---
 
 # Devil's Advocate Agent
 
@@ -64,6 +60,6 @@ Provide at least 3 counterpoints with mitigations:
 - Were any tests skipped after review changes?
 - Is the change consistent with the single-file userscript model?
 
---- 
+---
 
 **Remember**: Your goal is to protect users and the product by making risks explicit early.

@@ -59,10 +59,10 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 
 1. **Install a Userscript Manager**
    - Install Tampermonkey (recommended) from your browser's extension store
-   
+
 2. **Install the Script**
    - Option A: Click [here](https://raw.githubusercontent.com/laurenceputra/goal-portfolio-viewer/main/tampermonkey/goal_portfolio_viewer.user.js) to install directly
-   - Option B: 
+   - Option B:
      1. Open Tampermonkey dashboard
      2. Click "Create a new script"
      3. Copy the contents of `goal_portfolio_viewer.user.js`
@@ -80,7 +80,7 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 1. **Log into Endowus**: Navigate to your Endowus portfolio at https://app.sg.endowus.com/
 2. **Wait for Data**: Allow the page to fully load (the script will automatically intercept API calls)
 3. **Open Portfolio Viewer**: Click the "📊 Portfolio Viewer" button in the bottom-right corner
-4. **Explore Your Portfolio**: 
+4. **Explore Your Portfolio**:
    - View the summary to see all buckets at a glance
    - Select individual buckets from the dropdown to see detailed breakdowns
 
@@ -145,7 +145,7 @@ If you want to sync your goal configurations across devices:
    - Configure sync with the same credentials
    - Your goal targets and settings will sync automatically
 
-**Important**: 
+**Important**:
 - Your password is used to encrypt data before it leaves your device and is not stored locally unless you opt to remember the encryption key
 - If you lose your password, your synced data cannot be recovered
 - You can optionally remember the encryption key on trusted devices to keep sync unlocked across sessions

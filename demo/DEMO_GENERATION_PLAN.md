@@ -98,7 +98,7 @@ This ensures the demo works completely offline without any external dependencies
 #### Contribution Event (Final 3 Months)
 - **Timing**: Random date within the final 90 days
 - **Amount**: 25% of current portfolio value
-- **Implementation**: 
+- **Implementation**:
   - Calculate current balance at contribution date
   - Add 25% to `cumulativeNetInvestmentAmount`
   - Balance jumps by contribution amount
@@ -108,8 +108,7 @@ This ensures the demo works completely offline without any external dependencies
 
 ### Generated Files
 
-#### 1. `mock-data.json`
-Primary data file containing:
+#### 1. `mock-data.json` Primary data file containing:
 ```json
 {
   "performance": [...],      // Basic performance metrics
@@ -139,8 +138,7 @@ Primary data file containing:
 }
 ```
 
-#### 2. `BUCKET_CONFIGURATION.md`
-Documentation file containing:
+#### 2. `BUCKET_CONFIGURATION.md` Documentation file containing:
 - Bucket summaries (totals, returns, growth)
 - Goals breakdown (actual investments, returns, percentages)
 - Target allocations (target vs actual comparison with variance)
@@ -354,8 +352,7 @@ After generating new demo data, verify:
 5. **Asset Class Variations**: Different volatility profiles per asset class
 6. **Seasonal Patterns**: Model end-of-year tax-loss harvesting, rebalancing
 
-### Extensibility
-The generation system is designed to be extensible:
+### Extensibility The generation system is designed to be extensible:
 - Add new buckets by extending `bucket_configs` list
 - Modify volatility by adjusting `generate_bumpy_time_series()` parameters
 - Change time horizons by modifying `days` parameter
@@ -363,5 +360,4 @@ The generation system is designed to be extensible:
 
 ---
 
-*Last Updated: 2026-01-17*
-*Version: 2.0*
+*Last Updated: 2026-01-17* *Version: 2.0*
