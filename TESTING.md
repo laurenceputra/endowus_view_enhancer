@@ -193,27 +193,30 @@ describe('functionName', () => {
 
 The CI workflow (`.github/workflows/ci.yml`) runs on:
 - Every push to `main` branch
-- Every pull request targeting `main`
+- Pull request events targeting `main` (`opened`, `synchronize`, `reopened`, `ready_for_review`)
+
+Draft pull requests are intentionally skipped by job conditions. When a draft PR is marked **Ready for review**, jobs can run on the `ready_for_review` trigger (or on the next commit).
 
 ### CI Steps
 
 1. Checkout code
-2. Setup Node.js (18.x and 20.x)
+2. Setup Node.js (20.x)
 3. Install dependencies (`pnpm install`)
-4. Run tests (`pnpm test`)
-5. Upload coverage (Node 20.x only)
+4. Run affected jobs based on changed paths (lint, userscript tests, worker unit tests, e2e)
+5. Post coverage/comments and upload artifacts for relevant jobs
 
 ### CI Requirements
 
 - All tests must pass
 - No test failures allowed
-- Works on both Node.js 18.x and 20.x
+- Draft PRs should show CI jobs as skipped
+- Ready/non-draft PRs should run eligible jobs based on path filters
 
 ### Viewing CI Results
 
 1. Go to the Pull Request page
 2. Check the "Checks" tab
-3. View test results for each Node.js version
+3. Confirm whether jobs are skipped (draft PR) or executed (ready/non-draft PR)
 4. Click on failed tests to see details
 
 ## Common Issues
