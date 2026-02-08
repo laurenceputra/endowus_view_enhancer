@@ -1135,22 +1135,20 @@ const SyncManager = (() => {
 
 #### What We Protect Against
 
-✅
-**Server Compromise**: Server cannot read config data (encrypted) ✅
-**Network Eavesdropping**: HTTPS + encrypted payload ✅
-**Malicious Server Operator**: Cannot decrypt data without passphrase ✅
-**Data Breach**: Leaked database contains only encrypted blobs ✅
-**Replay Attacks**: Timestamp + device ID validation ✅
-**MITM Attacks**: HTTPS + authentication
+✅ **Server Compromise**: Server cannot read config data (encrypted)
+✅ **Network Eavesdropping**: HTTPS + encrypted payload
+✅ **Malicious Server Operator**: Cannot decrypt data without passphrase
+✅ **Data Breach**: Leaked database contains only encrypted blobs
+✅ **Replay Attacks**: Timestamp + device ID validation
+✅ **MITM Attacks**: HTTPS + authentication
 
 #### What We Don't Protect Against
 
-❌
-**Compromised Client**: If UserScript is modified, all bets are off ❌
-**Weak Passphrase**: Users can choose weak passphrases (we mitigate with strength meter) ❌
-**Passphrase Theft**: If user's passphrase is stolen, data can be decrypted ❌
-**Browser Compromise**: Malicious browser extensions could steal data ❌
-**Quantum Computers**: AES-256 is quantum-resistant, but PBKDF2 is not
+❌ **Compromised Client**: If UserScript is modified, all bets are off
+❌ **Weak Passphrase**: Users can choose weak passphrases (we mitigate with strength meter)
+❌ **Passphrase Theft**: If user's passphrase is stolen, data can be decrypted
+❌ **Browser Compromise**: Malicious browser extensions could steal data
+❌ **Quantum Computers**: AES-256 is quantum-resistant, but PBKDF2 is not
 
 ### Security Best Practices Implemented
 
@@ -1500,19 +1498,29 @@ const SyncManager = (() => {
 ### A. Alternative Architectures Considered
 
 #### Option 1: WebDAV Sync
-**Pros**: Users control storage (Dropbox, etc.) **Cons**: Complex setup, auth flow complicated **Verdict**: Too much friction for users
+**Pros**: Users control storage (Dropbox, etc.)
+**Cons**: Complex setup, auth flow complicated
+**Verdict**: Too much friction for users
 
 #### Option 2: Firebase/Supabase
-**Pros**: Managed backend, real-time sync **Cons**: Vendor lock-in, costs scale, privacy concerns **Verdict**: Against privacy-first principle
+**Pros**: Managed backend, real-time sync
+**Cons**: Vendor lock-in, costs scale, privacy concerns
+**Verdict**: Against privacy-first principle
 
 #### Option 3: Browser Sync APIs (Chrome Sync, Firefox Sync)
-**Pros**: Native, automatic **Cons**: Browser-specific, limited storage, no cross-browser **Verdict**: Too limited
+**Pros**: Native, automatic
+**Cons**: Browser-specific, limited storage, no cross-browser
+**Verdict**: Too limited
 
 #### Option 4: IPFS/Blockchain
-**Pros**: Decentralized, no central server **Cons**: Complex, slow, overkill for simple config **Verdict**: Too complex for users
+**Pros**: Decentralized, no central server
+**Cons**: Complex, slow, overkill for simple config
+**Verdict**: Too complex for users
 
 #### Option 5: Peer-to-Peer (WebRTC)
-**Pros**: No server needed, true P2P **Cons**: Requires discovery service, complex NAT traversal **Verdict**: Too complex to implement
+**Pros**: No server needed, true P2P
+**Cons**: Requires discovery service, complex NAT traversal
+**Verdict**: Too complex to implement
 
 **Chosen**: Cloudflare Workers - Best balance of simplicity, privacy, and self-hosting
 
@@ -1541,16 +1549,24 @@ const SyncManager = (() => {
 ### D. Conflict Resolution Strategies
 
 #### Last-Write-Wins (LWW)
-**How**: Use timestamp to pick winner **Pros**: Simple, automatic **Cons**: Can lose recent changes
+**How**: Use timestamp to pick winner
+**Pros**: Simple, automatic
+**Cons**: Can lose recent changes
 
 #### Operational Transform (OT)
-**How**: Apply operations in order **Pros**: No data loss **Cons**: Complex, requires operation log
+**How**: Apply operations in order
+**Pros**: No data loss
+**Cons**: Complex, requires operation log
 
 #### Conflict-Free Replicated Data Types (CRDT)
-**How**: Mathematically proven convergence **Pros**: No conflicts ever **Cons**: Complex, larger payloads
+**How**: Mathematically proven convergence
+**Pros**: No conflicts ever
+**Cons**: Complex, larger payloads
 
 #### Manual Resolution (Chosen)
-**How**: User picks winning version **Pros**: User control, transparent **Cons**: Requires user action
+**How**: User picks winning version
+**Pros**: User control, transparent
+**Cons**: Requires user action
 
 ### E. Sample Wrangler Configuration
 
@@ -1667,4 +1683,7 @@ This architecture provides a robust, privacy-first sync solution that:
 
 ---
 
-**Document Version**: 1.0 **Last Updated**: December 2024 **Reviewed By**: Pending **Approved By**: Pending
+**Document Version**: 1.0
+**Last Updated**: December 2024
+**Reviewed By**: Pending
+**Approved By**: Pending

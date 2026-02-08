@@ -107,8 +107,7 @@ XMLHttpRequest.prototype.send = function(...args) {
 
 #### Interception Safety Notes
 
-- Fetch interception is
-**non-blocking**: the script returns the original response immediately and processes clones asynchronously.
+- Fetch interception is **non-blocking**: the script returns the original response immediately and processes clones asynchronously.
 - XHR responses are parsed defensively; invalid JSON is ignored without breaking the page flow.
 - Captured auth headers are **merged** into prior values so partial captures (e.g., missing `authorization`) do not erase previously known headers.
 

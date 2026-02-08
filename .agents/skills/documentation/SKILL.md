@@ -30,6 +30,8 @@ Create concise, user-friendly documentation and templates for developers and end
 10. Keep Q/A pairs on separate lines (question line, then answer line).
 11. Put image markdown and its caption on separate lines (image first, caption line below).
 12. Keep technical/code output readable: multi-line JSON objects, multi-line header/body sections, and preserve multiline code blocks without inlining.
+13. Keep block quote markers with their quoted content on the same line (avoid standalone `>` lines).
+14. Keep emoji prefixes attached to their text (no standalone emoji lines).
 
 ## Output Format
 - Documentation draft
