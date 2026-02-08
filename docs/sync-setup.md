@@ -36,7 +36,8 @@ Default server URL: `https://goal-portfolio-sync.laurenceputra.workers.dev`
 
 3. **Create Password**
    - Choose a strong password (12+ characters recommended)
-   - ⚠️ **Important**: Save this password! It cannot be recovered if lost
+- ⚠️
+**Important**: Save this password! It cannot be recovered if lost
    - Your password encrypts your data - without it, synced data is useless
    - Optional: Enable **"Remember encryption key on this device"** to keep sync unlocked across browser sessions (trusted devices only)
    - Only encrypted goal targets + fixed flags are synced; holdings, balances, and transactions never leave your browser
@@ -162,7 +163,7 @@ Conflicts occur when settings differ between devices. This happens when:
 ⚠️ **Cannot recover** - encryption is designed to be unbreakable
 
 **Options**:
-1. **If you have another synced device**: 
+1. **If you have another synced device**:
    - Check if password is saved in password manager
    - Copy settings manually from working device
 2. **If completely lost**:
@@ -281,7 +282,7 @@ Goal names, amounts, and settings are never visible to the server.
 
 ### Q: How much does sync cost?
 
-**A**: 
+**A**:
 - **Official server**: Free (supported by donations)
 - **Self-hosted**: ~$0-2/month on Cloudflare (free tier covers most users)
 
@@ -295,7 +296,7 @@ Goal names, amounts, and settings are never visible to the server.
 
 ### Q: How often does it sync?
 
-**A**: 
+**A**:
 - Automatically every 5 minutes (configurable)
 - Automatically after you change settings (batched within ~15 seconds)
 - On-demand via "Sync Now" button
@@ -344,5 +345,4 @@ See [SYNC_ARCHITECTURE.md](../SYNC_ARCHITECTURE.md) for full technical details.
 
 ---
 
-**Last Updated**: December 2024  
-**Version**: 1.0
+**Last Updated**: December 2024 **Version**: 1.0

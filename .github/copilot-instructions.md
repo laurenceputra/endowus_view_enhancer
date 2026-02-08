@@ -10,14 +10,12 @@ applies_to:
 
 # Goal Portfolio Viewer - Development Guide
 
-> **Filename standard**: This guidance follows GitHub's recommended `copilot-instructions.md` filename.
+>
+**Filename standard**: This guidance follows GitHub's recommended `copilot-instructions.md` filename.
 
 ## Project Overview
 
-**Type**: Browser Extension (Tampermonkey Userscript)  
-**Purpose**: Enhance the Endowus (Singapore) investment platform with custom portfolio visualization  
-**Architecture**: Single-file JavaScript with API interception  
-**Key Feature**: Organize investment goals into custom "buckets" for better portfolio management
+**Type**: Browser Extension (Tampermonkey Userscript) **Purpose**: Enhance the Endowus (Singapore) investment platform with custom portfolio visualization **Architecture**: Single-file JavaScript with API interception **Key Feature**: Organize investment goals into custom "buckets" for better portfolio management
 
 ### Core Technologies
 - **Runtime**: Browser (Tampermonkey/Greasemonkey/Violentmonkey)
@@ -558,7 +556,8 @@ modalContainer.addEventListener('click', (event) => {
 
 ### Modifying Bucket Logic
 
-⚠️ **Warning**: Changes affect all existing users!
+⚠️
+**Warning**: Changes affect all existing users!
 
 1. Document old behavior
 2. Ensure backward compatibility
@@ -769,7 +768,7 @@ PLANNING → DESIGN → RISK → IMPLEMENT → QA → REVIEW → MERGE
 
 **Phase Gates**:
 1. **Planning**: PM defines requirements → Gate: Testable acceptance criteria
-2. **Design**: SE proposes solution → Gate: Risks/tradeoffs documented  
+2. **Design**: SE proposes solution → Gate: Risks/tradeoffs documented
 3. **Risk**: DA challenges assumptions → Gate: Mitigations accepted
 4. **Implementation**: SE codes → Gate: Tests pass
 5. **QA**: QA verifies → Gate: Acceptance criteria met
@@ -779,17 +778,17 @@ PLANNING → DESIGN → RISK → IMPLEMENT → QA → REVIEW → MERGE
 
 ### Handoff Protocols
 
-**PM → SE**: Problem statement, acceptance criteria, constraints  
-**SE → DA**: Proposed solution, assumptions, known risks, tradeoffs  
-**DA → SE**: Risk assessment, blocking risks, required mitigations  
-**SE → QA**: Implementation summary, test hooks, edge cases  
-**QA → CR**: Test results, bugs fixed, verification checklist  
+**PM → SE**: Problem statement, acceptance criteria, constraints
+**SE → DA**: Proposed solution, assumptions, known risks, tradeoffs
+**DA → SE**: Risk assessment, blocking risks, required mitigations
+**SE → QA**: Implementation summary, test hooks, edge cases
+**QA → CR**: Test results, bugs fixed, verification checklist
 
 ### Conflict Resolution
 
-**PM vs SE (Scope)**: PM states value, SE states cost/risk, DA surfaces tradeoffs → Decision: Split or accept larger PR  
-**SE vs QA (Coverage)**: QA states requirements, SE states feasibility, DA assesses risk → Decision: Balance coverage with effort  
-**QA vs CR (Standards)**: CR states concern, QA explains rationale, DA assesses risk → Decision: Add tests or accept  
+**PM vs SE (Scope)**: PM states value, SE states cost/risk, DA surfaces tradeoffs → Decision: Split or accept larger PR
+**SE vs QA (Coverage)**: QA states requirements, SE states feasibility, DA assesses risk → Decision: Balance coverage with effort
+**QA vs CR (Standards)**: CR states concern, QA explains rationale, DA assesses risk → Decision: Add tests or accept
 
 **Escalation**: DA mediates → SE technical call → PM product call → Document and move forward
 

@@ -107,7 +107,8 @@ XMLHttpRequest.prototype.send = function(...args) {
 
 #### Interception Safety Notes
 
-- Fetch interception is **non-blocking**: the script returns the original response immediately and processes clones asynchronously.
+- Fetch interception is
+**non-blocking**: the script returns the original response immediately and processes clones asynchronously.
 - XHR responses are parsed defensively; invalid JSON is ignored without breaking the page flow.
 - Captured auth headers are **merged** into prior values so partial captures (e.g., missing `authorization`) do not erase previously known headers.
 
@@ -130,22 +131,13 @@ The enhanced performance view retrieves time-series data per goal from the BFF e
 - **Origin relationship**: `app.sg.endowus.com` sends same-site requests to `bff.prod.silver.endowus.com`
 - **Required headers**: `authorization` (bearer token), `client-id`, `device-id`
 
-These headers are captured from in-app fetch requests and reused for the sequential performance fetch queue.
-If captured headers are missing, the script falls back to the `webapp-sg-access-token` and `webapp-deviceId` cookies
-and any locally stored `client-id` to build the performance request headers.
+These headers are captured from in-app fetch requests and reused for the sequential performance fetch queue. If captured headers are missing, the script falls back to the `webapp-sg-access-token` and `webapp-deviceId` cookies and any locally stored `client-id` to build the performance request headers.
 
-Time-series normalization and fallback return calculations intentionally use `Number.isFinite()` (not `isFinite()`)
-to avoid coercing strings, booleans, or empty values into numbers. When deriving window returns from time-series data,
-the script adjusts the ending balance by net contributions using `cumulativeNetInvestmentAmount` when available, so
-redemptions and contributions do not artificially inflate or deflate the fallback return percentage. Negative or
-zero adjusted end balances are treated as valid (yielding negative returns), while zero start balances still return
-`null` to avoid division-by-zero errors. Time-series normalization treats `null` amounts and net investment values as
-missing data (rather than converting them to zero) to avoid mixing unavailable values into calculations.
+Time-series normalization and fallback return calculations intentionally use `Number.isFinite()` (not `isFinite()`) to avoid coercing strings, booleans, or empty values into numbers. When deriving window returns from time-series data, the script adjusts the ending balance by net contributions using `cumulativeNetInvestmentAmount` when available, so redemptions and contributions do not artificially inflate or deflate the fallback return percentage. Negative or zero adjusted end balances are treated as valid (yielding negative returns), while zero start balances still return `null` to avoid division-by-zero errors. Time-series normalization treats `null` amounts and net investment values as missing data (rather than converting them to zero) to avoid mixing unavailable values into calculations.
 
 ### Performance Metrics Mapping
 
-The performance metrics table is built from the per-goal performance response fields below. When multiple goals are
-combined, percentage metrics are weighted by each goal’s net investment amount.
+The performance metrics table is built from the per-goal performance response fields below. When multiple goals are combined, percentage metrics are weighted by each goal’s net investment amount.
 
 | Table Label | Primary Response Field(s) | Notes |
 | --- | --- | --- |
@@ -266,9 +258,7 @@ function buildMergedInvestmentData(performanceData, investibleData, summaryData)
 
 ### Bucket Extraction
 
-Buckets are derived from the portion of the goal name before the `" - "` separator.
-If no separator exists, the full trimmed goal name is used. Empty or missing names
-fall back to `"Uncategorized"`.
+Buckets are derived from the portion of the goal name before the `" - "` separator. If no separator exists, the full trimmed goal name is used. Empty or missing names fall back to `"Uncategorized"`.
 
 **Examples:**
 - `"Retirement - Core Portfolio"` → Bucket: `"Retirement"`
@@ -277,23 +267,15 @@ fall back to `"Uncategorized"`.
 
 ### Aggregation Calculations
 
-Bucket totals and per-goal-type totals are aggregated while building the bucket map
-(`buildMergedInvestmentData`). UI-specific calculations (returns, percentages, diffs)
-are computed in view-model helpers to keep the DOM rendering layer thin and testable.
+Bucket totals and per-goal-type totals are aggregated while building the bucket map (`buildMergedInvestmentData`). UI-specific calculations (returns, percentages, diffs) are computed in view-model helpers to keep the DOM rendering layer thin and testable.
 
 ### Performance Window Derivation
 
-Window returns are sourced from the API returns table when available. If a window
-is missing, the script falls back to deriving the return from time-series data using
-the nearest point on or before the window start date.
+Window returns are sourced from the API returns table when available. If a window is missing, the script falls back to deriving the return from time-series data using the nearest point on or before the window start date.
 
-These values are mapped by `mapReturnsTableToWindowReturns()` and aggregated by
-`calculateWeightedWindowReturns()` when multiple goals are combined. Goals without a
-TWR value for a window are excluded from that window’s aggregate.
+These values are mapped by `mapReturnsTableToWindowReturns()` and aggregated by `calculateWeightedWindowReturns()` when multiple goals are combined. Goals without a TWR value for a window are excluded from that window’s aggregate.
 
-**Note:** The codebase includes helper functions like `getWindowStartDate()` and
-`calculateReturnFromTimeSeries()` that can support date-derived windows, but the
-current implementation does not compute 1D, 7D, or QTD windows.
+**Note:** The codebase includes helper functions like `getWindowStartDate()` and `calculateReturnFromTimeSeries()` that can support date-derived windows, but the current implementation does not compute 1D, 7D, or QTD windows.
 
 ### Sequential Fetch Queue + Cache
 
@@ -378,8 +360,7 @@ function getReturnColor(value) {
 
 #### Input Feedback Flash
 
-Inputs use CSS-only flash classes to highlight invalid or clamped values. The JS helper applies a `gpv-input-flash` class
-plus a severity modifier, then removes it on `animationend` so the base styles resume.
+Inputs use CSS-only flash classes to highlight invalid or clamped values. The JS helper applies a `gpv-input-flash` class plus a severity modifier, then removes it on `animationend` so the base styles resume.
 
 ```css
 .gpv-input-flash { border-color: var(--gpv-flash-color); }
@@ -390,8 +371,7 @@ plus a severity modifier, then removes it on `animationend` so the base styles r
 
 ### Rendering Functions
 
-The UI renders DOM elements directly. To keep DOM rendering thin, the script builds
-plain view-model objects and passes them into the renderer functions.
+The UI renders DOM elements directly. To keep DOM rendering thin, the script builds plain view-model objects and passes them into the renderer functions.
 
 #### Summary View Rendering
 
@@ -590,8 +570,7 @@ element.innerHTML = html;
 
 5. **Trusted Rendering**
    - Renderer functions build DOM nodes with `textContent` for all dynamic strings.
-   - Avoid `innerHTML` for user-visible content; only use it for static skeletons
-     or clearing containers.
+   - Avoid `innerHTML` for user-visible content; only use it for static skeletons or clearing containers.
 
 ---
 

@@ -4,13 +4,13 @@ This is a streamlined guide for integrating the sync functionality. For detailed
 
 ## Prerequisites
 
-✅ Cloudflare Workers backend deployed (in /workers directory)  
-✅ UserScript is at `tampermonkey/goal_portfolio_viewer.user.js`  
+✅ Cloudflare Workers backend deployed (in /workers directory)
+✅ UserScript is at `tampermonkey/goal_portfolio_viewer.user.js`
 ✅ Files ready: `sync_implementation.js` and `sync_ui.js`
 
 ## Step 1: Update UserScript Header (30 seconds)
 
-**File**: `goal_portfolio_viewer.user.js`  
+**File**: `goal_portfolio_viewer.user.js`
 **Line**: ~11 (in the @grant section)
 
 **Add this line:**
@@ -29,7 +29,7 @@ This is a streamlined guide for integrating the sync functionality. For detailed
 
 ## Step 2: Add Sync Constants (1 minute)
 
-**File**: `goal_portfolio_viewer.user.js`  
+**File**: `goal_portfolio_viewer.user.js`
 **Location**: After line 58 (after `const CLASS_NAMES = {...}`)
 
 **Add this code:**
@@ -68,7 +68,7 @@ const SYNC_STATUS = {
 
 ## Step 3: Add Encryption & Sync Manager (5 minutes)
 
-**File**: `goal_portfolio_viewer.user.js`  
+**File**: `goal_portfolio_viewer.user.js`
 **Location**: After line 1656 (after the Storage Management section ends)
 
 **Add these sections from `sync_implementation.js`:**
@@ -85,7 +85,7 @@ sed -n '/^    const SyncEncryption/,/^    \/\/ Export for testing/p' tampermonke
 
 ## Step 4: Add Sync UI Functions (10 minutes)
 
-**File**: `goal_portfolio_viewer.user.js`  
+**File**: `goal_portfolio_viewer.user.js`
 **Location**: In the UI section (after line 2054)
 
 **Add these functions from `sync_ui.js`:**
@@ -103,7 +103,7 @@ grep -A 99999 "// CHUNK 4: SYNC SETTINGS UI" tampermonkey/sync_ui.js | grep -B 9
 
 ## Step 5: Add Sync Styles (2 minutes)
 
-**File**: `goal_portfolio_viewer.user.js`  
+**File**: `goal_portfolio_viewer.user.js`
 **Location**: In the `injectStyles()` function (around line 3137)
 
 **Find the existing style injection:**
@@ -132,12 +132,11 @@ function injectStyles() {
 }
 ```
 
-**Quick way:**
-Copy the entire `SYNC_STYLES` constant from sync_ui.js and append to existing styles.
+**Quick way:** Copy the entire `SYNC_STYLES` constant from sync_ui.js and append to existing styles.
 
 ## Step 6: Add Sync Initialization (2 minutes)
 
-**File**: `goal_portfolio_viewer.user.js`  
+**File**: `goal_portfolio_viewer.user.js`
 **Location**: In the initialization section (around line 4234, where DOM is ready)
 
 **Add this code:**
@@ -168,7 +167,7 @@ if (SyncManager.isEnabled() && SyncManager.isConfigured()) {
 
 ## Step 7: Add Sync Button to Main UI (1 minute) - OPTIONAL
 
-**File**: `goal_portfolio_viewer.user.js`  
+**File**: `goal_portfolio_viewer.user.js`
 **Location**: Where you create the main modal or menu
 
 **Option A: Add to existing menu**
@@ -235,9 +234,9 @@ SyncEncryption.encrypt("test", "password").then(encrypted => {
 1. Click sync indicator
 2. Enable sync checkbox
 3. Enter:
-   - **Server URL**: Your Cloudflare Workers URL
-   - **User ID**: Your email or unique ID
-   - **Password**: Strong password (8+ chars)
+- **Server URL**: Your Cloudflare Workers URL
+- **User ID**: Your email or unique ID
+- **Password**: Strong password (8+ chars)
 4. Optional: Enable **"Remember encryption key on this device"** (trusted devices only)
 5. Click "Login" to obtain session tokens
 6. Click "Save Settings"

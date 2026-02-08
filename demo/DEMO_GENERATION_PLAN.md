@@ -98,7 +98,7 @@ This ensures the demo works completely offline without any external dependencies
 #### Contribution Event (Final 3 Months)
 - **Timing**: Random date within the final 90 days
 - **Amount**: 25% of current portfolio value
-- **Implementation**: 
+- **Implementation**:
   - Calculate current balance at contribution date
   - Add 25% to `cumulativeNetInvestmentAmount`
   - Balance jumps by contribution amount

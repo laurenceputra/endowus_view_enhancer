@@ -163,8 +163,7 @@ Or manually capture screenshots:
 - Retirement - Tech: ~$9k (15% allocation, +1.51% return)
 - Retirement - China: ~$9k (15% allocation, +2.17% return)
 
-All amounts are randomized with each generation while maintaining realistic proportions and return ranges.
-Actual investments have realistic variance from targets (-8% to +10%) for demo realism.
+All amounts are randomized with each generation while maintaining realistic proportions and return ranges. Actual investments have realistic variance from targets (-8% to +10%) for demo realism.
 
 ## Technical Notes
 
