@@ -22,6 +22,7 @@ Create concise, user-friendly documentation and templates for developers and end
 2. Draft content using consistent terminology.
 3. Add examples and usage instructions.
 4. Review for clarity and completeness.
+5. Follow `.editorconfig` rules (especially Markdown no-wrap settings) when editing documentation.
 
 ## Output Format
 - Documentation draft

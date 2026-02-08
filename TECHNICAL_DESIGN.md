@@ -36,6 +36,8 @@ tampermonkey/
 
 The sync feature is opt-in and encrypts configuration data client-side before upload. Authentication is handled with JWT access/refresh tokens issued after password login (legacy password-hash headers are no longer supported). After login or sign up, sync saves settings and enables encryption by default, storing a **derived encryption key** on the current device unless the user disables the remember-key option. After activation, auto-sync runs by default with a configurable interval and buffered sync-on-change to avoid excessive requests; if a sync is already running, change-triggered sync retries after a short delay. Fixed goals only sync their fixed state (target percentages are ignored), and conflict resolution is presented inside the sync settings overlay.
 
+Preview deployments of the sync backend bind the preview Worker to the KV namespace specified by `SYNC_KV_PREVIEW_ID` (falling back to `SYNC_KV_ID`) to keep preview data isolated without per-PR namespace creation.
+
 ---
 
 ## API Interception

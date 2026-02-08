@@ -160,11 +160,11 @@ Add the required repository secrets in:
 Required secrets:
 - `CLOUDFLARE_API_TOKEN` (Workers Scripts: Edit, KV Storage: Edit, Account Settings: Read)
 - `CLOUDFLARE_ACCOUNT_ID`
-- `SYNC_KV_ID` (required KV namespace ID for previews)
-- `SYNC_KV_PREVIEW_ID` (preview namespace ID; defaults to `SYNC_KV_ID` if omitted)
+- `SYNC_KV_ID` (required KV namespace ID for previews; used as fallback)
+- `SYNC_KV_PREVIEW_ID` (preview namespace ID; used for preview writes when set)
 - `CLOUDFLARE_WORKERS_SUBDOMAIN` (used to build the preview URL in PR comments)
 
-Previews use a shared KV namespace via `SYNC_KV_ID` to avoid per-PR KV creation.
+Previews use the KV namespace from `SYNC_KV_PREVIEW_ID` when provided (falling back to `SYNC_KV_ID`) to avoid per-PR KV creation while still allowing isolated preview storage.
 
 JWT secrets are managed via Wrangler (not GitHub Actions). Run:
 `npx wrangler secret put JWT_SECRET --env production` or set per preview worker name as needed.

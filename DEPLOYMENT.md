@@ -155,10 +155,10 @@ npx wrangler secret put JWT_SECRET --env staging
 npx wrangler secret put JWT_SECRET --env production
 ```
 
-### Preview Deploys (Shared KV Namespace)
+### Preview Deploys (Preview KV Namespace)
 - Previews use `wrangler versions upload --preview-alias <alias>` and follow:
   `<alias>-goal-portfolio-sync.<your-subdomain>.workers.dev`
-- Previews use a shared KV namespace via `SYNC_KV_ID` (no per-PR KV creation).
+- Previews use the KV namespace from `SYNC_KV_PREVIEW_ID` when provided (falling back to `SYNC_KV_ID`) so you can isolate preview data without per-PR KV creation.
 - Set `CLOUDFLARE_WORKERS_SUBDOMAIN` to include the subdomain in PR comments.
 - Preview versions are managed by Cloudflare and clean up automatically, so no additional cleanup jobs are required.
 
