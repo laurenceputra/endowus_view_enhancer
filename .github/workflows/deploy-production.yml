@@ -43,12 +43,11 @@ jobs:
           fi
 
           KV_ID="${SYNC_KV_ID}"
-          KV_PREVIEW_ID="${SYNC_KV_ID}"
           CONFIG_PATH="${PWD}/wrangler.production.toml"
 
           sed -e "s|__WORKER_NAME__|${WORKER_NAME}|g" \
               -e "s|__KV_ID__|$KV_ID|g" \
-              -e "s|__KV_PREVIEW_ID__|$KV_PREVIEW_ID|g" \
+              -e "s|__KV_PREVIEW_ID__|$KV_ID|g" \
               -e "s|__CORS_ORIGINS__|${CORS_ORIGINS}|g" \
               wrangler.production.toml.template > "$CONFIG_PATH"
 
