@@ -168,7 +168,6 @@ npx wrangler secret put JWT_SECRET --env production
   - `CLOUDFLARE_API_TOKEN`
   - `CLOUDFLARE_ACCOUNT_ID`
   - `SYNC_KV_ID`
-  - `SYNC_KV_PREVIEW_ID` (optional; defaults to `SYNC_KV_ID`)
 
 ### Manual Testing
 

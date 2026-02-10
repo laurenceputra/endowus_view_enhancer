@@ -28,7 +28,6 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       SYNC_KV_ID: ${{ secrets.SYNC_KV_ID }}
-      SYNC_KV_PREVIEW_ID: ${{ secrets.SYNC_KV_PREVIEW_ID }}
       WORKERS_SUBDOMAIN: ${{ secrets.CLOUDFLARE_WORKERS_SUBDOMAIN }}
       CORS_ORIGINS: https://app.sg.endowus.com
       WORKER_NAME: goal-portfolio-sync
@@ -86,15 +85,13 @@ jobs:
             exit 1
           fi
 
-          # `wrangler versions upload` binds KV using `id` (not `preview_id`),
-          # so previews must set `id` to the preview namespace when available.
-          KV_ID="${SYNC_KV_PREVIEW_ID:-${SYNC_KV_ID}}"
-          KV_PREVIEW_ID="${SYNC_KV_PREVIEW_ID:-${SYNC_KV_ID}}"
+          # Keep preview and production on the same KV namespace.
+          KV_ID="${SYNC_KV_ID}"
           CONFIG_PATH="${PWD}/wrangler.preview.toml"
 
           sed -e "s|__WORKER_NAME__|${WORKER_NAME}|g" \
               -e "s|__KV_ID__|$KV_ID|g" \
-              -e "s|__KV_PREVIEW_ID__|$KV_PREVIEW_ID|g" \
+              -e "s|__KV_PREVIEW_ID__|$KV_ID|g" \
               -e "s|__CORS_ORIGINS__|${CORS_ORIGINS}|g" \
               wrangler.preview.toml.template > "$CONFIG_PATH"
 

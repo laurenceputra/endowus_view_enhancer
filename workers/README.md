@@ -160,12 +160,10 @@ Add the required repository secrets in:
 Required secrets:
 - `CLOUDFLARE_API_TOKEN` (Workers Scripts: Edit, KV Storage: Edit, Account Settings: Read)
 - `CLOUDFLARE_ACCOUNT_ID`
-- `SYNC_KV_ID` (required fallback KV namespace ID for previews)
-- `SYNC_KV_PREVIEW_ID` (preferred KV namespace ID for preview uploads; falls back to `SYNC_KV_ID` if omitted)
+- `SYNC_KV_ID` (shared KV namespace ID for production + previews)
 - `CLOUDFLARE_WORKERS_SUBDOMAIN` (used to build the preview URL in PR comments)
 
-Previews use `SYNC_KV_PREVIEW_ID` when set, otherwise `SYNC_KV_ID`.
-Cloudflare preview uploads (`wrangler versions upload`) bind KV using `id`, so preview workflows render `id` from this value.
+Previews and production both use `SYNC_KV_ID`.
 
 JWT secrets are managed via Wrangler (not GitHub Actions). Run:
 `npx wrangler secret put JWT_SECRET --env production` or set per preview worker name as needed.
@@ -180,7 +178,6 @@ Main-branch merges can deploy automatically via GitHub Actions:
    - `CLOUDFLARE_API_TOKEN`
    - `CLOUDFLARE_ACCOUNT_ID`
    - `SYNC_KV_ID`
-   - `SYNC_KV_PREVIEW_ID` (optional; defaults to `SYNC_KV_ID`)
 
 CI renders `workers/wrangler.production.toml.template` with secrets and deploys
 using the rendered config.
