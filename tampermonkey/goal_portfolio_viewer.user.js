@@ -6079,10 +6079,7 @@ syncUi.showConflictResolution = function showConflictResolution(conflict) {
                 
                 await SyncManager.resolveConflict('local', conflict);
                 showSuccessMessage('Conflict resolved! Local data uploaded to server.');
-                const overlay = document.getElementById('gpv-overlay');
-                if (overlay) {
-                    overlay.remove();
-                }
+                showSyncSettings();
             } catch (error) {
                 console.error('[Goal Portfolio Viewer] Conflict resolution failed:', error);
                 showErrorMessage(`Failed to resolve conflict: ${error.message}`);
@@ -6102,10 +6099,7 @@ syncUi.showConflictResolution = function showConflictResolution(conflict) {
                 
                 await SyncManager.resolveConflict('remote', conflict);
                 showSuccessMessage('Conflict resolved! Remote data applied locally.');
-                const overlay = document.getElementById('gpv-overlay');
-                if (overlay) {
-                    overlay.remove();
-                }
+                showSyncSettings();
             } catch (error) {
                 console.error('[Goal Portfolio Viewer] Conflict resolution failed:', error);
                 showErrorMessage(`Failed to resolve conflict: ${error.message}`);
@@ -6804,17 +6798,18 @@ syncUi.update = function updateSyncUI() {
             .gpv-goal-metrics {
                 display: flex;
                 flex-wrap: wrap;
-                gap: 6px 16px;
+                gap: 4px 10px;
                 font-size: 12px;
                 color: #6b7280;
+                justify-content: flex-start;
             }
 
             .gpv-goal-metrics-item {
                 display: inline-flex;
                 align-items: center;
-                gap: 6px;
-                flex: 1 1 140px;
-                min-width: 140px;
+                gap: 4px;
+                flex: 0 0 auto;
+                min-width: 0;
             }
 
             .gpv-goal-metrics-label {
@@ -6829,7 +6824,7 @@ syncUi.update = function updateSyncUI() {
 
             @media (max-width: 640px) {
                 .gpv-goal-metrics-item {
-                    min-width: 120px;
+                    min-width: 0;
                 }
             }
             
