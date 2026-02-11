@@ -24,6 +24,7 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 - **Comprehensive Analytics**: View ending balances, cumulative returns, and growth percentages
 - **Multi-level Views**: Toggle between summary view and detailed bucket views
 - **Performance Insights**: Per goal-type charts with responsive sizing (including dynamic height), recent return windows, and key metrics (including Total Return % with weighting context and Simple Return %)
+- **Declutter Controls**: Expand/shrink the overlay, switch between Allocation/Performance modes, and collapse heavy panels
 
 ### 🎨 Modern UX Design
 - **Beautiful Gradient UI**: Modern purple gradient theme with smooth animations
@@ -112,6 +113,11 @@ The script will automatically group all goals starting with the same bucket name
 - Select a specific bucket from the dropdown (or click a bucket card in the summary view)
 - See detailed information about each goal within that bucket
 - View individual goal performance metrics
+- See a secondary per-goal TWR window row (1M/6M/YTD/1Y/3Y); missing windows show `-` until performance data is cached
+- Use `Allocation` mode for planning fields (Fixed/Target/Diff) and `Performance` mode for return-focused views
+- Mode selection persists between sessions for quick switching
+- Collapse the performance chart/metrics and projection sections per goal type (collapsed by default, remembered per section)
+- Use the header `Expand` button to temporarily grow the overlay (resets to default size each time you reopen it)
 - Compare goals within the same bucket
 - Use per-goal fixed toggles to lock a goal's amount and auto-sync its target %
 - Track remaining unassigned target % for each goal type, with visual flagging when it exceeds 2%
@@ -124,6 +130,7 @@ For each bucket/goal, you'll see:
 - **Growth %**: Percentage return on investment (cumulative return ÷ total invested)
 - **Goal Breakdown**: Individual goals with their specific metrics
 - **% of Goal Type**: What percentage each goal represents within its type
+- **TWR Windows**: Per-goal 1M/6M/YTD/1Y/3Y time-weighted return windows shown under each goal row (falls back to `-` when unavailable)
 
 ### Sync Setup (Optional)
 
@@ -209,6 +216,7 @@ The script uses monkey patching to intercept API responses from the Endowus plat
 - Performance data is cached for up to 7 days
 - Use the “Clear cache & refresh” button in the performance section to refresh data
 - Refresh is available once every 24 hours
+- Per-goal TWR windows in bucket detail view appear after performance data is available (otherwise `-` is shown)
 
 ### Script Not Running
 - Verify script is installed correctly in Tampermonkey
@@ -291,6 +299,9 @@ Contributions are welcome! To contribute:
 5. Submit a pull request
 
 ## Changelog
+
+### Version 2.11.0
+- Added per-goal TWR window rows (1M/6M/YTD/1Y/3Y) in bucket detail view with `-` fallback when data is missing
 
 ### Version 2.9.3
 - Rendered sync conflict resolution inside the sync settings overlay
