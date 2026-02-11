@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Goal Portfolio Viewer
 // @namespace    https://github.com/laurenceputra/goal-portfolio-viewer
-// @version      2.10.0
+// @version      2.11.0
 // @description  View and organize your investment portfolio by buckets with a modern interface. Groups goals by bucket names and displays comprehensive portfolio analytics. Currently supports Endowus (Singapore). Now with optional cross-device sync!
 // @author       laurenceputra
 // @match        https://app.sg.endowus.com/*
@@ -816,16 +816,22 @@
                         allocationDriftDisplay: allocationModel.allocationDriftDisplay,
                         allocationDriftAvailable: allocationModel.allocationDriftAvailable,
                         goalModelsById: allocationModel.goalModelsById,
-                        goals: allocationModel.goalModels.map(goal => ({
-                            ...goal,
-                            endingBalanceDisplay: formatMoney(goal.endingBalanceAmount),
-                            percentOfTypeDisplay: formatPercent(goal.percentOfType),
-                            targetDisplay: goal.targetPercent !== null ? goal.targetPercent.toFixed(2) : '',
-                            diffDisplay: goal.diffAmount === null ? '-' : formatMoney(goal.diffAmount),
-                            returnDisplay: formatMoney(goal.returnValue),
-                            returnPercentDisplay: formatPercent(goal.returnPercent, { multiplier: 100, showSign: false }),
-                            returnClass: getReturnClass(goal.returnValue)
-                        }))
+                        goals: allocationModel.goalModels.map(goal => {
+                            const windowReturns = getGoalWindowReturns(goal.goalId);
+                            const windowReturnDisplays = buildWindowReturnDisplays(windowReturns);
+                            return {
+                                ...goal,
+                                endingBalanceDisplay: formatMoney(goal.endingBalanceAmount),
+                                percentOfTypeDisplay: formatPercent(goal.percentOfType),
+                                targetDisplay: goal.targetPercent !== null ? goal.targetPercent.toFixed(2) : '',
+                                diffDisplay: goal.diffAmount === null ? '-' : formatMoney(goal.diffAmount),
+                                returnDisplay: formatMoney(goal.returnValue),
+                                returnPercentDisplay: formatPercent(goal.returnPercent, { multiplier: 100, showSign: false }),
+                                returnClass: getReturnClass(goal.returnValue),
+                                windowReturns,
+                                windowReturnDisplays
+                            };
+                        })
                     };
                 })
                 .filter(Boolean),
@@ -993,6 +999,43 @@
         oneYear: { key: 'oneYear', label: '1Y' },
         threeYear: { key: 'threeYear', label: '3Y' }
     };
+    const PERFORMANCE_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+    function getGoalWindowReturns(goalId) {
+        if (!goalId) {
+            return {};
+        }
+        const key = getPerformanceCacheKey(goalId);
+        const parsed = Storage.readJson(
+            key,
+            data => {
+                const fetchedAt = data?.fetchedAt;
+                const response = data?.response;
+                return typeof fetchedAt === 'number' && fetchedAt > 0 && response && typeof response === 'object';
+            },
+            'Error reading performance cache'
+        );
+        if (!parsed) {
+            return {};
+        }
+        if (!isCacheFresh(parsed.fetchedAt, PERFORMANCE_CACHE_MAX_AGE_MS)) {
+            Storage.remove(key, 'Error deleting stale performance cache');
+            return {};
+        }
+        const cachedResponse = parsed.response ? utils.normalizePerformanceResponse(parsed.response) : null;
+        if (!cachedResponse) {
+            return {};
+        }
+        return mapReturnsTableToWindowReturns(cachedResponse.returnsTable);
+    }
+
+    function buildWindowReturnDisplays(windowReturns) {
+        const displays = {};
+        Object.values(PERFORMANCE_WINDOWS).forEach(window => {
+            displays[window.key] = formatPercent(windowReturns?.[window.key], { multiplier: 100, showSign: true });
+        });
+        return displays;
+    }
 
     function getPerformanceCacheKey(goalId) {
         return storageKeys.performanceCache(goalId);
@@ -2973,7 +3016,6 @@ let GoalTargetStore;
     // ============================================
     const PERFORMANCE_ENDPOINT = 'https://bff.prod.silver.endowus.com/v1/performance';
     const REQUEST_DELAY_MS = 500;
-    const PERFORMANCE_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
     const PERFORMANCE_CACHE_REFRESH_MIN_AGE_MS = 24 * 60 * 60 * 1000;
     const PERFORMANCE_CHART_WINDOW = PERFORMANCE_WINDOWS.oneYear.key;
     const PERFORMANCE_REQUEST_TIMEOUT_MS = 10000;
@@ -4403,12 +4445,13 @@ let GoalTargetStore;
             thead.appendChild(headerRow);
             table.appendChild(thead);
 
+            const metricsColSpan = headerRow.children.length;
             const tbody = createElement('tbody');
 
             const goalModelsById = goalTypeModel.goalModelsById || {};
 
             goalTypeModel.goals.forEach(goalModel => {
-                const tr = createElement('tr');
+                const tr = createElement('tr', 'gpv-goal-row');
                 tr.appendChild(createElement('td', 'gpv-goal-name', goalModel.goalName));
                 tr.appendChild(createElement('td', null, goalModel.endingBalanceDisplay));
                 tr.appendChild(createElement('td', null, goalModel.percentOfTypeDisplay));
@@ -4446,6 +4489,31 @@ let GoalTargetStore;
                 tr.appendChild(createElement('td', goalModel.returnClass || null, goalModel.returnPercentDisplay));
 
                 tbody.appendChild(tr);
+
+                const metricsRow = createElement('tr', 'gpv-goal-metrics-row');
+                const metricsCell = createElement('td', 'gpv-goal-metrics-cell');
+                metricsCell.colSpan = metricsColSpan;
+                const metricsContainer = createElement('div', 'gpv-goal-metrics');
+                const windowReturnDisplays = goalModel.windowReturnDisplays || {};
+                const windowReturns = goalModel.windowReturns || {};
+
+                Object.values(PERFORMANCE_WINDOWS).forEach(window => {
+                    const item = createElement('div', 'gpv-goal-metrics-item');
+                    const label = createElement('span', 'gpv-goal-metrics-label', `${window.label} TWR:`);
+                    const displayValue = windowReturnDisplays[window.key] ?? '-';
+                    const value = createElement('span', 'gpv-goal-metrics-value', displayValue);
+                    const numericValue = windowReturns[window.key];
+                    if (typeof numericValue === 'number' && Number.isFinite(numericValue)) {
+                        value.classList.add(numericValue >= 0 ? 'positive' : 'negative');
+                    }
+                    item.appendChild(label);
+                    item.appendChild(value);
+                    metricsContainer.appendChild(item);
+                });
+
+                metricsCell.appendChild(metricsContainer);
+                metricsRow.appendChild(metricsCell);
+                tbody.appendChild(metricsRow);
             });
             
             table.appendChild(tbody);
@@ -6388,6 +6456,55 @@ syncUi.update = function updateSyncUI() {
             
             .gpv-table tbody tr:hover {
                 background-color: #f3f4f6;
+            }
+
+            .gpv-table tbody tr.gpv-goal-row:hover + tr.gpv-goal-metrics-row {
+                background-color: #f3f4f6;
+            }
+
+            .gpv-table tbody tr.gpv-goal-metrics-row:hover {
+                background-color: #f3f4f6;
+            }
+
+            .gpv-table tbody tr.gpv-goal-metrics-row td {
+                border-top: none;
+                padding-top: 4px;
+                padding-bottom: 8px;
+                text-align: left;
+                font-size: 12px;
+                color: #4b5563;
+            }
+
+            .gpv-goal-metrics {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px 16px;
+                font-size: 12px;
+                color: #6b7280;
+            }
+
+            .gpv-goal-metrics-item {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                flex: 1 1 140px;
+                min-width: 140px;
+            }
+
+            .gpv-goal-metrics-label {
+                font-weight: 600;
+                color: #6b7280;
+            }
+
+            .gpv-goal-metrics-value {
+                font-weight: 600;
+                color: #1f2937;
+            }
+
+            @media (max-width: 640px) {
+                .gpv-goal-metrics-item {
+                    min-width: 120px;
+                }
             }
             
             .gpv-table .gpv-goal-name {

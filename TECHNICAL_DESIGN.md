@@ -437,6 +437,7 @@ The `bucketViewModel` contains:
 - bucket totals and growth display strings
 - per-goal-type sections (with projected investment inputs)
 - per-goal rows sorted alphabetically by goal name (fixed toggles, targets, remaining target %, diffs, return classes), with remaining target alerts for values above 2%
+- per-goal TWR window displays (1M/6M/YTD/1Y/3Y) rendered as a secondary row per goal, sourced from cached performance responses with `-` fallback when unavailable
 
 ---
 

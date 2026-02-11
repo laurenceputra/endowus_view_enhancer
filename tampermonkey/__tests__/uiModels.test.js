@@ -18,11 +18,13 @@ const {
     collectGoalIds,
     collectAllGoalIds,
     buildGoalTargetById,
-    buildGoalFixedById
+    buildGoalFixedById,
+    getPerformanceCacheKey
 } = require('../goal_portfolio_viewer.user.js');
 
 const {
     createBucketMapFixture,
+    createPerformanceCacheFixture,
     createProjectedInvestmentFixture,
     createGoalTargetFixture,
     createGoalFixedFixture
@@ -165,6 +167,49 @@ describe('view model builders', () => {
         expect(firstGoal.diffDisplay).toMatch(/0\.00/);
         expect(firstGoal.targetDisplay).toBe('48.00');
         expect(firstGoal.isFixed).toBe(true);
+    });
+
+    test('should map per-goal window returns with fallback', () => {
+        const bucketMap = createBucketMapFixture();
+        const cacheFixture = createPerformanceCacheFixture();
+        const storage = new Map();
+        const previousGet = global.GM_getValue;
+        const previousSet = global.GM_setValue;
+        const previousDelete = global.GM_deleteValue;
+        global.GM_getValue = (key, fallback = null) => (storage.has(key) ? storage.get(key) : fallback);
+        global.GM_setValue = (key, value) => storage.set(key, value);
+        global.GM_deleteValue = key => storage.delete(key);
+        try {
+            Object.entries(cacheFixture).forEach(([goalId, payload]) => {
+                storage.set(getPerformanceCacheKey(goalId), JSON.stringify(payload));
+            });
+            const viewModel = buildBucketDetailViewModel({
+                bucketName: 'Retirement',
+                bucketMap,
+                projectedInvestmentsState: null,
+                goalTargetById: null,
+                goalFixedById: null
+            });
+            const goalTypeModel = viewModel.goalTypes[0];
+            const coreGoal = goalTypeModel.goals.find(goal => goal.goalId === 'g1');
+            expect(coreGoal.windowReturnDisplays).toEqual({
+                oneMonth: '+0.42%',
+                sixMonth: '+2.31%',
+                ytd: '-0.80%',
+                oneYear: '+8.05%',
+                threeYear: '-'
+            });
+            const growthGoal = goalTypeModel.goals.find(goal => goal.goalId === 'g2');
+            expect(growthGoal.windowReturnDisplays.oneMonth).toBe('-');
+            expect(growthGoal.windowReturnDisplays.sixMonth).toBe('+1.23%');
+            expect(growthGoal.windowReturnDisplays.threeYear).toBe('-');
+            const cashGoal = viewModel.goalTypes[1].goals[0];
+            expect(cashGoal.windowReturnDisplays.oneMonth).toBe('-');
+        } finally {
+            global.GM_getValue = previousGet;
+            global.GM_setValue = previousSet;
+            global.GM_deleteValue = previousDelete;
+        }
     });
 
     test('should return empty buckets for invalid summary input', () => {
