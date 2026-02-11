@@ -439,6 +439,11 @@ The `bucketViewModel` contains:
 - per-goal rows sorted alphabetically by goal name (fixed toggles, targets, remaining target %, diffs, return classes), with remaining target alerts for values above 2%
 - per-goal TWR window displays (1M/6M/YTD/1Y/3Y) rendered as a secondary row per goal, sourced from cached performance responses with `-` fallback when unavailable
 
+Bucket detail rendering now supports declutter controls:
+- An overlay Expand/Shrink button that temporarily increases modal size (not persisted across sessions).
+- Per-goal-type collapsible panels for performance and projection sections (collapsed by default, persisted per section).
+- Allocation/Performance mode toggle that hides allocation-heavy or return-heavy columns while keeping data models intact (mode persisted locally).
+
 ---
 
 ## Development Guide

@@ -29,6 +29,7 @@
 
     const UNKNOWN_GOAL_TYPE = 'UNKNOWN_GOAL_TYPE';
     const PROJECTED_KEY_SEPARATOR = '|';
+    const COLLAPSE_KEY_SEPARATOR = '|';
 
     const ENDPOINT_PATHS = {
         performance: '/v1/goals/performance',
@@ -45,7 +46,19 @@
     const STORAGE_KEY_PREFIXES = {
         goalTarget: 'goal_target_pct_',
         goalFixed: 'goal_fixed_',
-        performanceCache: 'gpv_performance_'
+        performanceCache: 'gpv_performance_',
+        collapseState: 'gpv_collapse_'
+    };
+    const VIEW_STATE_KEYS = {
+        bucketMode: 'gpv_bucket_mode'
+    };
+    const BUCKET_VIEW_MODES = {
+        allocation: 'allocation',
+        performance: 'performance'
+    };
+    const COLLAPSE_SECTIONS = {
+        performance: 'performance',
+        projection: 'projection'
     };
 
     const CLASS_NAMES = {
@@ -200,6 +213,19 @@
         },
         performanceCache(goalId) {
             return buildStorageKey(STORAGE_KEY_PREFIXES.performanceCache, goalId ?? '');
+        },
+        collapseState(bucket, goalType, section) {
+            const safeBucket = encodeURIComponent(bucket ?? '');
+            const safeGoalType = encodeURIComponent(goalType ?? '');
+            const safeSection = encodeURIComponent(section ?? '');
+            return buildStorageKey(
+                STORAGE_KEY_PREFIXES.collapseState,
+                safeBucket,
+                COLLAPSE_KEY_SEPARATOR,
+                safeGoalType,
+                COLLAPSE_KEY_SEPARATOR,
+                safeSection
+            );
         },
         projectedInvestment(bucket, goalType) {
             const safeBucket = encodeURIComponent(bucket ?? '');
@@ -1597,6 +1623,56 @@
             return Storage.set(key, JSON.stringify(value), context);
         }
     };
+
+    function normalizeBucketViewMode(value) {
+        return value === BUCKET_VIEW_MODES.performance
+            ? BUCKET_VIEW_MODES.performance
+            : BUCKET_VIEW_MODES.allocation;
+    }
+
+    function normalizeBooleanPreference(value, fallbackValue) {
+        if (value === true || value === 'true' || value === 1 || value === '1') {
+            return true;
+        }
+        if (value === false || value === 'false' || value === 0 || value === '0') {
+            return false;
+        }
+        return fallbackValue;
+    }
+
+    function getBucketViewModePreference() {
+        const rawValue = Storage.get(
+            VIEW_STATE_KEYS.bucketMode,
+            BUCKET_VIEW_MODES.allocation,
+            'Error reading bucket mode'
+        );
+        const normalized = normalizeBucketViewMode(rawValue);
+        if (rawValue !== normalized) {
+            Storage.set(VIEW_STATE_KEYS.bucketMode, normalized, 'Error writing bucket mode');
+        }
+        return normalized;
+    }
+
+    function setBucketViewModePreference(mode) {
+        const normalized = normalizeBucketViewMode(mode);
+        Storage.set(VIEW_STATE_KEYS.bucketMode, normalized, 'Error writing bucket mode');
+        return normalized;
+    }
+
+    function getCollapseState(bucket, goalType, section) {
+        const key = storageKeys.collapseState(bucket, goalType, section);
+        const rawValue = Storage.get(key, null, 'Error reading collapse state');
+        const normalized = normalizeBooleanPreference(rawValue, true);
+        if (rawValue !== null && rawValue !== undefined && normalized !== rawValue) {
+            Storage.set(key, normalized ? 'true' : 'false', 'Error writing collapse state');
+        }
+        return normalized;
+    }
+
+    function setCollapseState(bucket, goalType, section, isCollapsed) {
+        const key = storageKeys.collapseState(bucket, goalType, section);
+        Storage.set(key, isCollapsed ? 'true' : 'false', 'Error writing collapse state');
+    }
 
     function bytesToBase64(bytes) {
         if (!bytes || !(bytes instanceof Uint8Array)) {
@@ -4208,6 +4284,16 @@ let GoalTargetStore;
         return span;
     }
 
+    function buildSafeCollapseId(prefix, ...parts) {
+        const normalizedParts = parts.map(part => (
+            utils.normalizeString(part, '')
+                .replace(/[^a-zA-Z0-9-_]/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '')
+        ));
+        return [prefix, ...normalizedParts.filter(Boolean)].join('-');
+    }
+
     function appendLabeledValue(container, wrapperClass, labelText, valueText, options = {}) {
         const wrapper = createElement('span', wrapperClass);
         const labelClass = options.labelClass || null;
@@ -4377,14 +4463,106 @@ let GoalTargetStore;
             appendLabeledValue(typeSummary, null, 'Allocation Drift:', goalTypeModel.allocationDriftDisplay);
             typeHeader.appendChild(typeTitle);
             typeHeader.appendChild(typeSummary);
+
+            const typeActions = createElement('div', 'gpv-type-actions');
+            typeHeader.appendChild(typeActions);
             
             typeSection.appendChild(typeHeader);
 
-            renderGoalTypePerformance(
-                typeSection,
-                goalTypeModel.goals.map(goal => goal.goalId).filter(Boolean),
-                cleanupCallbacks
+            const goalTypeId = goalTypeModel.goalType;
+            const performanceSectionId = buildSafeCollapseId(
+                'gpv-collapse',
+                bucketViewModel.bucketName,
+                goalTypeId,
+                'performance'
             );
+            const projectionSectionId = buildSafeCollapseId(
+                'gpv-collapse',
+                bucketViewModel.bucketName,
+                goalTypeId,
+                'projection'
+            );
+            let performanceCollapsed = getCollapseState(
+                bucketViewModel.bucketName,
+                goalTypeId,
+                COLLAPSE_SECTIONS.performance
+            );
+            let projectionCollapsed = getCollapseState(
+                bucketViewModel.bucketName,
+                goalTypeId,
+                COLLAPSE_SECTIONS.projection
+            );
+
+            const performancePanel = createElement('div', 'gpv-collapsible gpv-performance-panel');
+            performancePanel.id = performanceSectionId;
+            performancePanel.dataset.loaded = 'false';
+            performancePanel.classList.toggle('gpv-collapsible--collapsed', performanceCollapsed);
+
+            const projectionPanel = createElement('div', 'gpv-collapsible gpv-projection-panel');
+            projectionPanel.id = projectionSectionId;
+            projectionPanel.classList.toggle('gpv-collapsible--collapsed', projectionCollapsed);
+
+            const performanceToggle = createElement('button', 'gpv-section-toggle gpv-section-toggle--performance');
+            performanceToggle.type = 'button';
+            performanceToggle.setAttribute('aria-controls', performanceSectionId);
+            performanceToggle.setAttribute('aria-expanded', String(!performanceCollapsed));
+            const performanceIcon = createElement('span', 'gpv-section-toggle-icon', performanceCollapsed ? '▸' : '▾');
+            performanceToggle.appendChild(performanceIcon);
+            performanceToggle.appendChild(createElement('span', null, 'Performance'));
+
+            const projectionToggle = createElement('button', 'gpv-section-toggle gpv-section-toggle--projection');
+            projectionToggle.type = 'button';
+            projectionToggle.setAttribute('aria-controls', projectionSectionId);
+            projectionToggle.setAttribute('aria-expanded', String(!projectionCollapsed));
+            const projectionIcon = createElement('span', 'gpv-section-toggle-icon', projectionCollapsed ? '▸' : '▾');
+            projectionToggle.appendChild(projectionIcon);
+            projectionToggle.appendChild(createElement('span', null, 'Projection'));
+
+            typeActions.appendChild(performanceToggle);
+            typeActions.appendChild(projectionToggle);
+
+            function loadPerformancePanel() {
+                if (performancePanel.dataset.loaded === 'true') {
+                    return;
+                }
+                try {
+                    renderGoalTypePerformance(
+                        performancePanel,
+                        goalTypeModel.goals.map(goal => goal.goalId).filter(Boolean),
+                        cleanupCallbacks
+                    );
+                    performancePanel.dataset.loaded = 'true';
+                } catch (error) {
+                    performancePanel.textContent = 'Performance data unavailable.';
+                    performancePanel.dataset.loaded = 'false';
+                    console.error('[Goal Portfolio Viewer] Failed to load performance panel:', error);
+                }
+            }
+
+            performanceToggle.addEventListener('click', () => {
+                performanceCollapsed = !performanceCollapsed;
+                setCollapseState(bucketViewModel.bucketName, goalTypeId, COLLAPSE_SECTIONS.performance, performanceCollapsed);
+                performancePanel.classList.toggle('gpv-collapsible--collapsed', performanceCollapsed);
+                performanceToggle.setAttribute('aria-expanded', String(!performanceCollapsed));
+                performanceIcon.textContent = performanceCollapsed ? '▸' : '▾';
+                if (!performanceCollapsed) {
+                    loadPerformancePanel();
+                }
+            });
+
+            projectionToggle.addEventListener('click', () => {
+                projectionCollapsed = !projectionCollapsed;
+                setCollapseState(bucketViewModel.bucketName, goalTypeId, COLLAPSE_SECTIONS.projection, projectionCollapsed);
+                projectionPanel.classList.toggle('gpv-collapsible--collapsed', projectionCollapsed);
+                projectionToggle.setAttribute('aria-expanded', String(!projectionCollapsed));
+                projectionIcon.textContent = projectionCollapsed ? '▸' : '▾';
+            });
+
+            if (!performanceCollapsed) {
+                loadPerformancePanel();
+            }
+
+            typeSection.appendChild(performancePanel);
 
             // Add projected investment input section as sibling after performance container
             const projectedInputContainer = createElement('div', 'gpv-projected-input-container');
@@ -4403,7 +4581,8 @@ let GoalTargetStore;
             projectedInputContainer.appendChild(projectedLabel);
             projectedInputContainer.appendChild(projectedInput);
             
-            typeSection.appendChild(projectedInputContainer);
+            projectionPanel.appendChild(projectedInputContainer);
+            typeSection.appendChild(projectionPanel);
             
             // Add event listener for projected investment input
             projectedInput.addEventListener('input', function() {
@@ -4424,9 +4603,9 @@ let GoalTargetStore;
             headerRow.appendChild(createElement('th', 'gpv-goal-name-header', 'Goal Name'));
             headerRow.appendChild(createElement('th', null, 'Balance'));
             headerRow.appendChild(createElement('th', null, '% of Goal Type'));
-            headerRow.appendChild(createElement('th', 'gpv-fixed-header', 'Fixed'));
+            headerRow.appendChild(createElement('th', 'gpv-fixed-header gpv-column-fixed', 'Fixed'));
 
-            const targetHeader = createElement('th', 'gpv-target-header');
+            const targetHeader = createElement('th', 'gpv-target-header gpv-column-target');
             targetHeader.appendChild(createElement('div', null, 'Target %'));
             const remainingTargetClass = goalTypeModel.remainingTargetIsHigh
                 ? `${CLASS_NAMES.remainingTarget} ${CLASS_NAMES.remainingAlert}`
@@ -4438,9 +4617,9 @@ let GoalTargetStore;
             targetHeader.appendChild(remainingTarget);
             headerRow.appendChild(targetHeader);
 
-            headerRow.appendChild(createElement('th', null, 'Diff'));
-            headerRow.appendChild(createElement('th', null, 'Cumulative Return'));
-            headerRow.appendChild(createElement('th', null, 'Return %'));
+            headerRow.appendChild(createElement('th', 'gpv-column-diff', 'Diff'));
+            headerRow.appendChild(createElement('th', 'gpv-column-return', 'Cumulative Return'));
+            headerRow.appendChild(createElement('th', 'gpv-column-return-percent', 'Return %'));
 
             thead.appendChild(headerRow);
             table.appendChild(thead);
@@ -4456,7 +4635,7 @@ let GoalTargetStore;
                 tr.appendChild(createElement('td', null, goalModel.endingBalanceDisplay));
                 tr.appendChild(createElement('td', null, goalModel.percentOfTypeDisplay));
 
-                const fixedCell = createElement('td', 'gpv-fixed-cell');
+                const fixedCell = createElement('td', 'gpv-fixed-cell gpv-column-fixed');
                 const fixedLabel = createElement('label', 'gpv-fixed-toggle');
                 const fixedInput = createElement('input', CLASS_NAMES.fixedToggleInput);
                 fixedInput.type = 'checkbox';
@@ -4467,7 +4646,7 @@ let GoalTargetStore;
                 fixedCell.appendChild(fixedLabel);
                 tr.appendChild(fixedCell);
 
-                const targetCell = createElement('td', 'gpv-target-cell');
+                const targetCell = createElement('td', 'gpv-target-cell gpv-column-target');
                 const targetInput = createElement('input', CLASS_NAMES.targetInput);
                 targetInput.type = 'number';
                 targetInput.min = '0';
@@ -4482,11 +4661,17 @@ let GoalTargetStore;
                 tr.appendChild(targetCell);
 
                 const diffClassName = goalModel.diffClass
-                    ? `${CLASS_NAMES.diffCell} ${goalModel.diffClass}`
-                    : CLASS_NAMES.diffCell;
+                    ? `${CLASS_NAMES.diffCell} gpv-column-diff ${goalModel.diffClass}`
+                    : `${CLASS_NAMES.diffCell} gpv-column-diff`;
                 tr.appendChild(createElement('td', diffClassName, goalModel.diffDisplay));
-                tr.appendChild(createElement('td', goalModel.returnClass || null, goalModel.returnDisplay));
-                tr.appendChild(createElement('td', goalModel.returnClass || null, goalModel.returnPercentDisplay));
+                const returnClassName = goalModel.returnClass
+                    ? `${goalModel.returnClass} gpv-column-return`
+                    : 'gpv-column-return';
+                const returnPercentClassName = goalModel.returnClass
+                    ? `${goalModel.returnClass} gpv-column-return-percent`
+                    : 'gpv-column-return-percent';
+                tr.appendChild(createElement('td', returnClassName, goalModel.returnDisplay));
+                tr.appendChild(createElement('td', returnPercentClassName, goalModel.returnPercentDisplay));
 
                 tbody.appendChild(tr);
 
@@ -6089,6 +6274,23 @@ syncUi.update = function updateSyncUI() {
                 flex-direction: column;
                 animation: gpv-slideUp 0.3s ease;
             }
+
+            .gpv-container--expanded {
+                max-width: 96vw;
+                max-height: 95vh;
+                width: 96vw;
+            }
+
+            @media (max-width: 900px) {
+                .gpv-container {
+                    min-width: 0;
+                    width: 94vw;
+                }
+
+                .gpv-container--expanded {
+                    width: 96vw;
+                }
+            }
             
             @keyframes gpv-slideUp {
                 from { 
@@ -6201,6 +6403,31 @@ syncUi.update = function updateSyncUI() {
             .gpv-sync-btn:active {
                 transform: translateY(0);
             }
+
+            .gpv-expand-btn {
+                background: rgba(255, 255, 255, 0.2);
+                border: none;
+                color: #ffffff;
+                font-size: 14px;
+                padding: 8px 14px;
+                border-radius: 18px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s ease;
+                font-weight: 600;
+                gap: 6px;
+            }
+
+            .gpv-expand-btn:hover {
+                background: rgba(255, 255, 255, 0.3);
+                transform: translateY(-1px);
+            }
+
+            .gpv-expand-btn:active {
+                transform: translateY(0);
+            }
             
             .gpv-controls {
                 padding: 12px 24px;
@@ -6240,6 +6467,46 @@ syncUi.update = function updateSyncUI() {
                 outline: none;
                 border-color: #667eea;
                 box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            }
+
+            .gpv-mode-toggle {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                margin-left: auto;
+            }
+
+            .gpv-mode-toggle.gpv-mode-toggle--hidden {
+                display: none;
+            }
+
+            .gpv-mode-label {
+                font-weight: 600;
+                color: #1f2937;
+                font-size: 14px;
+            }
+
+            .gpv-mode-btn {
+                border: 1px solid #c7d2fe;
+                background: #eef2ff;
+                color: #3730a3;
+                padding: 6px 12px;
+                border-radius: 999px;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+
+            .gpv-mode-btn.is-active {
+                background: #4f46e5;
+                border-color: #4338ca;
+                color: #ffffff;
+            }
+
+            .gpv-mode-btn:focus-visible {
+                outline: 2px solid rgba(79, 70, 229, 0.5);
+                outline-offset: 2px;
             }
             
             .gpv-content {
@@ -6405,6 +6672,51 @@ syncUi.update = function updateSyncUI() {
                 font-weight: 500;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             }
+
+            .gpv-type-actions {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-top: 8px;
+                flex-wrap: wrap;
+            }
+
+            .gpv-section-toggle {
+                border: 1px solid #e5e7eb;
+                background: #ffffff;
+                color: #374151;
+                padding: 4px 10px;
+                border-radius: 999px;
+                font-size: 12px;
+                font-weight: 600;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                transition: all 0.2s ease;
+            }
+
+            .gpv-section-toggle:hover {
+                border-color: #c7d2fe;
+                color: #4338ca;
+            }
+
+            .gpv-section-toggle:focus-visible {
+                outline: 2px solid rgba(99, 102, 241, 0.5);
+                outline-offset: 2px;
+            }
+
+            .gpv-section-toggle-icon {
+                font-size: 12px;
+            }
+
+            .gpv-collapsible {
+                margin-top: 12px;
+            }
+
+            .gpv-collapsible.gpv-collapsible--collapsed {
+                display: none;
+            }
             
             /* Table Styles */
             
@@ -6464,6 +6776,20 @@ syncUi.update = function updateSyncUI() {
 
             .gpv-table tbody tr.gpv-goal-metrics-row:hover {
                 background-color: #f3f4f6;
+            }
+
+            .gpv-mode-allocation .gpv-column-return,
+            .gpv-mode-allocation .gpv-column-return-percent,
+            .gpv-mode-allocation tr.gpv-goal-metrics-row {
+                display: none;
+            }
+
+            .gpv-mode-performance .gpv-column-fixed,
+            .gpv-mode-performance .gpv-column-target,
+            .gpv-mode-performance .gpv-column-diff,
+            .gpv-mode-performance .gpv-projection-panel,
+            .gpv-mode-performance .gpv-section-toggle--projection {
+                display: none;
             }
 
             .gpv-table tbody tr.gpv-goal-metrics-row td {
@@ -7635,7 +7961,26 @@ syncUi.update = function updateSyncUI() {
                 alert('Sync settings are not available. Please ensure the sync module is loaded.');
             }
         };
-        
+
+        let isOverlayExpanded = false;
+        const expandBtn = createElement('button', 'gpv-expand-btn');
+        expandBtn.type = 'button';
+        function updateExpandButton() {
+            expandBtn.textContent = isOverlayExpanded ? 'Shrink' : 'Expand';
+            expandBtn.setAttribute('aria-pressed', String(isOverlayExpanded));
+            expandBtn.setAttribute(
+                'aria-label',
+                isOverlayExpanded ? 'Shrink overlay size' : 'Expand overlay size'
+            );
+            expandBtn.title = isOverlayExpanded ? 'Shrink overlay' : 'Expand overlay';
+        }
+        updateExpandButton();
+        expandBtn.onclick = () => {
+            isOverlayExpanded = !isOverlayExpanded;
+            container.classList.toggle('gpv-container--expanded', isOverlayExpanded);
+            updateExpandButton();
+        };
+
         const closeBtn = createElement('button', 'gpv-close-btn', '✕');
         function teardownOverlay() {
             if (!overlay.isConnected) {
@@ -7663,6 +8008,7 @@ syncUi.update = function updateSyncUI() {
         closeBtn.onclick = closeOverlay;
         
         buttonContainer.appendChild(syncBtn);
+        buttonContainer.appendChild(expandBtn);
         buttonContainer.appendChild(closeBtn);
         
         header.appendChild(title);
@@ -7685,10 +8031,58 @@ syncUi.update = function updateSyncUI() {
 
         controls.appendChild(selectLabel);
         controls.appendChild(select);
+
+        const modeToggle = createElement('div', 'gpv-mode-toggle');
+        modeToggle.setAttribute('role', 'group');
+        modeToggle.setAttribute('aria-label', 'Detail mode');
+        const modeLabel = createElement('span', 'gpv-mode-label', 'Mode:');
+        const allocationButton = createElement('button', 'gpv-mode-btn', 'Allocation');
+        allocationButton.type = 'button';
+        allocationButton.dataset.mode = BUCKET_VIEW_MODES.allocation;
+        const performanceButton = createElement('button', 'gpv-mode-btn', 'Performance');
+        performanceButton.type = 'button';
+        performanceButton.dataset.mode = BUCKET_VIEW_MODES.performance;
+        modeToggle.appendChild(modeLabel);
+        modeToggle.appendChild(allocationButton);
+        modeToggle.appendChild(performanceButton);
+
+        controls.appendChild(modeToggle);
         container.appendChild(controls);
 
         const contentDiv = createElement('div', 'gpv-content');
         container.appendChild(contentDiv);
+
+        let currentBucketMode = getBucketViewModePreference();
+        function updateModeToggle(mode) {
+            const normalized = normalizeBucketViewMode(mode);
+            allocationButton.classList.toggle('is-active', normalized === BUCKET_VIEW_MODES.allocation);
+            allocationButton.setAttribute('aria-pressed', String(normalized === BUCKET_VIEW_MODES.allocation));
+            performanceButton.classList.toggle('is-active', normalized === BUCKET_VIEW_MODES.performance);
+            performanceButton.setAttribute('aria-pressed', String(normalized === BUCKET_VIEW_MODES.performance));
+        }
+
+        function applyBucketMode(mode) {
+            const normalized = normalizeBucketViewMode(mode);
+            contentDiv.classList.toggle('gpv-mode-allocation', normalized === BUCKET_VIEW_MODES.allocation);
+            contentDiv.classList.toggle('gpv-mode-performance', normalized === BUCKET_VIEW_MODES.performance);
+            updateModeToggle(normalized);
+        }
+
+        allocationButton.addEventListener('click', () => {
+            if (currentBucketMode === BUCKET_VIEW_MODES.allocation) {
+                return;
+            }
+            currentBucketMode = setBucketViewModePreference(BUCKET_VIEW_MODES.allocation);
+            applyBucketMode(currentBucketMode);
+        });
+
+        performanceButton.addEventListener('click', () => {
+            if (currentBucketMode === BUCKET_VIEW_MODES.performance) {
+                return;
+            }
+            currentBucketMode = setBucketViewModePreference(BUCKET_VIEW_MODES.performance);
+            applyBucketMode(currentBucketMode);
+        });
 
         function renderView(value) {
             ViewPipeline.render({
@@ -7699,6 +8093,13 @@ syncUi.update = function updateSyncUI() {
                 cleanupCallbacks,
                 onBucketSelect
             });
+            const isBucketView = value !== 'SUMMARY';
+            modeToggle.classList.toggle('gpv-mode-toggle--hidden', !isBucketView);
+            if (isBucketView) {
+                applyBucketMode(currentBucketMode);
+            } else {
+                contentDiv.classList.remove('gpv-mode-allocation', 'gpv-mode-performance');
+            }
         }
 
         function onBucketSelect(bucket) {
@@ -7935,6 +8336,12 @@ syncUi.update = function updateSyncUI() {
             collectAllGoalIds,
             buildGoalTargetById,
             buildGoalFixedById,
+            getBucketViewModePreference,
+            setBucketViewModePreference,
+            getCollapseState,
+            setCollapseState,
+            normalizeBucketViewMode,
+            normalizeBooleanPreference,
             getChartHeightForWidth: chartHelpers?.getChartHeightForWidth,
             getChartDimensions: chartHelpers?.getChartDimensions,
             createLineChartSvg: chartHelpers?.createLineChartSvg,

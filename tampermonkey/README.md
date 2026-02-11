@@ -24,6 +24,7 @@ Perfect for investors using strategies like Core + Satellite across multiple lif
 - **Comprehensive Analytics**: View ending balances, cumulative returns, and growth percentages
 - **Multi-level Views**: Toggle between summary view and detailed bucket views
 - **Performance Insights**: Per goal-type charts with responsive sizing (including dynamic height), recent return windows, and key metrics (including Total Return % with weighting context and Simple Return %)
+- **Declutter Controls**: Expand/shrink the overlay, switch between Allocation/Performance modes, and collapse heavy panels
 
 ### 🎨 Modern UX Design
 - **Beautiful Gradient UI**: Modern purple gradient theme with smooth animations
@@ -113,6 +114,10 @@ The script will automatically group all goals starting with the same bucket name
 - See detailed information about each goal within that bucket
 - View individual goal performance metrics
 - See a secondary per-goal TWR window row (1M/6M/YTD/1Y/3Y); missing windows show `-` until performance data is cached
+- Use `Allocation` mode for planning fields (Fixed/Target/Diff) and `Performance` mode for return-focused views
+- Mode selection persists between sessions for quick switching
+- Collapse the performance chart/metrics and projection sections per goal type (collapsed by default, remembered per section)
+- Use the header `Expand` button to temporarily grow the overlay (resets to default size each time you reopen it)
 - Compare goals within the same bucket
 - Use per-goal fixed toggles to lock a goal's amount and auto-sync its target %
 - Track remaining unassigned target % for each goal type, with visual flagging when it exceeds 2%

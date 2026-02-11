@@ -19,7 +19,13 @@ const {
     collectAllGoalIds,
     buildGoalTargetById,
     buildGoalFixedById,
-    getPerformanceCacheKey
+    getPerformanceCacheKey,
+    getBucketViewModePreference,
+    setBucketViewModePreference,
+    getCollapseState,
+    setCollapseState,
+    normalizeBucketViewMode,
+    normalizeBooleanPreference
 } = require('../goal_portfolio_viewer.user.js');
 
 const {
@@ -407,5 +413,55 @@ describe('buildAllocationDriftModel', () => {
             allocationDriftDisplay: '-',
             allocationDriftAvailable: false
         });
+    });
+});
+
+describe('declutter view state helpers', () => {
+    let storage;
+    let previousGet;
+    let previousSet;
+    let previousDelete;
+
+    beforeEach(() => {
+        storage = new Map();
+        previousGet = global.GM_getValue;
+        previousSet = global.GM_setValue;
+        previousDelete = global.GM_deleteValue;
+        global.GM_getValue = (key, fallback = null) => (storage.has(key) ? storage.get(key) : fallback);
+        global.GM_setValue = (key, value) => storage.set(key, value);
+        global.GM_deleteValue = key => storage.delete(key);
+    });
+
+    afterEach(() => {
+        global.GM_getValue = previousGet;
+        global.GM_setValue = previousSet;
+        global.GM_deleteValue = previousDelete;
+    });
+
+    test('should normalize bucket view modes', () => {
+        expect(normalizeBucketViewMode('performance')).toBe('performance');
+        expect(normalizeBucketViewMode('allocation')).toBe('allocation');
+        expect(normalizeBucketViewMode('invalid')).toBe('allocation');
+    });
+
+    test('should default bucket mode to allocation', () => {
+        expect(getBucketViewModePreference()).toBe('allocation');
+    });
+
+    test('should persist bucket mode preference', () => {
+        expect(setBucketViewModePreference('performance')).toBe('performance');
+        expect(getBucketViewModePreference()).toBe('performance');
+    });
+
+    test('should normalize boolean preferences with fallback', () => {
+        expect(normalizeBooleanPreference('true', false)).toBe(true);
+        expect(normalizeBooleanPreference('false', true)).toBe(false);
+        expect(normalizeBooleanPreference('invalid', true)).toBe(true);
+    });
+
+    test('should persist collapse state by bucket and section', () => {
+        setCollapseState('Retirement', 'GENERAL_WEALTH_ACCUMULATION', 'performance', false);
+        expect(getCollapseState('Retirement', 'GENERAL_WEALTH_ACCUMULATION', 'performance')).toBe(false);
+        expect(getCollapseState('Retirement', 'GENERAL_WEALTH_ACCUMULATION', 'projection')).toBe(true);
     });
 });
