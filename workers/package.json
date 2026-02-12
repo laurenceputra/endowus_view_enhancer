@@ -1,6 +1,6 @@
 {
   "name": "goal-portfolio-sync-workers",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Cloudflare Workers backend for Goal Portfolio Viewer sync",
   "private": true,
   "type": "module",

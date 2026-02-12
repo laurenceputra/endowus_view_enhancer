@@ -15,7 +15,7 @@ const CONFIG = {
 	MAX_PAYLOAD_SIZE: 10 * 1024, // 10KB
 	CORS_ORIGINS: 'https://app.sg.endowus.com',
 	SYNC_KV_BINDING: 'SYNC_KV',
-	VERSION: '1.1.0'
+		VERSION: '1.1.1'
 };
 
 // CORS headers
