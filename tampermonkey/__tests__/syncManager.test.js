@@ -177,6 +177,114 @@ describe('SyncManager', () => {
         expect(storage.get(fixedKey)).toBe(true);
     });
 
+    describe('multi-device reconciliation', () => {
+        test('performSync(both) treats identical content from another device as up to date', async () => {
+            seedConfiguredState();
+            seedRememberedKey();
+            const { SyncManager, SyncEncryption, storageKeys } = loadModule();
+
+            const targetKey = storageKeys.goalTarget('goal-1');
+            storage.set(targetKey, 25);
+            global.GM_listValues = () => [targetKey];
+
+            const serverTimestamp = Date.now() + 60_000;
+            const serverConfig = {
+                version: 1,
+                goalTargets: { 'goal-1': 25 },
+                goalFixed: {},
+                timestamp: serverTimestamp
+            };
+            const encryptedData = await SyncEncryption.encryptWithMasterKey(
+                JSON.stringify(serverConfig),
+                new Uint8Array([1, 2, 3, 4])
+            );
+
+            fetchMock.mockImplementation((url, options = {}) => {
+                if (url.includes('/sync/') && options.method === 'GET') {
+                    return Promise.resolve({
+                        status: 200,
+                        ok: true,
+                        json: () => Promise.resolve({
+                            success: true,
+                            data: {
+                                encryptedData,
+                                deviceId: 'other-device-id',
+                                timestamp: serverTimestamp,
+                                version: 1
+                            }
+                        })
+                    });
+                }
+                if (url.includes('/sync') && options.method === 'POST') {
+                    return Promise.resolve({
+                        status: 200,
+                        ok: true,
+                        json: () => Promise.resolve({ success: true })
+                    });
+                }
+                return Promise.resolve({
+                    status: 200,
+                    ok: true,
+                    json: () => Promise.resolve({})
+                });
+            });
+
+            await expect(SyncManager.performSync({ direction: 'both' })).resolves.toEqual({ status: 'success' });
+
+            const postCalls = fetchMock.mock.calls.filter(([, options = {}]) => options.method === 'POST');
+            expect(postCalls).toHaveLength(0);
+            expect(storage.get('sync_last_sync')).toBe(serverTimestamp);
+            expect(storage.get('sync_last_hash')).toEqual(expect.any(String));
+        });
+
+        test('performSync(download) stores server timestamp as lastSync metadata', async () => {
+            seedConfiguredState();
+            seedRememberedKey();
+            const { SyncManager, SyncEncryption, storageKeys } = loadModule();
+
+            const serverTimestamp = 1_700_000_000_000;
+            const serverConfig = {
+                version: 1,
+                goalTargets: { 'goal-2': 40 },
+                goalFixed: {},
+                timestamp: serverTimestamp
+            };
+            const encryptedData = await SyncEncryption.encryptWithMasterKey(
+                JSON.stringify(serverConfig),
+                new Uint8Array([1, 2, 3, 4])
+            );
+
+            fetchMock.mockImplementation((url, options = {}) => {
+                if (url.includes('/sync/') && options.method === 'GET') {
+                    return Promise.resolve({
+                        status: 200,
+                        ok: true,
+                        json: () => Promise.resolve({
+                            success: true,
+                            data: {
+                                encryptedData,
+                                deviceId: 'other-device-id',
+                                timestamp: serverTimestamp,
+                                version: 1
+                            }
+                        })
+                    });
+                }
+                return Promise.resolve({
+                    status: 200,
+                    ok: true,
+                    json: () => Promise.resolve({})
+                });
+            });
+
+            await expect(SyncManager.performSync({ direction: 'download' })).resolves.toEqual({ status: 'success' });
+
+            expect(storage.get('sync_last_sync')).toBe(serverTimestamp);
+            expect(storage.get('sync_last_hash')).toEqual(expect.any(String));
+            expect(storage.get(storageKeys.goalTarget('goal-2'))).toBe(40);
+        });
+    });
+
     describe('token helpers', () => {
         const ACCESS_EXPIRY_KEY = 'sync_access_token_expiry';
         const REFRESH_EXPIRY_KEY = 'sync_refresh_token_expiry';

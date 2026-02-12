@@ -2475,7 +2475,7 @@
     /**
      * Check if there's a sync conflict
      */
-    async function detectConflict(localConfig, serverData) {
+    async function detectConflict(localConfig, serverData, localHash = null, remoteHash = null) {
         if (!serverData) {
             return null; // No server data, no conflict
         }
@@ -2484,6 +2484,13 @@
         const serverTimestamp = serverData.metadata.timestamp;
         const localDeviceId = getDeviceId();
         const serverDeviceId = serverData.metadata.deviceId;
+        const resolvedLocalHash = localHash || await hashConfigData(localConfig);
+        const resolvedRemoteHash = remoteHash || await hashConfigData(serverData.config);
+
+        // Same content should not be treated as conflict, regardless of device.
+        if (resolvedLocalHash && resolvedRemoteHash && resolvedLocalHash === resolvedRemoteHash) {
+            return null;
+        }
 
         // If last sync was from this device, no conflict
         if (serverDeviceId === localDeviceId) {
@@ -2497,7 +2504,9 @@
                 remote: serverData.config,
                 localTimestamp,
                 remoteTimestamp: serverTimestamp,
-                remoteDeviceId: serverDeviceId
+                remoteDeviceId: serverDeviceId,
+                localHash: resolvedLocalHash,
+                remoteHash: resolvedRemoteHash
             };
         }
 
@@ -2542,7 +2551,7 @@
             
             if (direction === 'upload') {
                 await uploadConfig(localConfig);
-                Storage.set(SYNC_STORAGE_KEYS.lastSync, Date.now());
+                Storage.set(SYNC_STORAGE_KEYS.lastSync, localConfig.timestamp);
                 Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, localHash);
 
                 syncStatus = SYNC_STATUS.success;
@@ -2558,9 +2567,9 @@
                     logDebug('[Goal Portfolio Viewer] No server data to download');
                 } else {
                     applyConfigData(serverData.config);
-                    Storage.set(SYNC_STORAGE_KEYS.lastSync, Date.now());
-                    const hash = await hashConfigData(serverData.config);
-                    Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, hash);
+                    Storage.set(SYNC_STORAGE_KEYS.lastSync, serverData.metadata.timestamp);
+                    const serverHash = await hashConfigData(serverData.config);
+                    Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, serverHash);
 
                     syncStatus = SYNC_STATUS.success;
                     lastError = null;
@@ -2572,7 +2581,7 @@
 
                 if (!serverData) {
                     await uploadConfig(localConfig);
-                    Storage.set(SYNC_STORAGE_KEYS.lastSync, Date.now());
+                    Storage.set(SYNC_STORAGE_KEYS.lastSync, localConfig.timestamp);
                     Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, localHash);
 
                     syncStatus = SYNC_STATUS.success;
@@ -2580,40 +2589,51 @@
                     lastErrorMeta = null;
                     logDebug('[Goal Portfolio Viewer] No server data, uploaded local config');
                 } else {
-                    const conflict = await detectConflict(localConfig, serverData);
+                    const serverHash = await hashConfigData(serverData.config);
 
-                    if (conflict && !force) {
-                        syncStatus = SYNC_STATUS.conflict;
-                        if (typeof syncUi.showConflictResolution === 'function') {
-                            syncUi.showConflictResolution(conflict);
-                        }
-                        return { status: 'conflict', conflict };
-                    }
-
-                    if (localConfig.timestamp > serverData.metadata.timestamp) {
-                        await uploadConfig(localConfig);
-                        Storage.set(SYNC_STORAGE_KEYS.lastSync, Date.now());
+                    if (localHash && serverHash && localHash === serverHash) {
+                        Storage.set(SYNC_STORAGE_KEYS.lastSync, Math.max(localConfig.timestamp, serverData.metadata.timestamp));
                         Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, localHash);
 
                         syncStatus = SYNC_STATUS.success;
                         lastError = null;
                         lastErrorMeta = null;
-                        logDebug('[Goal Portfolio Viewer] Local config newer, uploaded to server');
-                    } else if (localConfig.timestamp < serverData.metadata.timestamp) {
-                        applyConfigData(serverData.config);
-                        Storage.set(SYNC_STORAGE_KEYS.lastSync, Date.now());
-                        const hash = await hashConfigData(serverData.config);
-                        Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, hash);
-
-                        syncStatus = SYNC_STATUS.success;
-                        lastError = null;
-                        lastErrorMeta = null;
-                        logDebug('[Goal Portfolio Viewer] Server config newer, applied locally');
+                        logDebug('[Goal Portfolio Viewer] Local and server content identical, sync already up to date');
                     } else {
-                        syncStatus = SYNC_STATUS.success;
-                        lastError = null;
-                        lastErrorMeta = null;
-                        logDebug('[Goal Portfolio Viewer] Sync already up to date');
+                        const conflict = await detectConflict(localConfig, serverData, localHash, serverHash);
+
+                        if (conflict && !force) {
+                            syncStatus = SYNC_STATUS.conflict;
+                            if (typeof syncUi.showConflictResolution === 'function') {
+                                syncUi.showConflictResolution(conflict);
+                            }
+                            return { status: 'conflict', conflict };
+                        }
+
+                        if (localConfig.timestamp > serverData.metadata.timestamp) {
+                            await uploadConfig(localConfig);
+                            Storage.set(SYNC_STORAGE_KEYS.lastSync, localConfig.timestamp);
+                            Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, localHash);
+
+                            syncStatus = SYNC_STATUS.success;
+                            lastError = null;
+                            lastErrorMeta = null;
+                            logDebug('[Goal Portfolio Viewer] Local config newer, uploaded to server');
+                        } else if (localConfig.timestamp < serverData.metadata.timestamp) {
+                            applyConfigData(serverData.config);
+                            Storage.set(SYNC_STORAGE_KEYS.lastSync, serverData.metadata.timestamp);
+                            Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, serverHash);
+
+                            syncStatus = SYNC_STATUS.success;
+                            lastError = null;
+                            lastErrorMeta = null;
+                            logDebug('[Goal Portfolio Viewer] Server config newer, applied locally');
+                        } else {
+                            syncStatus = SYNC_STATUS.success;
+                            lastError = null;
+                            lastErrorMeta = null;
+                            logDebug('[Goal Portfolio Viewer] Sync already up to date');
+                        }
                     }
                 }
             }
@@ -2654,13 +2674,13 @@
             if (resolution === 'local') {
                 // Upload local, overwrite server
                 await uploadConfig(conflict.local);
-                Storage.set(SYNC_STORAGE_KEYS.lastSync, Date.now());
+                Storage.set(SYNC_STORAGE_KEYS.lastSync, conflict.localTimestamp);
                 const hash = await hashConfigData(conflict.local);
                 Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, hash);
             } else if (resolution === 'remote') {
                 // Apply remote, keep server
                 applyConfigData(conflict.remote);
-                Storage.set(SYNC_STORAGE_KEYS.lastSync, Date.now());
+                Storage.set(SYNC_STORAGE_KEYS.lastSync, conflict.remoteTimestamp);
                 const hash = await hashConfigData(conflict.remote);
                 Storage.set(SYNC_STORAGE_KEYS.lastSyncHash, hash);
             } else {
