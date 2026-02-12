@@ -5397,8 +5397,24 @@ function scrollOverlayContentToTop(sourceNode = null) {
     if (!content) {
         return;
     }
+    const enforceTop = () => {
+        if (content.scrollTop !== 0) {
+            content.scrollTop = 0;
+        }
+    };
     if (typeof content.scrollTo === 'function') {
         content.scrollTo({ top: 0, behavior: 'smooth' });
+        if (content.gpvEnforceTopTimer) {
+            clearTimeout(content.gpvEnforceTopTimer);
+        }
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(enforceTop);
+            });
+        } else {
+            setTimeout(enforceTop, 32);
+        }
+        content.gpvEnforceTopTimer = setTimeout(enforceTop, 220);
         return;
     }
     content.scrollTop = 0;
