@@ -56,6 +56,7 @@ Core-satellite strategies complement this approach. The core anchors each goal w
 - **Allocation drift:** Set goal targets to surface per-goal-type drift (measured against target amounts) and spot imbalances early.
 - **Privacy first:** By default, all data stays on your device and is processed locally in the browser. Optional sync is opt-in and only sends encrypted configuration data.
 - **Zero friction:** Use the "Bucket Name - Description" naming pattern in your goal names and the script does the rest.
+- **Keyboard-friendly overlay:** Press Esc to close, with focus kept inside the modal while it is open.
 
 ---
 

@@ -3,17 +3,10 @@
  * Validates passwords for secure access
  */
 
+import { getKvBinding } from './kv.js';
+
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 const REFRESH_TOKEN_TTL_SECONDS = 60 * 24 * 60 * 60;
-
-function getKvBinding(env) {
-	const bindingName = env?.SYNC_KV_BINDING || 'SYNC_KV';
-	const binding = env?.[bindingName];
-	if (!binding) {
-		throw new Error(`KV binding "${bindingName}" is not configured`);
-	}
-	return binding;
-}
 
 /**
  * Derive a slow hash from the incoming password hash for storage

@@ -126,4 +126,76 @@ describe('initialization and URL monitoring', () => {
         overlay.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
         expect(document.querySelector('#gpv-overlay')).toBeNull();
     });
+
+    test('showOverlay sets dialog attributes and closes on Escape', () => {
+        const performanceData = [{
+            goalId: 'goal1',
+            totalCumulativeReturn: { amount: 100 },
+            simpleRateOfReturnPercent: 0.1
+        }];
+        const investibleData = [{
+            goalId: 'goal1',
+            goalName: 'Retirement - Core Portfolio',
+            investmentGoalType: 'GENERAL_WEALTH_ACCUMULATION',
+            totalInvestmentAmount: { display: { amount: 1000 } }
+        }];
+        const summaryData = [{
+            goalId: 'goal1',
+            goalName: 'Retirement - Core Portfolio',
+            investmentGoalType: 'GENERAL_WEALTH_ACCUMULATION'
+        }];
+
+        global.GM_setValue('api_performance', JSON.stringify(performanceData));
+        global.GM_setValue('api_investible', JSON.stringify(investibleData));
+        global.GM_setValue('api_summary', JSON.stringify(summaryData));
+        global.alert = jest.fn();
+
+        const exportsModule = require('../goal_portfolio_viewer.user.js');
+        exportsModule.init();
+        exportsModule.showOverlay();
+
+        const overlay = document.querySelector('#gpv-overlay');
+        const container = overlay?.querySelector('.gpv-container');
+        expect(container?.getAttribute('role')).toBe('dialog');
+        expect(container?.getAttribute('aria-modal')).toBe('true');
+        const labelId = container?.getAttribute('aria-labelledby');
+        expect(labelId).toBeTruthy();
+        expect(document.getElementById(labelId)).toBeTruthy();
+
+        overlay.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        expect(document.querySelector('#gpv-overlay')).toBeNull();
+    });
+
+    test('sync indicator exposes keyboard attributes when enabled', () => {
+        const performanceData = [{
+            goalId: 'goal1',
+            totalCumulativeReturn: { amount: 100 },
+            simpleRateOfReturnPercent: 0.1
+        }];
+        const investibleData = [{
+            goalId: 'goal1',
+            goalName: 'Retirement - Core Portfolio',
+            investmentGoalType: 'GENERAL_WEALTH_ACCUMULATION',
+            totalInvestmentAmount: { display: { amount: 1000 } }
+        }];
+        const summaryData = [{
+            goalId: 'goal1',
+            goalName: 'Retirement - Core Portfolio',
+            investmentGoalType: 'GENERAL_WEALTH_ACCUMULATION'
+        }];
+
+        global.GM_setValue('api_performance', JSON.stringify(performanceData));
+        global.GM_setValue('api_investible', JSON.stringify(investibleData));
+        global.GM_setValue('api_summary', JSON.stringify(summaryData));
+        global.GM_setValue('sync_enabled', true);
+
+        const exportsModule = require('../goal_portfolio_viewer.user.js');
+        exportsModule.init();
+        exportsModule.showOverlay();
+
+        const indicator = document.querySelector('#gpv-sync-indicator');
+        expect(indicator).toBeTruthy();
+        expect(indicator.getAttribute('role')).toBe('button');
+        expect(indicator.getAttribute('tabindex')).toBe('0');
+    });
 });

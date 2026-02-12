@@ -3,7 +3,7 @@
  */
 
 import { getFromKV, putToKV, deleteFromKV } from './storage.js';
-import { applyCorsHeaders } from './cors.js';
+import { jsonResponse } from './responses.js';
 
 /**
  * Handle POST /sync - Upload encrypted config
@@ -125,12 +125,3 @@ function validateSyncRequest(body) {
 /**
  * Helper to create JSON responses with CORS headers
  */
-function jsonResponse(data, status = 200, additionalHeaders = {}, env = {}) {
-	return new Response(JSON.stringify(data), {
-		status,
-		headers: applyCorsHeaders(env, {
-			'Content-Type': 'application/json',
-			...additionalHeaders
-		})
-	});
-}

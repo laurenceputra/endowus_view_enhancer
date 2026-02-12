@@ -5,6 +5,8 @@
  * Uses Cloudflare KV for distributed rate limiting
  */
 
+import { getKvBinding } from './kv.js';
+
 const RATE_LIMITS = {
 	'/auth/register': {
 		// POST /auth/register - Registration
@@ -31,15 +33,6 @@ const RATE_LIMITS = {
 };
 
 const MIN_KV_TTL_SECONDS = 60;
-
-function getKvBinding(env) {
-	const bindingName = env?.SYNC_KV_BINDING || 'SYNC_KV';
-	const binding = env?.[bindingName];
-	if (!binding) {
-		throw new Error(`KV binding "${bindingName}" is not configured`);
-	}
-	return binding;
-}
 
 /**
  * Rate limit check
