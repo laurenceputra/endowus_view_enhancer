@@ -166,6 +166,87 @@ describe('initialization and URL monitoring', () => {
         expect(document.querySelector('#gpv-overlay')).toBeNull();
     });
 
+    test('selecting a different view scrolls overlay content to top smoothly', () => {
+        const performanceData = [{
+            goalId: 'goal1',
+            totalCumulativeReturn: { amount: 100 },
+            simpleRateOfReturnPercent: 0.1
+        }];
+        const investibleData = [{
+            goalId: 'goal1',
+            goalName: 'Retirement - Core Portfolio',
+            investmentGoalType: 'GENERAL_WEALTH_ACCUMULATION',
+            totalInvestmentAmount: { display: { amount: 1000 } }
+        }];
+        const summaryData = [{
+            goalId: 'goal1',
+            goalName: 'Retirement - Core Portfolio',
+            investmentGoalType: 'GENERAL_WEALTH_ACCUMULATION'
+        }];
+
+        global.GM_setValue('api_performance', JSON.stringify(performanceData));
+        global.GM_setValue('api_investible', JSON.stringify(investibleData));
+        global.GM_setValue('api_summary', JSON.stringify(summaryData));
+        global.alert = jest.fn();
+
+        const exportsModule = require('../goal_portfolio_viewer.user.js');
+        exportsModule.init();
+        exportsModule.showOverlay();
+
+        const overlay = document.querySelector('#gpv-overlay');
+        const content = overlay?.querySelector('.gpv-content');
+        const select = overlay?.querySelector('.gpv-select');
+        const bucketValue = Array.from(select?.options || []).find(option => option.value !== 'SUMMARY')?.value;
+        expect(content).toBeTruthy();
+        expect(select).toBeTruthy();
+        expect(bucketValue).toBeTruthy();
+
+        content.scrollTo = jest.fn();
+        select.value = bucketValue;
+        select.dispatchEvent(new window.Event('change', { bubbles: true }));
+
+        expect(content.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+    });
+
+    test('opening a bucket from summary scrolls overlay content to top smoothly', () => {
+        const performanceData = [{
+            goalId: 'goal1',
+            totalCumulativeReturn: { amount: 100 },
+            simpleRateOfReturnPercent: 0.1
+        }];
+        const investibleData = [{
+            goalId: 'goal1',
+            goalName: 'Retirement - Core Portfolio',
+            investmentGoalType: 'GENERAL_WEALTH_ACCUMULATION',
+            totalInvestmentAmount: { display: { amount: 1000 } }
+        }];
+        const summaryData = [{
+            goalId: 'goal1',
+            goalName: 'Retirement - Core Portfolio',
+            investmentGoalType: 'GENERAL_WEALTH_ACCUMULATION'
+        }];
+
+        global.GM_setValue('api_performance', JSON.stringify(performanceData));
+        global.GM_setValue('api_investible', JSON.stringify(investibleData));
+        global.GM_setValue('api_summary', JSON.stringify(summaryData));
+        global.alert = jest.fn();
+
+        const exportsModule = require('../goal_portfolio_viewer.user.js');
+        exportsModule.init();
+        exportsModule.showOverlay();
+
+        const overlay = document.querySelector('#gpv-overlay');
+        const content = overlay?.querySelector('.gpv-content');
+        const bucketCard = overlay?.querySelector('.gpv-bucket-card');
+        expect(content).toBeTruthy();
+        expect(bucketCard).toBeTruthy();
+
+        content.scrollTo = jest.fn();
+        bucketCard.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+
+        expect(content.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+    });
+
     test('sync indicator exposes keyboard attributes when enabled', () => {
         const performanceData = [{
             goalId: 'goal1',

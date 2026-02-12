@@ -5385,6 +5385,25 @@ function showSyncMessageByType(message, type = 'success') {
     showSuccessMessage(message);
 }
 
+function scrollOverlayContentToTop(sourceNode = null) {
+    const fallbackOverlay = document.getElementById('gpv-overlay');
+    const overlay = sourceNode && typeof sourceNode.closest === 'function'
+        ? sourceNode.closest('#gpv-overlay') || fallbackOverlay
+        : fallbackOverlay;
+    if (!overlay) {
+        return;
+    }
+    const content = overlay.querySelector('.gpv-content');
+    if (!content) {
+        return;
+    }
+    if (typeof content.scrollTo === 'function') {
+        content.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+    }
+    content.scrollTop = 0;
+}
+
 function rerenderSyncSettingsPanel({ message, type = 'success', delay = 300 } = {}) {
     const settingsPanel = document.querySelector('.gpv-sync-settings');
     if (!settingsPanel) {
@@ -5394,6 +5413,7 @@ function rerenderSyncSettingsPanel({ message, type = 'success', delay = 300 } = 
         settingsPanel.outerHTML = createSyncSettingsHTML();
         setupSyncSettingsListeners();
         showSyncMessageByType(message, type);
+        scrollOverlayContentToTop();
     };
     if (delay > 0) {
         setTimeout(refresh, delay);
@@ -8320,7 +8340,7 @@ syncUi.update = function updateSyncUI() {
             applyBucketMode(currentBucketMode);
         });
 
-        function renderView(value) {
+        function renderView(value, { scrollToTop = false } = {}) {
             ViewPipeline.render({
                 contentDiv,
                 selection: value,
@@ -8336,6 +8356,9 @@ syncUi.update = function updateSyncUI() {
             } else {
                 contentDiv.classList.remove('gpv-mode-allocation', 'gpv-mode-performance');
             }
+            if (scrollToTop) {
+                scrollOverlayContentToTop(contentDiv);
+            }
         }
 
         function onBucketSelect(bucket) {
@@ -8343,13 +8366,13 @@ syncUi.update = function updateSyncUI() {
                 return;
             }
             select.value = bucket;
-            renderView(bucket);
+            renderView(bucket, { scrollToTop: true });
         }
 
         renderView('SUMMARY');
 
         select.onchange = function() {
-            renderView(select.value);
+            renderView(select.value, { scrollToTop: true });
         };
 
         overlay.appendChild(container);
