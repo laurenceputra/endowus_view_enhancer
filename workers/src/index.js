@@ -9,6 +9,7 @@ import { handleSync, handleGetSync, handleDeleteSync } from './handlers.js';
 import { credentials, tokens } from './auth.js';
 import { rateLimit } from './ratelimit.js';
 import { applyCorsHeaders } from './cors.js';
+import { jsonResponse } from './responses.js';
 
 // Configuration
 const CONFIG = {
@@ -22,6 +23,10 @@ const CONFIG = {
 const CORS_MAX_AGE = {
 	'Access-Control-Max-Age': '86400' // 24 hours
 };
+
+function jsonResponseWithCors(data, status = 200, additionalHeaders = {}, env = {}) {
+	return jsonResponse(data, status, { ...CORS_MAX_AGE, ...additionalHeaders }, env);
+}
 
 const ROUTES = [
 	{ method: 'POST', path: '/auth/register', handler: handleRegister },
@@ -74,7 +79,7 @@ async function readJsonBody(request, env) {
 	} catch (_error) {
 		return {
 			ok: false,
-			response: jsonResponse({
+			response: jsonResponseWithCors({
 				success: false,
 				error: 'BAD_REQUEST',
 				message: 'Invalid JSON in request body'
@@ -114,7 +119,7 @@ export default {
 
 		// Health check endpoint (no auth required)
 		if (url.pathname === '/health') {
-			return jsonResponse({
+			return jsonResponseWithCors({
 				status: 'ok',
 				version: CONFIG.VERSION,
 				timestamp: Date.now()
@@ -123,7 +128,7 @@ export default {
 
 		const matched = matchRoute(method, url.pathname);
 		if (!matched) {
-			return jsonResponse({
+			return jsonResponseWithCors({
 				success: false,
 				error: 'NOT_FOUND',
 				message: 'Endpoint not found'
@@ -136,7 +141,7 @@ export default {
 		if (route.authRequired) {
 			const authResult = await authenticateRequest(request, resolvedEnv);
 			if (!authResult.authenticated) {
-				return jsonResponse({
+				return jsonResponseWithCors({
 					success: false,
 					error: 'UNAUTHORIZED',
 					message: 'Invalid credentials'
@@ -147,7 +152,7 @@ export default {
 
 		const rateLimitResult = await rateLimit(request, resolvedEnv, url.pathname, authenticatedUserId);
 		if (!rateLimitResult.allowed) {
-			return jsonResponse({
+			return jsonResponseWithCors({
 				success: false,
 				error: 'RATE_LIMIT_EXCEEDED',
 				retryAfter: rateLimitResult.retryAfter
@@ -160,7 +165,7 @@ export default {
 			return await route.handler(request, resolvedEnv, { ...params, authenticatedUserId });
 		} catch (error) {
 			console.error('Request error:', error);
-			return jsonResponse({
+			return jsonResponseWithCors({
 				success: false,
 				error: 'INTERNAL_ERROR',
 				message: resolvedEnv.ENVIRONMENT === 'production' ? 'Internal server error' : error.message
@@ -177,7 +182,7 @@ async function handleRegister(request, env) {
 
 	const { userId, passwordHash } = parsed.data;
 	const result = await credentials.registerUser(userId, passwordHash, env);
-	return jsonResponse(result, result.success ? 200 : 400, {}, env);
+	return jsonResponseWithCors(result, result.success ? 200 : 400, {}, env);
 }
 
 async function handleLogin(request, env) {
@@ -190,15 +195,15 @@ async function handleLogin(request, env) {
 		const { userId, passwordHash } = parsed.data;
 		const result = await credentials.loginUser(userId, passwordHash, env);
 		if (!result.success) {
-			return jsonResponse(result, 401, {}, env);
+			return jsonResponseWithCors(result, 401, {}, env);
 		}
 		const issuedTokens = await tokens.issueTokens(userId, env);
-		return jsonResponse({
+		return jsonResponseWithCors({
 			...result,
 			tokens: issuedTokens
 		}, 200, {}, env);
 	} catch (error) {
-		return jsonResponse({
+		return jsonResponseWithCors({
 			success: false,
 			error: 'INTERNAL_ERROR',
 			message: env.ENVIRONMENT === 'production' ? 'Internal server error' : error.message
@@ -210,7 +215,7 @@ async function handleRefresh(request, env) {
 	try {
 		const refreshToken = getBearerToken(request);
 		if (!refreshToken) {
-			return jsonResponse({
+			return jsonResponseWithCors({
 				success: false,
 				error: 'UNAUTHORIZED',
 				message: 'Missing refresh token'
@@ -219,7 +224,7 @@ async function handleRefresh(request, env) {
 
 		const payload = await tokens.verifyRefreshToken(refreshToken, env);
 		if (!payload) {
-			return jsonResponse({
+			return jsonResponseWithCors({
 				success: false,
 				error: 'UNAUTHORIZED',
 				message: 'Invalid refresh token'
@@ -227,12 +232,12 @@ async function handleRefresh(request, env) {
 		}
 
 		const issuedTokens = await tokens.issueTokens(payload.sub, env);
-		return jsonResponse({
+		return jsonResponseWithCors({
 			success: true,
 			tokens: issuedTokens
 		}, 200, {}, env);
 	} catch (error) {
-		return jsonResponse({
+		return jsonResponseWithCors({
 			success: false,
 			error: 'INTERNAL_ERROR',
 			message: env.ENVIRONMENT === 'production' ? 'Internal server error' : error.message
@@ -243,7 +248,7 @@ async function handleRefresh(request, env) {
 async function handleSyncUpload(request, env, { authenticatedUserId }) {
 	const contentLength = request.headers.get('Content-Length');
 	if (contentLength && parseInt(contentLength, 10) > CONFIG.MAX_PAYLOAD_SIZE) {
-		return jsonResponse({
+		return jsonResponseWithCors({
 			success: false,
 			error: 'PAYLOAD_TOO_LARGE',
 			maxSize: CONFIG.MAX_PAYLOAD_SIZE
@@ -257,7 +262,7 @@ async function handleSyncUpload(request, env, { authenticatedUserId }) {
 
 	const body = parsed.data;
 	if (authenticatedUserId && body.userId && body.userId !== authenticatedUserId) {
-		return jsonResponse({
+		return jsonResponseWithCors({
 			success: false,
 			error: 'FORBIDDEN',
 			message: 'Cannot upload data for another user'
@@ -269,14 +274,14 @@ async function handleSyncUpload(request, env, { authenticatedUserId }) {
 
 async function handleSyncDownload(_request, env, { userId, authenticatedUserId }) {
 	if (!userId) {
-		return jsonResponse({
+		return jsonResponseWithCors({
 			success: false,
 			error: 'BAD_REQUEST',
 			message: 'userId required'
 		}, 400, {}, env);
 	}
 	if (authenticatedUserId && userId !== authenticatedUserId) {
-		return jsonResponse({
+		return jsonResponseWithCors({
 			success: false,
 			error: 'FORBIDDEN',
 			message: 'Cannot access another user\'s data'
@@ -288,14 +293,14 @@ async function handleSyncDownload(_request, env, { userId, authenticatedUserId }
 
 async function handleSyncDelete(_request, env, { userId, authenticatedUserId }) {
 	if (!userId) {
-		return jsonResponse({
+		return jsonResponseWithCors({
 			success: false,
 			error: 'BAD_REQUEST',
 			message: 'userId required'
 		}, 400, {}, env);
 	}
 	if (authenticatedUserId && userId !== authenticatedUserId) {
-		return jsonResponse({
+		return jsonResponseWithCors({
 			success: false,
 			error: 'FORBIDDEN',
 			message: 'Cannot delete another user\'s data'
@@ -308,13 +313,3 @@ async function handleSyncDelete(_request, env, { userId, authenticatedUserId }) 
 /**
  * Helper to create JSON responses with CORS headers
  */
-function jsonResponse(data, status = 200, additionalHeaders = {}, env = {}) {
-	return new Response(JSON.stringify(data), {
-		status,
-		headers: applyCorsHeaders(env, {
-			'Content-Type': 'application/json',
-			...CORS_MAX_AGE,
-			...additionalHeaders
-		})
-	});
-}

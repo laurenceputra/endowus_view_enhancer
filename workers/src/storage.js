@@ -4,16 +4,9 @@
  * Wrapper around Cloudflare KV for sync data persistence
  */
 
-const KEY_PREFIX = 'sync_user:';
+import { getKvBinding } from './kv.js';
 
-function getKvBinding(env) {
-	const bindingName = env?.SYNC_KV_BINDING || 'SYNC_KV';
-	const binding = env?.[bindingName];
-	if (!binding) {
-		throw new Error(`KV binding "${bindingName}" is not configured`);
-	}
-	return binding;
-}
+const KEY_PREFIX = 'sync_user:';
 
 /**
  * Get user config from KV
