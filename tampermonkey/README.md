@@ -300,6 +300,9 @@ Contributions are welcome! To contribute:
 
 ## Changelog
 
+### Version 2.11.1
+- Reduced false multi-device sync conflicts by reconciling identical payloads via content hash and aligning persisted sync timestamps with authoritative source timestamps
+
 ### Version 2.11.0
 - Added per-goal TWR window rows (1M/6M/YTD/1Y/3Y) in bucket detail view with `-` fallback when data is missing
 

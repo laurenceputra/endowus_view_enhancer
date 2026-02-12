@@ -386,7 +386,7 @@ GET /health
 Response (200):
 {
   "status": "ok",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "timestamp": 1234567890000
 }
 ```
